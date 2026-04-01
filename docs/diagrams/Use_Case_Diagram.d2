@@ -1,0 +1,65 @@
+direction: right
+
+user: User { shape: person }
+
+sources: Source APIs {
+  tmdb: TMDB
+  anilist: AniList
+  igdb: IGDB
+  openlibrary: OpenLibrary
+}
+
+ai: AI Service { shape: rectangle }
+
+system: MetaVault {
+  auth: Authentication {
+    register: Register
+    login: Login
+    logout: Logout
+  }
+  library: Library {
+    add: Add to Library
+    update: Update Entry
+    delete: Delete Entry
+    rate: Rate & Review
+    import: Import Media
+  }
+  discovery: Discovery {
+    search: Search
+    browse: Browse
+    filter: Filter & Sort
+  }
+  account: Account {
+    profile: Manage Profile
+    export: Export Library
+    toggle_source: Toggle Source Integration
+    toggle_ai: Toggle AI Integration
+  }
+  ai_chat: AI Chat
+}
+
+user -> system.auth.register
+user -> system.auth.login
+user -> system.auth.logout
+user -> system.library.add
+user -> system.library.update
+user -> system.library.delete
+user -> system.library.rate
+user -> system.library.import
+user -> system.discovery.search
+user -> system.discovery.browse
+user -> system.discovery.filter
+user -> system.account.profile
+user -> system.account.export
+user -> system.account.toggle_source
+user -> system.account.toggle_ai
+user -> system.ai_chat
+
+system.discovery.search -> sources: "<<optional>>"
+system.library.import -> sources
+system.library.add -> sources
+system.library.update -> sources
+system.account.toggle_source -> sources
+
+system.ai_chat -> ai
+system.account.toggle_ai -> ai
