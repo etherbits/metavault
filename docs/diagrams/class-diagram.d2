@@ -1,0 +1,74 @@
+direction: down
+
+EzqQuery: {
+  shape: class
+  "- rawQuery": string
+  "- ast": AST
+  "- errors": "string[]"
+  "+ parse()": "{ AST, errors }"
+  "+ generateSQL()": string
+  "+ verify()": boolean
+}
+
+AIChat: {
+  shape: class
+  "- chatId": string
+  "- config": AIConfig
+  "+ setChat(chatId)": void
+  "+ updateContext(context)": void
+  "+ sendMessage(message)": void
+  "+ getMessages()": void
+  "+ createChat()": string
+}
+
+LibraryManager: {
+  shape: class
+  "+ importItems(fileBuffer)": void
+  "+ exportItems(libraryEntries)": void
+}
+
+ISourceIntegration: {
+  shape: class
+  "<<interface>>"
+  "+ getEnrichmentData(target)": MediaMetadata
+  "+ enrich(entry)": LibraryEntry
+}
+
+TMDBIntegration: {
+  shape: class
+  "- baseUrl": string
+  "- config": SourceIntegrationConfig
+  "+ getEnrichmentData(target)": MediaMetadata
+  "+ enrich(entry)": LibraryEntry
+}
+
+AniListIntegration: {
+  shape: class
+  "- baseUrl": string
+  "- config": SourceIntegrationConfig
+  "+ getEnrichmentData(target)": MediaMetadata
+  "+ enrich(entry)": LibraryEntry
+}
+
+IGDBIntegration: {
+  shape: class
+  "- baseUrl": string
+  "- config": SourceIntegrationConfig
+  "+ getEnrichmentData(target)": MediaMetadata
+  "+ enrich(entry)": LibraryEntry
+}
+
+OpenLibraryIntegration: {
+  shape: class
+  "- baseUrl": string
+  "- config": SourceIntegrationConfig
+  "+ getEnrichmentData(target)": MediaMetadata
+  "+ enrich(entry)": LibraryEntry
+}
+
+User -> AIChat: uses
+User -> LibraryManager: uses
+TMDBIntegration -> ISourceIntegration: implements
+AniListIntegration -> ISourceIntegration: implements
+IGDBIntegration -> ISourceIntegration: implements
+OpenLibraryIntegration -> ISourceIntegration: implements

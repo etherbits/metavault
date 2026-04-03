@@ -1,0 +1,60 @@
+direction: right
+
+user: User { shape: person }
+
+sources: Source APIs {
+  igdb: IGDB
+  openlibrary: OpenLibrary
+  tmdb: TMDB
+  anilist: AniList
+}
+
+ai: AI Service { shape: rectangle }
+
+system: MetaVault {
+  auth: Authentication {
+    register: Register
+    login: Login
+    logout: Logout
+  }
+  library: Library {
+    add: Add Entries
+    search: Search Entries
+    update: Update Entries
+    delete: Delete Entries
+    rate: Rate
+    import: Import Media
+    export: Export Media
+  }
+  integrations: Integrations {
+    toggle_source: Toggle Source Integration
+    toggle_ai: Toggle AI Integration
+  }
+  ai_chat: AI Chat
+}
+
+# Auth
+user -> system.auth.register
+user -> system.auth.login
+user -> system.auth.logout
+
+# Library actions
+user -> system.library.add
+user -> system.library.update
+user -> system.library.search
+user -> system.library.delete
+user -> system.library.rate
+user -> system.library.import
+user -> system.library.export
+
+# Integrations & AI
+user -> system.integrations.toggle_source
+user -> system.integrations.toggle_ai
+user -> system.ai_chat
+
+# Collapse the source connections to the container level
+# to prevent the layout engine from exploding
+system.library -> sources
+system.integrations.toggle_source -> sources
+system.ai_chat -> ai
+system.integrations.toggle_ai -> ai

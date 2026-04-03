@@ -1,0 +1,46 @@
+shape: sequence_diagram
+
+user: User
+client: "Client (Browser)"
+ezq_wasm: "ezq (WASM)"
+api: "MetaVault API"
+ezq_server: "ezq (Server)"
+db: "SQLite"
+source: "Source API"
+
+user -> client: "type query string"
+client -> ezq_wasm: "parse(rawQuery)"
+ezq_wasm -> client: "{ ast, canonical_query, errors }"
+client -> client: "show inline feedback\n(valid/invalid, canonical form)"
+
+client -> api: "POST /query { ast }"
+api -> ezq_server: "verify(ast) + generateSQL(ast)"
+ezq_server -> api: "{ valid, sql }"
+api -> source: "get enrichment data (if si:enrich)"
+source -> api: "return enrichment data"
+api -> api: "enrich generated SQL"
+api -> db: "execute SQL"
+db -> api: "matched entries"
+api -> client: "200 OK { entries }"
+client -> user: "render results"
+
+user -> client: "update status"
+client -> api: "PATCH /library/:id { status }"
+api -> db: "UPDATE entry"
+db -> api: "updated row"
+api -> client: "200 OK { entry }"
+client -> user: "status updated"
+
+user -> client: "rate entry"
+client -> api: "PATCH /library/:id { rating }"
+api -> db: "UPDATE entry"
+db -> api: "updated row"
+api -> client: "200 OK { entry }"
+client -> user: "rating saved"
+
+user -> client: "add entries to collection"
+client -> api: "PATCH /collection/:id { entries }"
+api -> db: "Add entries to collection"
+db -> api: "collection entries"
+api -> client: "200 OK { entries }"
+client -> user: "entries moved to collection"
