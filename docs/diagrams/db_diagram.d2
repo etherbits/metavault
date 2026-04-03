@@ -1,0 +1,90 @@
+direction: down
+
+users: {
+  shape: sql_table
+  id: UUID {constraint: primary_key}
+  username: TEXT {constraint: unique}
+  email: TEXT {constraint: unique}
+  password_hash: TEXT
+  created_at: DATETIME
+  updated_at: DATETIME
+}
+
+library_entries: {
+  shape: sql_table
+  id: UUID {constraint: primary_key}
+  user_id: UUID {constraint: foreign_key}
+  media_id: TEXT
+  source_id: UUID {constraint: foreign_key}
+  media_type: TEXT
+  status: TEXT
+  public_rating: REAL
+  personal_rating: REAL
+  created_at: DATETIME
+  updated_at: DATETIME
+}
+
+source_integrations: {
+	shape: sql_table
+	id: UUID {constraint: primary_key}
+	is_active: BOOL
+	integration_type: TEXT
+	user_id: UUID {constraint: foreign_key}
+	config_json: TEXT
+}
+
+ai_integrations: {
+	shape: sql_table
+	id: UUID {constraint: primary_key}
+	is_active: BOOL
+	integration_type: TEXT
+	user_id: UUID {constraint: foreign_key}
+	config_json: TEXT
+}
+
+alias_mappings: {
+	shape: sql_table
+	id: UUID {constraint: primary_key}
+	user_id: UUID {constraint: foreign_key}
+	alias: TEXT
+	expansion: TEXT
+}
+
+content_nodes: {
+	shape: sql_table
+	id: UUID {constraint: primary_key}
+	title: TEXT
+	link: TEXT
+	order_index: INT
+	library_entry_id: UUID {constraint: foreign_key}
+}
+
+tags: {
+	shape: sql_table
+	id: UUID {constraint: primary_key}
+	value: TEXT
+	library_entry_id: UUID {constraint: foreign_key}
+}
+
+collections: {
+	shape: sql_table
+	id: UUID {constraint: primary_key}
+	name: TEXT
+}
+
+collection_entries: {
+	shape: sql_table
+	id: UUID {constraint: primary_key}
+	collection_id: UUID {constraint: foreign_key}
+	library_entry_id: UUID {constraint: foreign_key}
+}
+
+library_entries.user_id -> users.id
+library_entries.source_id -> source_integrations.id
+source_integrations.user_id -> users.id
+ai_integrations.user_id -> users.id
+alias_mappings.user_id -> users.id
+content_nodes.library_entry_id -> library_entries.id
+tags.library_entry_id -> library_entries.id
+collection_entries.collection_id -> collections.id
+collection_entries.library_entry_id -> library_entries.id
