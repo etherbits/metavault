@@ -14,7 +14,7 @@ export default defineConfig({
 		video: "retain-on-failure",
 	},
 	webServer: {
-		command: "bun ./packages/server/index.ts",
+		command: "bun ../packages/server/index.ts",
 		url: "http://localhost:8080/health",
 		reuseExistingServer: !isCI,
 		stdout: "pipe",
