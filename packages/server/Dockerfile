@@ -1,0 +1,16 @@
+FROM oven/bun:1
+
+WORKDIR /app
+
+COPY package.json bun.lock ./
+COPY packages/server/package.json ./packages/server/
+COPY packages/web-client/package.json ./packages/web-client/
+
+RUN bun install --frozen-lockfile
+
+COPY packages/server/ ./packages/server/
+
+WORKDIR /app/packages/server
+
+EXPOSE 8080
+CMD ["bun", "index.ts"]

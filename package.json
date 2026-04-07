@@ -1,0 +1,26 @@
+{
+  "name": "core",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "format": "bunx @biomejs/biome format --write .",
+    "lint": "bunx @biomejs/biome lint .",
+    "lint:fix": "bunx @biomejs/biome lint --write .",
+    "test:e2e": "playwright test --config tests/playwright.config.ts",
+    "test:unit": "bun test tests/unit-tests",
+    "db:seed": "bun --cwd packages/server run db:seed",
+    "db:reset": "bun --cwd packages/server run db:reset"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "lefthook": "^2.1.5"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "workspaces": [
+    "packages/*",
+    "tests"
+  ]
+}

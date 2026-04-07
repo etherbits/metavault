@@ -1,0 +1,12 @@
+{
+	"name": "metavault-tests",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"test:e2e": "playwright test",
+		"test:unit": "bun test unit-tests"
+	},
+	"devDependencies": {
+		"@playwright/test": "latest"
+	}
+}

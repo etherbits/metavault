@@ -1,0 +1,23 @@
+{
+	"name": "metavault-server",
+	"module": "index.ts",
+	"type": "module",
+	"private": true,
+	"scripts": {
+		"dev": "bun index.ts",
+		"db:seed": "bun scripts/seed.ts",
+		"db:reset": "bun scripts/reset.ts"
+	},
+	"devDependencies": {
+		"@types/bun": "latest"
+	},
+	"peerDependencies": {
+		"typescript": "^5"
+	},
+	"dependencies": {
+		"@types/express": "^5.0.6",
+		"express": "^5.2.1",
+		"pino": "^10.3.1",
+		"pino-pretty": "^13.1.3"
+	}
+}
