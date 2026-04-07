@@ -1,7 +1,7 @@
 pre-commit:
   commands:
     format:
-      glob: "**/*.{ts,tsx,json,html,yml,yaml}"
+      glob: "**/*.{ts,tsx,json,html}"
       run: bunx @biomejs/biome format --write {staged_files}
       stage_fixed: true
 
