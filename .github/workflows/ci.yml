@@ -46,3 +46,31 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run build
         working-directory: packages/web-client
+
+  publish:
+    name: Publish Docker Images
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [lint, unit-tests, e2e, build]
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: packages/server/Dockerfile.prod
+          push: true
+          tags: ghcr.io/${{ github.repository }}/server:latest
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: packages/web-client/Dockerfile.prod
+          push: true
+          tags: ghcr.io/${{ github.repository }}/web-client:latest

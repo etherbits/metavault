@@ -1,0 +1,20 @@
+services:
+  server:
+    image: ghcr.io/etherbits/metavault/server:latest
+    restart: unless-stopped
+    volumes:
+      - sqlite_data:/app/packages/server/data
+    environment:
+      DATABASE_URL: sqlite:///app/packages/server/data/db.sqlite
+      NODE_ENV: production
+
+  web-client:
+    image: ghcr.io/etherbits/metavault/web-client:latest
+    restart: unless-stopped
+    ports:
+      - "7000:80"
+    depends_on:
+      - server
+
+volumes:
+  sqlite_data:
