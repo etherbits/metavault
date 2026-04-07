@@ -13,5 +13,11 @@ COPY packages/server/ ./packages/server/
 
 WORKDIR /app/packages/server
 
+RUN chmod +x entrypoint.sh
+
 EXPOSE 8080
-CMD ["bun", "index.ts"]
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget -qO- http://localhost:8080/health || exit 1
+
+ENTRYPOINT ["./entrypoint.sh"]

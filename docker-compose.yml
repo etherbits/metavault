@@ -15,10 +15,7 @@ services:
     build:
       context: .
       dockerfile: packages/web-client/Dockerfile
-    command: ["bun", "--hot", "src/index.tsx"]
     ports:
-      - "3000:3000"
-    volumes:
-      - ./packages/web-client:/app/packages/web-client
+      - "3000:80"
     depends_on:
       - server

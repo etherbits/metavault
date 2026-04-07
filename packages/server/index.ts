@@ -11,6 +11,7 @@ app.use(loggerMiddleware);
 
 // biome-ignore lint/correctness/noUnusedFunctionParameters: req unused but required by Express signature
 app.get("/health", (req, res) => {
+	console.log("API URL:", process.env.BUN_PUBLIC_API_URL);
 	res.json({ status: "ok", uptime: process.uptime() });
 });
 

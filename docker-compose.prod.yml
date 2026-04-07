@@ -1,0 +1,31 @@
+services:
+  server:
+    build:
+      context: .
+      dockerfile: packages/server/Dockerfile.prod
+    restart: unless-stopped
+    volumes:
+      - sqlite_data:/app/packages/server/data
+    environment:
+      DATABASE_URL: sqlite:///app/packages/server/data/db.sqlite
+      NODE_ENV: production
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+  web-client:
+    build:
+      context: .
+      dockerfile: packages/web-client/Dockerfile.prod
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      server:
+        condition: service_healthy
+
+volumes:
+  sqlite_data:
