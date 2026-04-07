@@ -9,14 +9,15 @@ services:
     environment:
       DATABASE_URL: sqlite:///app/packages/server/data/db.sqlite
       NODE_ENV: production
-
+    ports:
+      - "7001:8080"
   web-client:
     build:
       context: .
       dockerfile: packages/web-client/Dockerfile.prod
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "7000:80"
     depends_on:
       - server
 volumes:
