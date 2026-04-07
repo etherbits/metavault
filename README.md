@@ -22,7 +22,7 @@ bun dev
 
 ## Self-Hosting
 
-Metavault can be self-hosted on any OS that supports Docker (Linux, macOS, Windows).
+Metavault can be self-hosted on any OS that supports Docker (Linux, macOS, Windows)
 
 ### Option 1: Pre-built images (recommended)
 
