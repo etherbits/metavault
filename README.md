@@ -29,7 +29,7 @@ bun dev
 | [React 19](https://react.dev)                                          | UI framework                      | Largest ecosystem, stable concurrent features, broad team familiarity vs Vue/Svelte          |
 | [Tailwind CSS v4](https://tailwindcss.com)                             | Styling                           | Utility-first keeps styles co-located with markup; v4 drops config files entirely            |
 | [shadcn/ui](https://ui.shadcn.com) + [Radix](https://www.radix-ui.com) | UI components                     | Unstyled, accessible primitives you own — no library lock-in vs MUI/Ant Design               |
-| [Express 5](https://expressjs.com)                                     | HTTP server                       | Mature, minimal, well-understood; v5 adds native async error handling                        |
+| [Express 5](https://expressjs.com)                                     | HTTP server                       | Mature, minimal, well-understood; v5 improves async handler error propagation                |
 | [Pino](https://getpino.io)                                             | Logging                           | Fastest Node-compatible logger with structured JSON output vs Winston                        |
 | [Bun SQLite](https://bun.sh/docs/api/sqlite)                           | Database                          | Zero-config, embedded, no separate process; ideal for simple self-hosted deployments         |
 | [Zod](https://zod.dev)                                                 | Validation                        | Runtime schema validation that shares types with TypeScript                                  |
