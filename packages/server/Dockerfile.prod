@@ -7,6 +7,8 @@ COPY packages/server/package.json ./packages/server/
 COPY packages/web-client/package.json ./packages/web-client/
 COPY tests/package.json ./tests/
 
+RUN apt-get update && apt-get install -y curl --no-install-recommends && rm -rf /var/lib/apt/lists/*
+
 RUN bun install --frozen-lockfile
 
 COPY packages/server/ ./packages/server/
