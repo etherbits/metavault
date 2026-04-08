@@ -1,6 +1,8 @@
 # Metavault: Self-Hostable digital content management library
 
-## setup
+MetaVault is a multi-user, API-first personal media library for tracking the things you watch, read, and play. It pulls from multiple sources through a unified data layer, supports AI-powered interactions, and lets you organize your collection with statuses, custom collections, and shareable lists — all built on a fast, lightweight stack.
+
+## Setup
 
 To install dependencies:
 
@@ -41,15 +43,50 @@ bun test:e2e
 
 ## Scripts
 
-| Command         | Description             |
-| --------------- | ----------------------- |
-| `bun lint`      | Check for lint errors   |
-| `bun lint:fix`  | Auto-fix lint errors    |
-| `bun format`    | Format all source files |
-| `bun test:unit` | Run unit tests          |
-| `bun test:e2e`  | Run end-to-end tests    |
-| `bun db:seed`   | Seed the database       |
-| `bun db:reset`  | Reset the database      |
+| Command          | Description                      |
+| ---------------- | -------------------------------- |
+| `bun lint`       | Check for lint errors            |
+| `bun lint:fix`   | Auto-fix lint errors             |
+| `bun format`     | Format all source files          |
+| `bun type-check` | Type-check server and web client |
+| `bun test:unit`  | Run unit tests                   |
+| `bun test:e2e`   | Run end-to-end tests             |
+| `bun db:seed`    | Seed the database                |
+| `bun db:reset`   | Reset the database               |
+
+## Testing
+
+### Test types
+
+**Unit tests** (`tests/unit-tests/`) cover isolated logic — pure functions, utilities, and data transformations. Run with `bun test:unit`.
+
+**E2E tests** (`tests/e2e/`) use Playwright to test the full application through the browser. Playwright automatically starts the server before the suite runs. Run with `bun test:e2e`.
+
+**Rust tests** (`packages/ezq/`) are co-located with their modules using `#[cfg(test)]`. Run with `cargo test` inside `packages/ezq/`.
+
+### Guidelines
+
+- Every major user-facing feature should have at least one E2E test covering its happy path.
+- Non-trivial logic (parsers, matchers, data transformations) should have unit tests covering both expected behavior and edge cases.
+- API endpoints should be covered by E2E or integration tests — don't test them only through the UI.
+- Rust functions with meaningful logic should have inline unit tests; use doc-tests for public API examples.
+- Avoid testing implementation details. Test behavior and outcomes, not internal state.
+
+## CI/CD
+
+All checks run on every push and pull request to `main`. Docker images are published to GHCR only on a direct push to `main` after all jobs pass.
+
+| Job          | What it does                                                                |
+| ------------ | --------------------------------------------------------------------------- |
+| `lint`       | Runs Biome lint across the entire repo                                      |
+| `unit-tests` | Runs `bun test` against `tests/unit-tests/`                                 |
+| `e2e`        | Starts the server and runs Playwright tests                                 |
+| `build`      | Builds the web client to verify the production bundle compiles              |
+| `type-check` | Runs `tsc --noEmit` for both `packages/server` and `packages/web-client`    |
+| `ezq`        | Runs `cargo fmt --check` and `cargo test` for the Rust `packages/ezq` crate |
+| `publish`    | Builds and pushes multi-arch Docker images to GHCR (main branch only)       |
+
+Deployment is handled by Coolify via its GitHub App integration — it picks up new images automatically after `publish` completes.
 
 ## Self-Hosting
 
