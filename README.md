@@ -17,7 +17,8 @@ bun dev
 To run tests:
 
 ```bash
-bun dev
+bun test:unit
+bun test:e2e
 ```
 
 ## Tech Stack
