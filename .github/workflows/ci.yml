@@ -13,6 +13,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
+        with:
+          cache: true
       - run: bun install --frozen-lockfile
       - run: bunx @biomejs/biome lint .
 
@@ -22,6 +24,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
+        with:
+          cache: true
       - run: bun install --frozen-lockfile
       - run: bun test tests/unit-tests
 
@@ -31,6 +35,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
+        with:
+          cache: true
       - run: bun install --frozen-lockfile
       - run: bunx playwright install chromium --with-deps
       - run: bun run test:e2e
@@ -43,15 +49,47 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
+        with:
+          cache: true
       - run: bun install --frozen-lockfile
       - run: bun run build
         working-directory: packages/web-client
+
+  type-check:
+    name: Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          cache: true
+      - run: bun install --frozen-lockfile
+      - run: bunx tsc --noEmit
+        working-directory: packages/server
+      - run: bunx tsc --noEmit
+        working-directory: packages/web-client
+
+  ezq:
+    name: EZQ quality gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: packages/ezq
+      - run: cargo fmt --check
+        working-directory: packages/ezq
+      - run: cargo test
+        working-directory: packages/ezq
 
   publish:
     name: Publish Docker Images
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [lint, unit-tests, e2e, build]
+    needs: [lint, unit-tests, e2e, build, type-check, ezq]
     permissions:
       contents: read
       packages: write

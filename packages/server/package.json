@@ -5,6 +5,7 @@
 	"private": true,
 	"scripts": {
 		"dev": "bun index.ts",
+		"type-check": "tsc --noEmit",
 		"db:seed": "bun scripts/seed.ts",
 		"db:reset": "bun scripts/reset.ts"
 	},

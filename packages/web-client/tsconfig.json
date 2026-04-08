@@ -9,6 +9,7 @@
 		"allowImportingTsExtensions": true,
 		"verbatimModuleSyntax": true,
 		"noEmit": true,
+		"skipLibCheck": true,
 		"target": "ES2017",
 
 		"baseUrl": ".",
