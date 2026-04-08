@@ -43,16 +43,16 @@ bun test:e2e
 
 ## Scripts
 
-| Command              | Description                          |
-| -------------------- | ------------------------------------ |
-| `bun lint`           | Check for lint errors                |
-| `bun lint:fix`       | Auto-fix lint errors                 |
-| `bun format`         | Format all source files              |
-| `bun type-check`     | Type-check server and web client     |
-| `bun test:unit`      | Run unit tests                       |
-| `bun test:e2e`       | Run end-to-end tests                 |
-| `bun db:seed`        | Seed the database                    |
-| `bun db:reset`       | Reset the database                   |
+| Command          | Description                      |
+| ---------------- | -------------------------------- |
+| `bun lint`       | Check for lint errors            |
+| `bun lint:fix`   | Auto-fix lint errors             |
+| `bun format`     | Format all source files          |
+| `bun type-check` | Type-check server and web client |
+| `bun test:unit`  | Run unit tests                   |
+| `bun test:e2e`   | Run end-to-end tests             |
+| `bun db:seed`    | Seed the database                |
+| `bun db:reset`   | Reset the database               |
 
 ## Testing
 
@@ -76,15 +76,15 @@ bun test:e2e
 
 All checks run on every push and pull request to `main`. Docker images are published to GHCR only on a direct push to `main` after all jobs pass.
 
-| Job          | What it does                                                              |
-| ------------ | ------------------------------------------------------------------------- |
-| `lint`       | Runs Biome lint across the entire repo                                    |
-| `unit-tests` | Runs `bun test` against `tests/unit-tests/`                               |
-| `e2e`        | Starts the server and runs Playwright tests                               |
-| `build`      | Builds the web client to verify the production bundle compiles            |
-| `type-check` | Runs `tsc --noEmit` for both `packages/server` and `packages/web-client`  |
+| Job          | What it does                                                                |
+| ------------ | --------------------------------------------------------------------------- |
+| `lint`       | Runs Biome lint across the entire repo                                      |
+| `unit-tests` | Runs `bun test` against `tests/unit-tests/`                                 |
+| `e2e`        | Starts the server and runs Playwright tests                                 |
+| `build`      | Builds the web client to verify the production bundle compiles              |
+| `type-check` | Runs `tsc --noEmit` for both `packages/server` and `packages/web-client`    |
 | `ezq`        | Runs `cargo fmt --check` and `cargo test` for the Rust `packages/ezq` crate |
-| `publish`    | Builds and pushes multi-arch Docker images to GHCR (main branch only)    |
+| `publish`    | Builds and pushes multi-arch Docker images to GHCR (main branch only)       |
 
 Deployment is handled by Coolify via its GitHub App integration — it picks up new images automatically after `publish` completes.
 
