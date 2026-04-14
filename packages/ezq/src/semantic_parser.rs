@@ -43,7 +43,8 @@ pub enum ParseError {
     EmptyInput,
 }
 
-#[derive(Debug)]
+#[derive(Debug, serde::Serialize, tsify_next::Tsify)]
+#[tsify(into_wasm_abi)]
 pub struct ParsedQuery {
     pub action: String,
     pub targets: Vec<String>,

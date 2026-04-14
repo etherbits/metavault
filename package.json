@@ -11,7 +11,8 @@
     "test:unit": "bun test tests/unit-tests",
     "type-check": "bun run --cwd packages/server type-check && bun run --cwd packages/web-client type-check",
     "db:seed": "bun --cwd packages/server run db:seed",
-    "db:reset": "bun --cwd packages/server run db:reset"
+    "db:reset": "bun --cwd packages/server run db:reset",
+    "ezq:build": "wasm-pack build packages/ezq --target nodejs --out-dir out/node --scope ezq-node && wasm-pack build packages/ezq --target bundler --scope ezq-web --out-dir out/web"
   },
   "devDependencies": {
     "@types/bun": "latest",
@@ -21,7 +22,10 @@
     "typescript": "^5"
   },
   "workspaces": [
-    "packages/*",
+    "packages/ezq/out/node",
+    "packages/ezq/out/web",
+    "packages/server",
+    "packages/web-client",
     "tests"
   ]
 }

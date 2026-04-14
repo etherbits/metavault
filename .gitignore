@@ -1,6 +1,9 @@
 # dependencies (bun install)
 node_modules
 
+# ezq wasm build output
+packages/ezq/out/
+
 # output
 out
 dist

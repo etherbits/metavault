@@ -1,7 +1,7 @@
 import type { SQL } from "bun";
 
 export async function createUsersTable(sql: SQL) {
-	await sql`
+  await sql`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       username TEXT UNIQUE NOT NULL,
