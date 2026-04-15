@@ -1,5 +1,5 @@
 import { run_query } from "@etherbits/ezq-web";
-import { Card, CardContent } from "./components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { useEffect, useState } from "react";
 import "./index.css";
 
