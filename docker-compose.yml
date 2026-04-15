@@ -5,17 +5,23 @@ services:
       dockerfile: packages/server/Dockerfile
     command: ["bun", "--hot", "index.ts"]
     ports:
-      - "8080:8080"
+      - "3435:3435"
     volumes:
       - ./packages/server:/app/packages/server
     environment:
       DATABASE_URL: sqlite:///app/packages/server/data/db.sqlite
+      PORT: "3435"
+      CLIENT_ORIGIN: "http://localhost:3534"
 
   web-client:
     build:
       context: .
       dockerfile: packages/web-client/Dockerfile
     ports:
-      - "3000:80"
+      - "3534:3534"
+    volumes:
+      - ./packages/web-client:/app/packages/web-client
+    environment:
+      VITE_API_URL: "http://localhost:3435/"
     depends_on:
       - server

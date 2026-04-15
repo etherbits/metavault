@@ -2,6 +2,9 @@ FROM oven/bun:1
 
 WORKDIR /app
 
+# ARG EZQ_REGISTRY=https://registry.npmjs.org
+# RUN printf "@etherbits:registry=${EZQ_REGISTRY}\n" > .npmrc
+
 COPY package.json bun.lock ./
 COPY packages/server/package.json ./packages/server/
 COPY packages/web-client/package.json ./packages/web-client/
@@ -13,5 +16,5 @@ COPY packages/server/ ./packages/server/
 
 WORKDIR /app/packages/server
 
-EXPOSE 8080
+EXPOSE 3435
 CMD ["bun", "index.ts"]

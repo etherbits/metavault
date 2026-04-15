@@ -15,6 +15,9 @@ COPY packages/web-client/ ./packages/web-client/
 
 WORKDIR /app/packages/web-client
 
+ARG VITE_API_URL=http://localhost:3435/
+ENV VITE_API_URL=$VITE_API_URL
+
 RUN bun run build
 
 # Stage 2: Serve with nginx

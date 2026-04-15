@@ -1,7 +1,7 @@
 import type { SQL } from "bun";
 
 export async function createTagsTable(sql: SQL) {
-	await sql`
+  await sql`
     CREATE TABLE IF NOT EXISTS tags (
       id TEXT PRIMARY KEY,
       value TEXT NOT NULL,
