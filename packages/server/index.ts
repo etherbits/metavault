@@ -14,7 +14,6 @@ app.use(loggerMiddleware);
 app.use(
   cors({
     origin: clientOrigin,
-    methods: "*",
   })
 );
 
