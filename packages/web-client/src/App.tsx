@@ -1,9 +1,12 @@
-import { Card, CardContent } from "@/components/ui/card";
+import { run_query } from "@etherbits/ezq-web";
+import { Card, CardContent } from "./components/ui/card";
 import { useEffect, useState } from "react";
 import "./index.css";
 
-import logo from "./logo.svg";
-import reactLogo from "./react.svg";
+import logo from "./assets/vite.svg";
+import reactLogo from "./assets/react.svg";
+
+const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3435/";
 
 type HealthStatus = "pending" | "ok" | "error";
 
@@ -12,7 +15,7 @@ function useApiHealth() {
   const [uptime, setUptime] = useState<number | null>(null);
 
   useEffect(() => {
-    fetch("/api/health")
+    fetch(new URL("health", API_BASE_URL))
       .then((res) => res.json())
       .then((data) => {
         setStatus("ok");
@@ -26,6 +29,23 @@ function useApiHealth() {
 
 export function App() {
   const { status, uptime } = useApiHealth();
+  const [queryResult, setQueryResult] = useState<string>(
+    "loading query parser..."
+  );
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const parsed = run_query("s aot tag:action");
+    if (!isCancelled) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setQueryResult(JSON.stringify(parsed));
+    }
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
 
   return (
     <div className="container mx-auto p-8 text-center relative z-10">
@@ -44,8 +64,8 @@ export function App() {
 
       <Card className="bg-card/50 backdrop-blur-sm border-muted">
         <CardContent className="pt-6">
-          <h1 className="text-5xl font-bold my-4 leading-tight">Bun + React</h1>
-          <h2>asd</h2>
+          <h1 className="text-5xl font-bold my-4 leading-tight">Metavault</h1>
+          <h2>{queryResult}</h2>
           <p>
             Edit{" "}
             <code className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm">
@@ -53,6 +73,7 @@ export function App() {
             </code>{" "}
             and save to test HMR
           </p>
+          api url: {API_BASE_URL}
         </CardContent>
       </Card>
 

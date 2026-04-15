@@ -1,5 +1,4 @@
-# Stage 1: Build static assets
-FROM oven/bun:1 AS builder
+FROM oven/bun:1
 
 WORKDIR /app
 
@@ -10,17 +9,7 @@ COPY tests/package.json ./tests/
 
 RUN bun install --frozen-lockfile
 
-COPY packages/server/ ./packages/server/
-COPY packages/web-client/ ./packages/web-client/
-
 WORKDIR /app/packages/web-client
 
-RUN bun run build
-
-# Stage 2: Serve with nginx
-FROM nginx:alpine
-
-COPY --from=builder /app/packages/web-client/dist /usr/share/nginx/html
-COPY packages/web-client/nginx.conf /etc/nginx/conf.d/default.conf
-
-EXPOSE 80
+EXPOSE 3534
+CMD ["bun", "run", "dev", "--host", "0.0.0.0", "--port", "3534"]

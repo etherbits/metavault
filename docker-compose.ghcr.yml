@@ -7,6 +7,10 @@ services:
     environment:
       DATABASE_URL: sqlite:///app/packages/server/data/db.sqlite
       NODE_ENV: production
+      PORT: "3435"
+      CLIENT_ORIGIN: "${CLIENT_ORIGIN:-http://localhost:3534}"
+    ports:
+      - "3435:3435"
 
   web-client:
     image: ghcr.io/etherbits/metavault/web-client:latest

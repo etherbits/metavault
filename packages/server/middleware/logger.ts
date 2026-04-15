@@ -9,8 +9,16 @@ declare global {
   }
 }
 
-export function loggerMiddleware(req: Request, res: Response, next: NextFunction) {
-  req.log = logger.child({ reqId: crypto.randomUUID(), method: req.method, url: req.url });
+export function loggerMiddleware(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  req.log = logger.child({
+    reqId: crypto.randomUUID(),
+    method: req.method,
+    url: req.url,
+  });
 
   const start = Date.now();
   res.on("finish", () => {

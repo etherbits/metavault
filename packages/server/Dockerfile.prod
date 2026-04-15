@@ -17,6 +17,6 @@ WORKDIR /app/packages/server
 
 RUN chmod +x entrypoint.sh
 
-EXPOSE 8080
+EXPOSE 3435
 
 ENTRYPOINT ["./entrypoint.sh"]
