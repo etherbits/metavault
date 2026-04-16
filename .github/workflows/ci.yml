@@ -110,6 +110,8 @@ jobs:
       - run: bash scripts/build-ezq.sh
       - name: Publish @etherbits/ezq-node
         working-directory: packages/ezq/out/node
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           VERSION=$(node -p "require('./package.json').version")
           if npm view "@etherbits/ezq-node@$VERSION" version 2>/dev/null; then
@@ -119,6 +121,8 @@ jobs:
           fi
       - name: Publish @etherbits/ezq-web
         working-directory: packages/ezq/out/web
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           VERSION=$(node -p "require('./package.json').version")
           if npm view "@etherbits/ezq-web@$VERSION" version 2>/dev/null; then
