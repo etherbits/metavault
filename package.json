@@ -4,7 +4,7 @@
 	"devDependencies": {
 		"@biomejs/biome": "^2.4.12",
 		"@types/bun": "latest",
-		"lefthook": "^2.1.5"
+		"lefthook": "^2.1.6"
 	},
 	"peerDependencies": {
 		"typescript": "^5.9.3"
@@ -13,8 +13,8 @@
 	"scripts": {
 		"dev": "bun run --filter metavault-server --filter metavault-web-client --parallel dev",
 		"format": "biome format --write .",
-		"lint": "bunx @biomejs/biome lint .",
-		"lint:fix": "bunx @biomejs/biome lint --write .",
+		"lint": "biome lint .",
+		"lint:fix": "biome lint --write .",
 		"test:e2e": "playwright test --config tests/playwright.config.ts",
 		"test:unit": "bun test tests/unit-tests",
 		"type-check": "bun run --cwd packages/server type-check && bun run --cwd packages/web-client type-check",

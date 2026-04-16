@@ -38,7 +38,9 @@ impl SemanticParser {
     }
 
     pub fn parse(&self, tokenized_query: TokenizedQuery) -> Result<ParsedQuery, ParseError> {
-        println!("{:?}", tokenized_query);
+        if tokenized_query.action.len() == 0 {
+            return Err(ParseError::MissingAction);
+        }
         Ok(ParsedQuery {
             action: self.parse_action(&tokenized_query.action),
             targets: tokenized_query.targets,
@@ -49,8 +51,8 @@ impl SemanticParser {
 
 #[derive(Debug, Error)]
 pub enum ParseError {
-    #[error("the input query was empty")]
-    EmptyInput,
+    #[error("the tokenized query is missing action segment")]
+    MissingAction,
 }
 
 #[derive(Debug, serde::Serialize, tsify_next::Tsify)]
