@@ -4,10 +4,8 @@
   "workspaces": {
     "": {
       "name": "core",
-      "dependencies": {
-        "@biomejs/biome": "^2.4.12",
-      },
       "devDependencies": {
+        "@biomejs/biome": "^2.4.12",
         "@types/bun": "latest",
         "lefthook": "^2.1.5",
       },

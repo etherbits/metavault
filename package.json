@@ -1,7 +1,14 @@
 {
   "name": "core",
   "module": "index.ts",
-  "type": "module",
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.12",
+    "@types/bun": "latest",
+    "lefthook": "^2.1.5"
+  },
+  "peerDependencies": {
+    "typescript": "^5.9.3"
+  },
   "private": true,
   "scripts": {
     "dev": "bun run --filter metavault-server --filter metavault-web-client --parallel dev",
@@ -16,19 +23,10 @@
     "ezq:link": "bash scripts/build-ezq.sh --link",
     "ezq:unlink": "rm -rf node_modules/@etherbits && bun install"
   },
-  "devDependencies": {
-    "@types/bun": "latest",
-    "lefthook": "^2.1.5"
-  },
-  "peerDependencies": {
-    "typescript": "^5.9.3"
-  },
+  "type": "module",
   "workspaces": [
     "packages/server",
     "packages/web-client",
     "tests"
-  ],
-  "dependencies": {
-    "@biomejs/biome": "^2.4.12"
-  }
+  ]
 }
