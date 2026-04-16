@@ -1,21 +1,22 @@
 #!/bin/bash
 set -e
 
-patch_pkg_name() {
+patch_pkg() {
   local path="$1" name="$2"
   bun -e "
     import { readFileSync, writeFileSync } from 'node:fs';
     const p = JSON.parse(readFileSync('${path}/package.json', 'utf8'));
     p.name = '${name}';
+    p.repository = { type: 'git', url: 'https://github.com/etherbits/metavault' };
     writeFileSync('${path}/package.json', JSON.stringify(p, null, 2) + '\n');
   "
 }
 
 wasm-pack build packages/ezq --target nodejs --out-dir out/node --scope etherbits
-patch_pkg_name packages/ezq/out/node @etherbits/ezq-node
+patch_pkg packages/ezq/out/node @etherbits/ezq-node
 
 wasm-pack build packages/ezq --target bundler --out-dir out/web --scope etherbits
-patch_pkg_name packages/ezq/out/web @etherbits/ezq-web
+patch_pkg packages/ezq/out/web @etherbits/ezq-web
 
 if [ "${1}" = "--link" ]; then
   echo "linking packages..."
