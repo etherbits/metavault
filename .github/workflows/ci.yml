@@ -106,7 +106,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: npm install -g npm@latest
+      - name: Install npm 11
+        run: |
+          curl -sL https://registry.npmjs.org/npm/-/npm-11.5.1.tgz | tar -xz -C /tmp/
+          node /tmp/package/bin/npm-cli.js install -g /tmp/package/
       - run: bash scripts/build-ezq.sh
       - name: Publish @etherbits/ezq-node
         working-directory: packages/ezq/out/node
