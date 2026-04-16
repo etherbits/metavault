@@ -20,7 +20,7 @@ impl Ezq {
 
     pub fn run(&self, input_query: &str) -> Result<ParsedQuery, EzqError> {
         let tokenized_query = self.tokenizer.tokenize(input_query)?;
-        let parsed_query = self.parser.parse(&tokenized_query)?;
+        let parsed_query = self.parser.parse(tokenized_query)?;
 
         Ok(parsed_query)
     }

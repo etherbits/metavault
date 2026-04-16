@@ -33,7 +33,6 @@ impl FuzzyMatcher {
             .collect();
 
         candidate_scores.sort_by(|a, b| b.1.total_cmp(&a.1));
-        println!("candidate scores: {:?}", candidate_scores);
         candidate_scores[0].0.to_string()
     }
 

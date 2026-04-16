@@ -16,7 +16,7 @@ impl Tokenizer {
             return Ok(TokenizedSections {
                 action_section: trimmed_query.to_string(),
                 target_section: String::new(),
-                metadata_section: String::new(),
+                qualification_section: String::new(),
             });
         };
 
@@ -36,12 +36,12 @@ impl Tokenizer {
         } else {
             "".to_string()
         };
-        let metadata_section = trimmed_query[target_end_idx..].trim().to_string();
+        let qualification_section = trimmed_query[target_end_idx..].trim().to_string();
 
         Ok(TokenizedSections {
             action_section,
             target_section,
-            metadata_section,
+            qualification_section: qualification_section,
         })
     }
 
@@ -99,9 +99,9 @@ impl Tokenizer {
         tokenized_sections: &TokenizedSections,
     ) -> Result<TokenizedQuery, TokenizerError> {
         Ok(TokenizedQuery {
-            action_section: tokenized_sections.action_section.clone(),
-            target_section: self.tokenize_target(&tokenized_sections.target_section),
-            metadata_section: self.tokenize_metadata(&tokenized_sections.metadata_section),
+            action: tokenized_sections.action_section.clone(),
+            targets: self.tokenize_target(&tokenized_sections.target_section),
+            qualifications: self.tokenize_metadata(&tokenized_sections.qualification_section),
         })
     }
 
@@ -124,14 +124,14 @@ pub enum TokenizerError {
 struct TokenizedSections {
     action_section: String,
     target_section: String,
-    metadata_section: String,
+    qualification_section: String,
 }
 
 #[derive(Debug)]
 pub struct TokenizedQuery {
-    pub action_section: String,
-    pub target_section: Vec<String>,
-    pub metadata_section: Vec<String>,
+    pub action: String,
+    pub targets: Vec<String>,
+    pub qualifications: Vec<String>,
 }
 
 #[cfg(test)]
@@ -144,13 +144,13 @@ mod tests {
             r#"s "AOT" "Attack On Titan" type:tv-series tg:action,monster release:>2020"#;
         let tokenized_query = Tokenizer::new().tokenize(input_query).unwrap();
 
-        assert_eq!(tokenized_query.action_section, "s");
+        assert_eq!(tokenized_query.action, "s");
         assert_eq!(
-            tokenized_query.target_section,
+            tokenized_query.targets,
             vec!["AOT".to_string(), "Attack On Titan".to_string()]
         );
         assert_eq!(
-            tokenized_query.metadata_section,
+            tokenized_query.qualifications,
             vec!["type:tv-series", "tg:action", "tg:monster", "release:>2020"]
         );
     }
@@ -160,12 +160,12 @@ mod tests {
         let input_query = r#"s "AOT" "Attack On Titan""#;
         let tokenized_query = Tokenizer::new().tokenize(input_query).unwrap();
 
-        assert_eq!(tokenized_query.action_section, "s");
+        assert_eq!(tokenized_query.action, "s");
         assert_eq!(
-            tokenized_query.target_section,
+            tokenized_query.targets,
             vec!["AOT".to_string(), "Attack On Titan".to_string()]
         );
-        assert_eq!(tokenized_query.metadata_section.is_empty(), true);
+        assert_eq!(tokenized_query.qualifications.is_empty(), true);
     }
 
     #[test]
@@ -173,13 +173,10 @@ mod tests {
         let input_query = r#"s Attack On Titan tag:action"#;
         let tokenized_query = Tokenizer::new().tokenize(input_query).unwrap();
 
-        assert_eq!(tokenized_query.action_section, "s");
+        assert_eq!(tokenized_query.action, "s");
+        assert_eq!(tokenized_query.targets, vec!["Attack On Titan".to_string()]);
         assert_eq!(
-            tokenized_query.target_section,
-            vec!["Attack On Titan".to_string()]
-        );
-        assert_eq!(
-            tokenized_query.metadata_section,
+            tokenized_query.qualifications,
             vec!["tag:action".to_string()]
         );
     }
@@ -189,10 +186,10 @@ mod tests {
         let input_query = r#"s tag:action"#;
         let tokenized_query = Tokenizer::new().tokenize(input_query).unwrap();
 
-        assert_eq!(tokenized_query.action_section, "s");
-        assert_eq!(tokenized_query.target_section.is_empty(), true);
+        assert_eq!(tokenized_query.action, "s");
+        assert_eq!(tokenized_query.targets.is_empty(), true);
         assert_eq!(
-            tokenized_query.metadata_section,
+            tokenized_query.qualifications,
             vec!["tag:action".to_string()]
         );
     }
@@ -202,12 +199,9 @@ mod tests {
         let input_query = r#"s Attack On Titan"#;
         let tokenized_query = Tokenizer::new().tokenize(input_query).unwrap();
 
-        assert_eq!(tokenized_query.action_section, "s");
-        assert_eq!(
-            tokenized_query.target_section,
-            vec!["Attack On Titan".to_string()]
-        );
-        assert_eq!(tokenized_query.metadata_section.is_empty(), true);
+        assert_eq!(tokenized_query.action, "s");
+        assert_eq!(tokenized_query.targets, vec!["Attack On Titan".to_string()]);
+        assert_eq!(tokenized_query.qualifications.is_empty(), true);
     }
 
     #[test]
@@ -227,9 +221,9 @@ mod tests {
         let input_query = r#"s"#;
         let tokenized_query = Tokenizer::new().tokenize(input_query).unwrap();
 
-        assert_eq!(tokenized_query.action_section, "s");
-        assert_eq!(tokenized_query.target_section.is_empty(), true);
-        assert_eq!(tokenized_query.metadata_section.is_empty(), true);
+        assert_eq!(tokenized_query.action, "s");
+        assert_eq!(tokenized_query.targets.is_empty(), true);
+        assert_eq!(tokenized_query.qualifications.is_empty(), true);
     }
 
     #[test]
@@ -237,10 +231,10 @@ mod tests {
         let input_query = r#"s attack tag:action,adventure:minor,dark tag:fantasy"#;
         let tokenized_query = Tokenizer::new().tokenize(input_query).unwrap();
 
-        assert_eq!(tokenized_query.action_section, "s");
-        assert_eq!(tokenized_query.target_section, vec!["attack"]);
+        assert_eq!(tokenized_query.action, "s");
+        assert_eq!(tokenized_query.targets, vec!["attack"]);
         assert_eq!(
-            tokenized_query.metadata_section,
+            tokenized_query.qualifications,
             vec![
                 "tag:action",
                 "tag:adventure:minor",

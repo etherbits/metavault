@@ -10,8 +10,5 @@ mod tokenizer;
 #[wasm_bindgen]
 pub fn run_query(input: &str) -> Result<ParsedQuery, String> {
     let ezq = Ezq::new();
-    ezq.run(input).map_err(|e| e.to_string()).map(|mut pq| {
-        pq.targets.push("aot".to_string());
-        pq
-    })
+    ezq.run(input).map_err(|e| e.to_string())
 }
