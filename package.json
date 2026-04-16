@@ -1,31 +1,31 @@
 {
-  "name": "core",
-  "module": "index.ts",
-  "type": "module",
-  "private": true,
-  "scripts": {
-    "dev": "bun run --filter metavault-server --filter metavault-web-client --parallel dev",
-    "format": "bunx @biomejs/biome format --write .",
-    "lint": "bunx @biomejs/biome lint .",
-    "lint:fix": "bunx @biomejs/biome lint --write .",
-    "test:e2e": "playwright test --config tests/playwright.config.ts",
-    "test:unit": "bun test tests/unit-tests",
-    "type-check": "bun run --cwd packages/server type-check && bun run --cwd packages/web-client type-check",
-    "db:seed": "bun --cwd packages/server run db:seed",
-    "db:reset": "bun --cwd packages/server run db:reset",
-    "ezq:link": "bash scripts/build-ezq.sh --link",
-    "ezq:unlink": "rm -rf node_modules/@etherbits && bun install"
-  },
-  "devDependencies": {
-    "@types/bun": "latest",
-    "lefthook": "^2.1.5"
-  },
-  "peerDependencies": {
-    "typescript": "^5.9.3"
-  },
-  "workspaces": [
-    "packages/server",
-    "packages/web-client",
-    "tests"
-  ]
+	"name": "core",
+	"module": "index.ts",
+	"type": "module",
+	"private": true,
+	"scripts": {
+		"dev": "bun run --filter metavault-server --filter metavault-web-client --parallel dev",
+		"format": "bunx @biomejs/biome format --write .",
+		"lint": "bunx @biomejs/biome lint .",
+		"lint:fix": "bunx @biomejs/biome lint --write .",
+		"test:e2e": "playwright test --config tests/playwright.config.ts",
+		"test:unit": "bun test tests/unit-tests",
+		"type-check": "bun run --cwd packages/server type-check && bun run --cwd packages/web-client type-check",
+		"db:seed": "bun run --cwd packages/server db:seed",
+		"db:reset": "bun run --cwd packages/server db:reset",
+		"ezq:link": "bash scripts/build-ezq.sh --link",
+		"ezq:unlink": "rm -rf node_modules/@etherbits && bun install"
+	},
+	"devDependencies": {
+		"@types/bun": "latest",
+		"lefthook": "^2.1.5"
+	},
+	"peerDependencies": {
+		"typescript": "^5.9.3"
+	},
+	"workspaces": [
+		"packages/server",
+		"packages/web-client",
+		"tests"
+	]
 }
