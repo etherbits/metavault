@@ -1,4 +1,4 @@
-use crate::lang::ACTION_KEYWORDS;
+use crate::lang::{ACTION_KEYWORDS, QUALIFIER_KEYWORDS};
 use thiserror::Error;
 
 use crate::{fuzzy_matcher::FuzzyMatcher, tokenizer::TokenizedQuery};
@@ -16,23 +16,33 @@ impl SemanticParser {
 
     fn parse_action(&self, action: &String) -> String {
         let parsed_action = self.matcher.fuzzy_match(action, &ACTION_KEYWORDS);
-        println!("parsed action: {}", parsed_action);
         parsed_action
     }
 
-    fn parse_targets(&self, targets: &Vec<String>) -> Vec<String> {
-        vec![]
+    fn parse_qualifications(&self, qualifications: &[String]) -> Vec<String> {
+        qualifications
+            .into_iter()
+            .map(|q| self.parse_qualification(q))
+            .collect()
     }
 
-    fn parse_metadata(&self, metadata: &Vec<String>) -> Vec<String> {
-        vec![]
+    fn parse_qualification(&self, qualification: &String) -> String {
+        let (qualifier, rest) = match qualification.split_once(":") {
+            Some((q, rest)) => (q, rest),
+            None => ("", ""),
+        };
+
+        let parsed_qualifier = self.matcher.fuzzy_match(qualifier, &QUALIFIER_KEYWORDS);
+
+        return parsed_qualifier + ":" + rest;
     }
 
-    pub fn parse(&self, tokenized_query: &TokenizedQuery) -> Result<ParsedQuery, ParseError> {
+    pub fn parse(&self, tokenized_query: TokenizedQuery) -> Result<ParsedQuery, ParseError> {
+        println!("{:?}", tokenized_query);
         Ok(ParsedQuery {
-            action: self.parse_action(&tokenized_query.action_section),
-            targets: self.parse_targets(&tokenized_query.target_section),
-            metadata: self.parse_metadata(&tokenized_query.metadata_section),
+            action: self.parse_action(&tokenized_query.action),
+            targets: tokenized_query.targets,
+            qualifications: self.parse_qualifications(&tokenized_query.qualifications),
         })
     }
 }
@@ -48,5 +58,5 @@ pub enum ParseError {
 pub struct ParsedQuery {
     pub action: String,
     pub targets: Vec<String>,
-    pub metadata: Vec<String>,
+    pub qualifications: Vec<String>,
 }
