@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "dev": "bun run --filter metavault-server --filter metavault-web-client --parallel dev",
-    "format": "bunx @biomejs/biome format --write .",
+    "format": "biome format --write .",
     "lint": "bunx @biomejs/biome lint .",
     "lint:fix": "bunx @biomejs/biome lint --write .",
     "test:e2e": "playwright test --config tests/playwright.config.ts",
@@ -17,6 +17,7 @@
     "ezq:unlink": "rm -rf node_modules/@etherbits && bun install"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.4.12",
     "@types/bun": "latest",
     "lefthook": "^2.1.5"
   },
