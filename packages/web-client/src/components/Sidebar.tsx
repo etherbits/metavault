@@ -245,7 +245,7 @@ export function Sidebar({
   onToggle,
   user = {
     name: "Nika Qvrivishvili",
-    email: "nikaqvrivishvilipc@gmail.com",
+    email: "nikaqvrivishvili@gmail.com",
   },
 }: SidebarProps) {
   return (
