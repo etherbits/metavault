@@ -193,7 +193,7 @@ export function App() {
 
               <div className="grid grid-cols-3 gap-x-[42px] gap-y-[42px]">
                 {Array.from({ length: 9 }).map((_, index) => (
-                  <div key={index}>
+                  <div key={`query-card-${index}`}>
                     <Card className="border-none bg-transparent shadow-none">
                       <CardContent className="p-0">
                         <div className="overflow-hidden rounded-[4px]">

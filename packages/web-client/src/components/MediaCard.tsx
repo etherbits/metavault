@@ -54,11 +54,19 @@ export function MediaCard({ item }: { item: MediaItem }) {
         </div>
 
         <div className="flex justify-end items-center gap-2 mt-auto">
-          <button className="w-6 h-6 border border-[#3F3F46] rounded flex items-center justify-center">
+          <button
+            type="button"
+            className="w-6 h-6 border border-[#3F3F46] rounded flex items-center justify-center"
+          >
+            {" "}
             <MoreHorizontal size={14} />
           </button>
 
-          <button className="flex items-center gap-1 bg-[#FACC15] px-3 py-1 rounded text-black text-sm">
+          <button
+            type="button"
+            className="flex items-center gap-1 bg-[#FACC15] px-3 py-1 rounded text-black text-sm"
+          >
+            {" "}
             <Maximize2 size={14} />
             View Details
           </button>

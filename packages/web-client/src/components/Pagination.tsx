@@ -36,7 +36,7 @@ export function Pagination({
       {pages.map((page, i) =>
         page === "..." ? (
           <div
-            key={`ellipsis-${i}`}
+            key={`ellipsis-${String(page)}-${i}`}
             className="flex h-[30px] w-[30px] items-center justify-center rounded-[8px] bg-[#27272A] text-[#F4F4F5]"
           >
             <MoreHorizontal size={20} />
