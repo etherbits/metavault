@@ -16,7 +16,6 @@ interface SidebarProps {
   user?: {
     name: string;
     email: string;
-    initials: string;
   };
 }
 
@@ -26,6 +25,17 @@ const navItems = [
   { id: "integrations" as const, label: "Integrations", icon: CodeSquare },
 ];
 
+// ✅ Initials generator
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+
+  if (parts.length === 1) {
+    return parts[0][0]?.toUpperCase() ?? "";
+  }
+
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
 export function Sidebar({
   activePage,
   onNavigate,
@@ -34,7 +44,6 @@ export function Sidebar({
   user = {
     name: "Nika Qvrivisvili",
     email: "nikaqvrivishvil@gmail.com",
-    initials: "NQ",
   },
 }: SidebarProps) {
   return (
@@ -148,9 +157,10 @@ export function Sidebar({
 
         <div className="h-px bg-[#3F3F46]" />
 
+        {/* USER */}
         <div className="flex items-center gap-2 px-2 py-2 min-w-0">
           <div className="w-8 h-8 flex items-center justify-center rounded-full bg-[#18181B] text-[#FAFAFA] text-sm font-semibold shrink-0">
-            {user.initials}
+            {getInitials(user.name)}
           </div>
 
           <div
