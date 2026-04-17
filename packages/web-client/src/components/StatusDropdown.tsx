@@ -1,5 +1,11 @@
 import { cn } from "@/lib/utils";
-import type { MediaStatus } from "./MediaCard";
+
+type MediaStatus =
+  | "In Progress"
+  | "Planning"
+  | "Dropped"
+  | "On Hold"
+  | "Finished";
 interface StatusDropdownProps {
   currentStatus?: MediaStatus;
   onChangeStatus: (status: MediaStatus) => void;
