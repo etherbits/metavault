@@ -1,3 +1,4 @@
+import type { LucideIcon } from "lucide-react";
 import {
   Home,
   Database,
@@ -7,33 +8,234 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import MetaLogo from "@/assets/Meta.png";
+import { Button } from "@/components/ui/button";
 
-interface SidebarProps {
-  activePage: "home" | "query" | "integrations";
-  onNavigate: (page: "home" | "query" | "integrations") => void;
-  isOpen: boolean;
-  onToggle: () => void;
-  user?: {
-    name: string;
-    email: string;
-  };
+type SidebarPage = "home" | "query" | "integrations";
+
+interface SidebarUser {
+  name: string;
+  email: string;
 }
 
-const navItems = [
-  { id: "home" as const, label: "Home", icon: Home },
-  { id: "query" as const, label: "Query", icon: Database },
-  { id: "integrations" as const, label: "Integrations", icon: CodeSquare },
+interface SidebarProps {
+  activePage: SidebarPage;
+  onNavigate: (page: SidebarPage) => void;
+  isOpen: boolean;
+  onToggle: () => void;
+  user?: SidebarUser;
+}
+
+interface SidebarNavItemConfig {
+  id: SidebarPage;
+  label: string;
+  icon: LucideIcon;
+}
+
+const navItems: SidebarNavItemConfig[] = [
+  { id: "home", label: "Home", icon: Home },
+  { id: "query", label: "Query", icon: Database },
+  { id: "integrations", label: "Integrations", icon: CodeSquare },
 ];
 
-// ✅ Initials generator
 function getInitials(name: string): string {
-  const parts = name.trim().split(/\s+/);
+  const parts = name.trim().split(/\s+/).filter(Boolean);
 
-  if (parts.length === 1) {
-    return parts[0][0]?.toUpperCase() ?? "";
-  }
+  if (parts.length === 0) return "";
+  if (parts.length === 1) return parts[0][0]?.toUpperCase() ?? "";
 
-  return (parts[0][0] + parts[1][0]).toUpperCase();
+  return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase();
+}
+
+function SidebarText({
+  isOpen,
+  children,
+  className,
+}: {
+  isOpen: boolean;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <span
+      className={cn(
+        "whitespace-nowrap transition-all duration-200 ease-out",
+        isOpen
+          ? "translate-x-0 opacity-100"
+          : "pointer-events-none -translate-x-2 overflow-hidden opacity-0 w-0",
+        className
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
+function SidebarBrand({ isOpen }: { isOpen: boolean }) {
+  return (
+    <div className="flex h-11 min-w-0 items-center gap-2 px-2">
+      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[#27272A]">
+        <img
+          src={MetaLogo}
+          alt="MetaVault"
+          className="h-4 w-4 object-contain"
+        />
+      </div>
+
+      <SidebarText
+        isOpen={isOpen}
+        className="text-[16px] font-semibold text-[#E4E4E7]"
+      >
+        MetaVault
+      </SidebarText>
+    </div>
+  );
+}
+
+function SidebarNavItem({
+  item,
+  active,
+  isOpen,
+  onClick,
+}: {
+  item: SidebarNavItemConfig;
+  active: boolean;
+  isOpen: boolean;
+  onClick: () => void;
+}) {
+  const Icon = item.icon;
+
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      onClick={onClick}
+      className={cn(
+        "h-10 w-full justify-start rounded-[10px] px-3 text-sm shadow-none",
+        "hover:bg-[#18181B] hover:text-[#D4D4D8]",
+        active
+          ? "bg-[#18181B] text-[#FACC15] hover:bg-[#18181B] hover:text-[#FACC15]"
+          : "text-[#D4D4D8]",
+        !isOpen && "justify-center px-0"
+      )}
+    >
+      <Icon size={16} className="shrink-0" />
+      <SidebarText isOpen={isOpen}>{item.label}</SidebarText>
+    </Button>
+  );
+}
+
+function SidebarNav({
+  activePage,
+  onNavigate,
+  isOpen,
+}: {
+  activePage: SidebarPage;
+  onNavigate: (page: SidebarPage) => void;
+  isOpen: boolean;
+}) {
+  return (
+    <div className="flex w-full min-w-0 flex-col gap-1">
+      {navItems.map((item) => (
+        <SidebarNavItem
+          key={item.id}
+          item={item}
+          active={activePage === item.id}
+          isOpen={isOpen}
+          onClick={() => onNavigate(item.id)}
+        />
+      ))}
+    </div>
+  );
+}
+
+function SidebarDivider() {
+  return <div className="h-px bg-[#3F3F46]" />;
+}
+
+function SidebarAction({
+  icon: Icon,
+  label,
+  isOpen,
+  onClick,
+  rotateWhenClosed = false,
+}: {
+  icon: LucideIcon;
+  label: string;
+  isOpen: boolean;
+  onClick?: () => void;
+  rotateWhenClosed?: boolean;
+}) {
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      onClick={onClick}
+      className={cn(
+        "h-10 w-full justify-start rounded-md px-3 text-[#D4D4D8] shadow-none hover:bg-[#18181B] hover:text-[#D4D4D8]",
+        !isOpen && "justify-center px-0"
+      )}
+    >
+      <Icon
+        size={16}
+        className={cn(
+          "shrink-0 transition-transform duration-300 ease-in-out",
+          rotateWhenClosed && !isOpen && "rotate-180"
+        )}
+      />
+      <SidebarText isOpen={isOpen}>{label}</SidebarText>
+    </Button>
+  );
+}
+
+function SidebarUser({ user, isOpen }: { user: SidebarUser; isOpen: boolean }) {
+  return (
+    <div
+      className={cn(
+        "flex min-w-0 items-center gap-2 px-2 py-2",
+        !isOpen && "justify-center px-0"
+      )}
+    >
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#18181B] text-sm font-semibold text-[#FAFAFA]">
+        {getInitials(user.name)}
+      </div>
+
+      <SidebarText isOpen={isOpen} className="min-w-0 flex-1">
+        <div className="flex min-w-0 flex-col leading-tight">
+          <span className="truncate text-sm text-[#FAFAFA]">{user.name}</span>
+          <span className="truncate text-xs text-[#A1A1AA]">{user.email}</span>
+        </div>
+      </SidebarText>
+    </div>
+  );
+}
+
+function SidebarFooter({
+  isOpen,
+  onToggle,
+  user,
+}: {
+  isOpen: boolean;
+  onToggle: () => void;
+  user: SidebarUser;
+}) {
+  return (
+    <div className="flex w-full min-w-0 flex-col gap-2">
+      <SidebarDivider />
+
+      <SidebarAction
+        icon={ChevronLeft}
+        label="Close sidebar"
+        isOpen={isOpen}
+        onClick={onToggle}
+        rotateWhenClosed
+      />
+
+      <SidebarAction icon={Settings} label="Settings" isOpen={isOpen} />
+
+      <SidebarDivider />
+      <SidebarUser user={user} isOpen={isOpen} />
+    </div>
+  );
 }
 
 export function Sidebar({
@@ -42,142 +244,28 @@ export function Sidebar({
   isOpen,
   onToggle,
   user = {
-    name: "Nika Qvrivisvili",
-    email: "nikaqvrivishvil@gmail.com",
+    name: "Nika Qvrivishvili",
+    email: "nikaqvrivishvilipc@gmail.com",
   },
 }: SidebarProps) {
   return (
     <aside
       className={cn(
-        "relative z-20 shrink-0 h-screen bg-[#09090B] border-r border-[#27272A] flex flex-col justify-between overflow-hidden",
+        "relative z-20 flex h-screen shrink-0 flex-col justify-between overflow-hidden border-r border-[#27272A] bg-[#09090B]",
         "transition-[width,padding] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
         isOpen ? "w-[240px] p-3" : "w-[72px] p-3"
       )}
     >
-      {/* TOP */}
-      <div className="flex flex-col gap-4 w-full min-w-0">
-        {/* BRAND */}
-        <div className="flex items-center gap-2 px-2 h-11 min-w-0">
-          <div className="w-7 h-7 flex items-center justify-center bg-[#27272A] rounded-md shrink-0">
-            <img src={MetaLogo} alt="Meta" className="w-4 h-4 object-contain" />
-          </div>
-
-          <span
-            className={cn(
-              "text-[#E4E4E7] font-semibold text-[16px] whitespace-nowrap transition-all duration-200 ease-out",
-              isOpen
-                ? "opacity-100 translate-x-0"
-                : "opacity-0 -translate-x-2 pointer-events-none w-0 overflow-hidden"
-            )}
-          >
-            MetaVault
-          </span>
-        </div>
-
-        {/* NAV LIST */}
-        <div className="flex flex-col gap-1 w-full min-w-0">
-          {navItems.map(({ id, label, icon: Icon }) => {
-            const active = activePage === id;
-
-            return (
-              <button
-                key={id}
-                type="button"
-                onClick={() => onNavigate(id)}
-                className={cn(
-                  "w-full flex items-center gap-2 px-3 h-[40px] rounded-[10px] text-sm min-w-0",
-                  "transition-all duration-200 hover:bg-[#18181B]",
-                  active ? "bg-[#18181B] text-[#FACC15]" : "text-[#D4D4D8]"
-                )}
-              >
-                <Icon size={16} className="shrink-0" />
-
-                <span
-                  className={cn(
-                    "whitespace-nowrap transition-all duration-200 ease-out",
-                    isOpen
-                      ? "opacity-100 translate-x-0"
-                      : "opacity-0 -translate-x-2 pointer-events-none w-0 overflow-hidden"
-                  )}
-                >
-                  {label}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+      <div className="flex w-full min-w-0 flex-col gap-4">
+        <SidebarBrand isOpen={isOpen} />
+        <SidebarNav
+          activePage={activePage}
+          onNavigate={onNavigate}
+          isOpen={isOpen}
+        />
       </div>
 
-      {/* BOTTOM */}
-      <div className="flex flex-col gap-2 w-full min-w-0">
-        <div className="h-px bg-[#3F3F46]" />
-
-        <button
-          type="button"
-          onClick={onToggle}
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-[#D4D4D8] transition-all duration-200 hover:bg-[#18181B] min-w-0"
-        >
-          <ChevronLeft
-            size={16}
-            className={cn(
-              "transition-transform duration-300 ease-in-out shrink-0",
-              !isOpen && "rotate-180"
-            )}
-          />
-
-          <span
-            className={cn(
-              "whitespace-nowrap transition-all duration-200 ease-out",
-              isOpen
-                ? "opacity-100 translate-x-0"
-                : "opacity-0 -translate-x-2 pointer-events-none w-0 overflow-hidden"
-            )}
-          >
-            Close Sidebar
-          </span>
-        </button>
-
-        <button
-          type="button"
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-[#D4D4D8] transition-all duration-200 hover:bg-[#18181B] min-w-0"
-        >
-          <Settings size={16} className="shrink-0" />
-
-          <span
-            className={cn(
-              "whitespace-nowrap transition-all duration-200 ease-out",
-              isOpen
-                ? "opacity-100 translate-x-0"
-                : "opacity-0 -translate-x-2 pointer-events-none w-0 overflow-hidden"
-            )}
-          >
-            Settings
-          </span>
-        </button>
-
-        <div className="h-px bg-[#3F3F46]" />
-
-        {/* USER */}
-        <div className="flex items-center gap-2 px-2 py-2 min-w-0">
-          <div className="w-8 h-8 flex items-center justify-center rounded-full bg-[#18181B] text-[#FAFAFA] text-sm font-semibold shrink-0">
-            {getInitials(user.name)}
-          </div>
-
-          <div
-            className={cn(
-              "flex flex-col leading-tight overflow-hidden transition-all duration-200 ease-out min-w-0",
-              isOpen
-                ? "opacity-100 translate-x-0"
-                : "opacity-0 -translate-x-2 pointer-events-none w-0"
-            )}
-          >
-            <span className="text-sm text-[#FAFAFA] truncate">{user.name}</span>
-            <span className="text-xs text-[#A1A1AA] truncate">
-              {user.email}
-            </span>
-          </div>
-        </div>
-      </div>
+      <SidebarFooter isOpen={isOpen} onToggle={onToggle} user={user} />
     </aside>
   );
 }
