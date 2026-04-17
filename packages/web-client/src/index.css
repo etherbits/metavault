@@ -101,9 +101,9 @@
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
+  --ring: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
@@ -126,5 +126,34 @@
   }
   html {
     @apply font-sans;
+  }
+}
+
+@layer base {
+  /* ===== Scrollbar (global, dark-mode aware) ===== */
+
+  /* Chrome, Edge, Safari */
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: oklch(0.145 0 0); /* matches dark bg */
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: oklch(0.269 0 0); /* muted */
+    border-radius: 999px;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.371 0 0);
+  }
+
+  /* Firefox */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: oklch(0.269 0 0) oklch(0.145 0 0);
   }
 }
