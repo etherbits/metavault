@@ -1,7 +1,7 @@
 export { Sidebar } from "./Sidebar";
 export { QueryInput } from "./QueryInput";
 export { MediaCard } from "./MediaCard";
-export type { MediaItem, MediaType, MediaStatus } from "./MediaCard";
+export type { MediaItem } from "./MediaCard";
 export { HomeSection } from "./HomeSection";
 export { StatusDropdown } from "./StatusDropdown";
 export { Pagination } from "./Pagination";
