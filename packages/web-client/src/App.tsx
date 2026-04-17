@@ -1,102 +1,205 @@
-import { run_query } from "@etherbits/ezq-web";
 import { Card, CardContent } from "@/components/ui/card";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { Sidebar } from "@/components/Sidebar";
+import { QueryInput } from "@/components/QueryInput";
+import { HomeSection } from "@/components/HomeSection";
+import { IntegrationCard } from "@/components/IntegrationCard";
+import { NotePanel } from "@/components/NotePanel";
+import { Pagination } from "@/components/Pagination";
+import { Menu } from "lucide-react";
+import type { MediaItem } from "@/components/MediaCard";
 import "./index.css";
 
-import logo from "./assets/vite.svg";
-import reactLogo from "./assets/react.svg";
+type Page = "home" | "query" | "integrations";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3435/";
-
-type HealthStatus = "pending" | "ok" | "error";
-
-function useApiHealth() {
-  const [status, setStatus] = useState<HealthStatus>("pending");
-  const [uptime, setUptime] = useState<number | null>(null);
-
-  useEffect(() => {
-    fetch(new URL("health", API_BASE_URL))
-      .then((res) => res.json())
-      .then((data) => {
-        setStatus("ok");
-        setUptime(data.uptime);
-      })
-      .catch(() => setStatus("error"));
-  }, []);
-
-  return { status, uptime };
-}
+const SAMPLE_ITEMS: MediaItem[] = [
+  {
+    id: "1",
+    title: "Attack on Titan",
+    type: "Anime",
+    status: "Finished",
+    date: "2023-11-04",
+    rating: "9.5 / 10",
+    tags: ["action", "drama", "fantasy"],
+  },
+  {
+    id: "2",
+    title: "The Last of Us",
+    type: "Game",
+    status: "Finished",
+    date: "2023-06-12",
+    rating: "10 / 10",
+    tags: ["survival", "story"],
+  },
+  {
+    id: "3",
+    title: "Dune",
+    type: "Movie",
+    status: "Finished",
+    date: "2024-03-01",
+    rating: "8.8 / 10",
+    tags: ["sci-fi", "epic"],
+  },
+  {
+    id: "4",
+    title: "Chainsaw Man",
+    type: "Manga",
+    status: "In Progress",
+    date: "2024-01-10",
+    rating: "9.0 / 10",
+    tags: ["action", "horror"],
+  },
+  {
+    id: "5",
+    title: "Breaking Bad",
+    type: "TV Show",
+    status: "Finished",
+    date: "2022-09-30",
+    rating: "10 / 10",
+    tags: ["crime", "drama"],
+  },
+  {
+    id: "6",
+    title: "Elden Ring",
+    type: "Game",
+    status: "On Hold",
+    date: "2024-02-14",
+    rating: "9.2 / 10",
+    tags: ["rpg", "souls-like"],
+  },
+];
 
 export function App() {
-  const { status, uptime } = useApiHealth();
-  const [queryResult, setQueryResult] = useState<string>(
-    "loading query parser..."
-  );
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [activePage, setActivePage] = useState<Page>("home");
+  const [query, setQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
 
-  useEffect(() => {
-    let isCancelled = false;
-
-    const parsed = run_query("s aot tag:action");
-    if (!isCancelled) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setQueryResult(JSON.stringify(parsed));
-    }
-
-    return () => {
-      isCancelled = true;
-    };
-  }, []);
+  // FIX: proper toggle
+  const handleToggleSidebar = () => {
+    setSidebarOpen((prev) => !prev);
+  };
 
   return (
-    <div className="container mx-auto p-8 text-center relative z-10">
-      <div className="flex justify-center items-center gap-8 mb-8">
-        <img
-          src={logo}
-          alt="Bun Logo"
-          className="h-36 p-6 transition-all duration-300 hover:drop-shadow-[0_0_2em_#646cffaa] scale-120"
-        />
-        <img
-          src={reactLogo}
-          alt="React Logo"
-          className="h-36 p-6 transition-all duration-300 hover:drop-shadow-[0_0_2em_#61dafbaa] [animation:spin_20s_linear_infinite]"
-        />
-      </div>
+    <div className="flex h-screen bg-[#0e0e0e] overflow-hidden">
+      <Sidebar
+        activePage={activePage}
+        onNavigate={setActivePage}
+        isOpen={sidebarOpen}
+        onToggle={handleToggleSidebar}
+      />
 
-      <Card className="bg-card/50 backdrop-blur-sm border-muted">
-        <CardContent className="pt-6">
-          <h1 className="text-5xl font-bold my-4 leading-tight">Metavault</h1>
-          <h2>{queryResult}</h2>
-          <p>
-            Edit{" "}
-            <code className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm">
-              src/App.tsx
-            </code>{" "}
-            and save to test HMR
-          </p>
-          api url: {API_BASE_URL}
-        </CardContent>
-      </Card>
+      {/* Main */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Topbar */}
+        <header className="flex items-center gap-3 px-6 py-4 border-b border-[#1f1f1f] bg-[#0e0e0e] shrink-0">
+          {!sidebarOpen && (
+            <button
+              type="button"
+              onClick={handleToggleSidebar}
+              className="text-[#555] hover:text-white transition-colors p-1"
+            >
+              <Menu size={18} />
+            </button>
+          )}
 
-      <div className="mt-4 flex justify-center">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span
-            className={`inline-block h-2 w-2 rounded-full ${
-              status === "pending"
-                ? "bg-yellow-400"
-                : status === "ok"
-                  ? "bg-green-500"
-                  : "bg-red-500"
-            }`}
-          />
-          <span>
-            API:{" "}
-            {status === "pending"
-              ? "checking…"
-              : status === "ok"
-                ? `ok · uptime ${Math.floor(uptime ?? 0)}s`
-                : "unreachable"}
-          </span>
-        </div>
+          <div className="flex-1 max-w-xl">
+            <QueryInput
+              value={query}
+              onChange={setQuery}
+              onSearch={(v) => console.log("search:", v)}
+            />
+          </div>
+        </header>
+
+        {/* Content */}
+        <main className="flex-1 overflow-y-auto px-6 py-6">
+          {activePage === "home" && (
+            <div className="flex flex-col gap-8 max-w-5xl mx-auto">
+              <HomeSection
+                title="In Progress"
+                count={2}
+                items={SAMPLE_ITEMS.filter((i) => i.status === "In Progress")}
+              />
+
+              <HomeSection
+                title="Recently Finished"
+                count={4}
+                items={SAMPLE_ITEMS.filter((i) => i.status === "Finished")}
+              />
+
+              <HomeSection
+                title="On Hold"
+                count={1}
+                items={SAMPLE_ITEMS.filter((i) => i.status === "On Hold")}
+                defaultOpen={false}
+              />
+
+              <div className="flex justify-between items-center">
+                <NotePanel placeholder="Add a note about your media..." />
+              </div>
+
+              <div className="flex justify-center">
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={8}
+                  onPageChange={setCurrentPage}
+                />
+              </div>
+            </div>
+          )}
+
+          {activePage === "query" && (
+            <div className="max-w-5xl mx-auto">
+              <Card className="bg-[#141414] border-[#1f1f1f]">
+                <CardContent className="pt-6">
+                  <h2 className="text-white text-lg font-semibold mb-4">
+                    Query Explorer
+                  </h2>
+
+                  <p className="text-[#666] text-sm">
+                    Use the search bar above to query your media collection.
+                    <br />
+                    Example:{" "}
+                    <code className="text-[#aaa] bg-[#1e1e1e] px-1 rounded">
+                      tag:action status:finished
+                    </code>
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {activePage === "integrations" && (
+            <div className="max-w-2xl mx-auto flex flex-col gap-4">
+              <h2 className="text-white text-lg font-semibold">Integrations</h2>
+
+              <IntegrationCard
+                name="TMDB"
+                description="Fetch movie and TV show metadata from The Movie Database."
+                queryFlag="source:tmdb"
+                onSave={(k) => console.log("save tmdb key", k)}
+                onClear={() => console.log("clear tmdb")}
+              />
+
+              <IntegrationCard
+                name="AniList"
+                description="Sync your anime and manga list from AniList."
+                queryFlag="source:anilist"
+                onSave={(k) => console.log("save anilist key", k)}
+                onClear={() => console.log("clear anilist")}
+              />
+
+              <IntegrationCard
+                name="RAWG"
+                description="Pull game data and reviews from RAWG.io."
+                queryFlag="source:rawg"
+                onSave={(k) => console.log("save rawg key", k)}
+                onClear={() => console.log("clear rawg")}
+              />
+            </div>
+          )}
+        </main>
       </div>
     </div>
   );
