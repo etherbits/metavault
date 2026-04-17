@@ -68,9 +68,14 @@ export function IntegrationCard({
 
       {/* API Key input */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-xs font-medium text-[#666] uppercase tracking-wider">
+        <label
+          htmlFor="api-key"
+          className="text-xs font-medium text-[#666] uppercase tracking-wider"
+        >
           API KEY
         </label>
+
+        <input id="api-key" type="text" className="..." />
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
             <input
