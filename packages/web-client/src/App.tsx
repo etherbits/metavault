@@ -192,14 +192,20 @@ export function App() {
               </div>
 
               <div className="grid grid-cols-3 gap-x-[42px] gap-y-[42px]">
-                {Array.from({ length: 9 }).map((_, index) => (
-                  <div key={`query-card-${index}`}>
+                {[
+                  "query-card-1",
+                  "query-card-2",
+                  "query-card-3",
+                  "query-card-4",
+                  "query-card-5",
+                  "query-card-6",
+                  "query-card-7",
+                  "query-card-8",
+                  "query-card-9",
+                ].map((cardId) => (
+                  <div key={cardId}>
                     <Card className="border-none bg-transparent shadow-none">
-                      <CardContent className="p-0">
-                        <div className="overflow-hidden rounded-[4px]">
-                          {/* keep your MediaCard here if already styled like screenshot */}
-                        </div>
-                      </CardContent>
+                      <CardContent className="p-0">{/* ... */}</CardContent>
                     </Card>
                   </div>
                 ))}
