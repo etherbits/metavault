@@ -6,191 +6,70 @@ interface HomeSectionProps {
   title: string;
   count: number;
   items: MediaItem[];
-  onQueryMore?: () => void;
   loading?: boolean;
   defaultOpen?: boolean;
+  onQueryMore?: () => void;
 }
 
 export function HomeSection({
   title,
   count,
   items,
-  onQueryMore,
   loading = false,
   defaultOpen = true,
+  onQueryMore,
 }: HomeSectionProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   return (
-    <section className="flex flex-col gap-6 w-full">
-      {/* SECTION HEADER */}
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          padding: "0px",
-          gap: "48px",
-          width: "100%",
-        }}
-      >
-        {/* LEFT: title + count */}
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "row",
-            alignItems: "center",
-            padding: "0px",
-            gap: "12px",
-          }}
-        >
-          <h2
-            style={{
-              fontFamily: "Geist, sans-serif",
-              fontWeight: 500,
-              fontSize: "24px",
-              lineHeight: "29px",
-              letterSpacing: "-1px",
-              color: "#D4D4D8",
-              margin: 0,
-            }}
-          >
+    <section className="flex w-full flex-col gap-6">
+      {/* Header */}
+      <div className="flex w-full items-start justify-between gap-12">
+        <div className="flex items-center gap-3">
+          <h2 className="text-[24px] font-medium leading-[29px] tracking-[-1px] text-[#D4D4D8]">
             {title}
           </h2>
-          <span
-            style={{
-              fontFamily: "Geist, sans-serif",
-              fontWeight: 400,
-              fontSize: "16px",
-              lineHeight: "24px",
-              color: "#A1A1AA",
-            }}
-          >
+
+          <span className="text-[16px] leading-[24px] text-[#A1A1AA]">
             {count} {count === 1 ? "Entry" : "Entries"}
           </span>
         </div>
 
-        {/* RIGHT: Query More + collapse */}
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "row",
-            alignItems: "center",
-            padding: "0px",
-            gap: "12px",
-          }}
-        >
-          {onQueryMore && (
-            <button
-              type="button"
-              onClick={onQueryMore}
-              style={{
-                display: "flex",
-                flexDirection: "row",
-                justifyContent: "center",
-                alignItems: "center",
-                padding: "8px 12px",
-                gap: "8px",
-                width: "101px",
-                height: "36px",
-                minHeight: "36px",
-                background: "rgba(255, 255, 255, 0.05)",
-                border: "1px solid #3F3F46",
-                boxShadow: "0px 1px 2px rgba(0,0,0,0.05)",
-                borderRadius: "8px",
-                fontFamily: "Geist, sans-serif",
-                fontWeight: 500,
-                fontSize: "14px",
-                lineHeight: "20px",
-                color: "#FAFAFA",
-                cursor: "pointer",
-              }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.background = "rgba(255,255,255,0.1)")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.background = "rgba(255,255,255,0.05)")
-              }
-            >
-              Query More
-            </button>
-          )}
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={onQueryMore}
+            className="flex h-[36px] min-h-[36px] items-center justify-center rounded-[8px] border border-[#3F3F46] bg-white/5 px-3 text-[14px] font-medium leading-5 text-[#FAFAFA] shadow-[0px_1px_2px_rgba(0,0,0,0.05)] transition-colors hover:bg-white/10"
+          >
+            Query More
+          </button>
 
           <button
             type="button"
             aria-label="Toggle section"
-            onClick={() => setIsOpen((p) => !p)}
-            style={{
-              display: "flex",
-              flexDirection: "row",
-              justifyContent: "center",
-              alignItems: "center",
-              padding: "8px",
-              width: "36px",
-              minWidth: "36px",
-              height: "36px",
-              minHeight: "36px",
-              background: "rgba(255, 255, 255, 0.05)",
-              border: "1px solid #3F3F46",
-              boxShadow: "0px 1px 2px rgba(0,0,0,0.05)",
-              borderRadius: "8px",
-              color: "#FAFAFA",
-              cursor: "pointer",
-            }}
-            onMouseEnter={(e) =>
-              (e.currentTarget.style.background = "rgba(255,255,255,0.1)")
-            }
-            onMouseLeave={(e) =>
-              (e.currentTarget.style.background = "rgba(255,255,255,0.05)")
-            }
+            onClick={() => setIsOpen((prev) => !prev)}
+            className="flex h-[36px] w-[36px] min-h-[36px] min-w-[36px] items-center justify-center rounded-[8px] border border-[#3F3F46] bg-white/5 text-[#FAFAFA] shadow-[0px_1px_2px_rgba(0,0,0,0.05)] transition-colors hover:bg-white/10"
           >
             {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
           </button>
         </div>
       </div>
 
-      {/* SECTION CONTENT */}
+      {/* Content */}
       {isOpen && (
         <>
           {loading && (
             <div className="flex justify-center py-10">
-              <div
-                style={{
-                  width: 28,
-                  height: 28,
-                  border: "2px solid #3F3F46",
-                  borderTopColor: "#A1A1AA",
-                  borderRadius: "50%",
-                  animation: "spin 0.8s linear infinite",
-                }}
-              />
+              <div className="h-7 w-7 animate-spin rounded-full border-2 border-[#3F3F46] border-t-[#FAFAFA]" />
             </div>
           )}
 
           {!loading && items.length === 0 && (
-            <div
-              style={{
-                fontFamily: "Geist, sans-serif",
-                fontSize: "14px",
-                color: "#A1A1AA",
-                paddingTop: "32px",
-                paddingBottom: "32px",
-              }}
-            >
-              No items found
-            </div>
+            <div className="py-8 text-sm text-[#A1A1AA]">No items found</div>
           )}
 
           {!loading && items.length > 0 && (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, 420px)",
-                gap: "50px",
-                width: "100%",
-              }}
-            >
+            <div className="grid grid-cols-3 gap-x-[32px] gap-y-[32px]">
               {items.map((item) => (
                 <MediaCard key={item.id} item={item} />
               ))}

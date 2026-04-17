@@ -1,5 +1,5 @@
 import { Eye, EyeOff } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 interface IntegrationCardProps {
   name: string;
@@ -10,8 +10,6 @@ interface IntegrationCardProps {
   onToggle?: (enabled: boolean) => void;
   onSave?: (apiKey: string) => void;
   onClear?: () => void;
-  prependLabel?: string;
-  appendLabel?: string;
 }
 
 export function IntegrationCard({
@@ -28,97 +26,106 @@ export function IntegrationCard({
   const [apiKey, setApiKey] = useState(initialKey);
   const [showKey, setShowKey] = useState(false);
 
+  const inputId = useMemo(
+    () => `${name.toLowerCase().replace(/\s+/g, "-")}-api-key`,
+    [name]
+  );
+
   function handleToggle() {
     const next = !enabled;
     setEnabled(next);
     onToggle?.(next);
   }
 
+  function handleSave() {
+    onSave?.(apiKey);
+  }
+
+  function handleClear() {
+    setApiKey("");
+    setShowKey(false);
+    onClear?.();
+  }
+
   return (
-    <div className="bg-[#141414] border border-[#1f1f1f] rounded-xl p-4 flex flex-col gap-3">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex flex-col gap-1">
-          <h3 className="text-white font-semibold text-sm">{name}</h3>
-          <p className="text-[#666] text-xs leading-relaxed">{description}</p>
-        </div>
-        {/* Toggle */}
-        <button
-          type="button"
-          onClick={handleToggle}
-          className={`w-9 h-5 rounded-full relative shrink-0 transition-colors mt-0.5 ${
-            enabled ? "bg-[#F5B800]" : "bg-[#333]"
-          }`}
-        >
-          <span
-            className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-              enabled ? "translate-x-4" : "translate-x-0.5"
+    <div className="flex h-[372px] w-[420px] flex-col gap-6 rounded-[8px] bg-[#27272A] p-6 shadow-xl">
+      <div className="flex flex-1 flex-col gap-5">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={enabled}
+            aria-label={`${enabled ? "Disable" : "Enable"} ${name}`}
+            onClick={handleToggle}
+            className={`relative h-[18px] w-[33px] shrink-0 rounded-full shadow-sm transition-colors ${
+              enabled ? "bg-[#FACC15]" : "bg-[#3F3F46]"
             }`}
-          />
-        </button>
+          >
+            <span
+              className={`absolute top-[1px] h-4 w-4 rounded-full transition-all ${
+                enabled ? "left-[16px] bg-[#09090B]" : "left-[1px] bg-white"
+              }`}
+            />
+          </button>
+
+          <h3 className="text-[20px] font-semibold leading-6 text-[#E4E4E7]">
+            {name} Source Integration
+          </h3>
+        </div>
+
+        <p className="text-[16px] leading-6 text-[#D4D4D8]">
+          {description} Query flag to trigger:{" "}
+          <span className="text-[#FAFAFA]">{queryFlag}</span>
+        </p>
       </div>
 
-      {/* Query flag */}
-      <div className="text-xs text-[#666]">
-        Query flag to trigger:{" "}
-        <code className="text-[#aaa] bg-[#1e1e1e] px-1.5 py-0.5 rounded text-[11px]">
-          {queryFlag}
-        </code>
-      </div>
+      <div className="flex flex-col justify-end gap-4">
+        <div className="flex flex-col gap-1">
+          <label
+            htmlFor={inputId}
+            className="text-[14px] font-medium leading-5 text-[#FAFAFA]"
+          >
+            API Key
+          </label>
 
-      {/* API Key input */}
-      <div className="flex flex-col gap-1.5">
-        <label
-          htmlFor="api-key"
-          className="text-xs font-medium text-[#666] uppercase tracking-wider"
-        >
-          API KEY
-        </label>
-
-        <input id="api-key" type="text" className="..." />
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1">
+          <div className="relative">
             <input
+              id={inputId}
               type={showKey ? "text" : "password"}
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
               placeholder="Enter your API key"
-              className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-md px-3 py-2 text-sm text-white placeholder:text-[#444] outline-none focus:border-[#3a3a3a] transition-colors pr-9"
+              className="h-[39px] w-full rounded-[8px] border border-[#3F3F46] bg-white/5 px-3 pr-10 text-[16px] leading-6 text-[#FAFAFA] shadow-sm outline-none placeholder:text-[#A1A1AA] focus:border-[#52525B]"
             />
+
             <button
               type="button"
-              onClick={() => setShowKey((p) => !p)}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#555] hover:text-white transition-colors"
+              aria-label={showKey ? "Hide API key" : "Show API key"}
+              onClick={() => setShowKey((prev) => !prev)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#A1A1AA] transition-colors hover:text-white"
             >
-              {showKey ? <EyeOff size={13} /> : <Eye size={13} />}
+              {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           </div>
         </div>
-      </div>
 
-      {/* Prepend/Append labels */}
-      <div className="flex items-center gap-2 text-xs text-[#555]">
-        <span>Prepend</span>
-        <span className="mx-1 text-[#333]">|</span>
-        <span>Append</span>
-      </div>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={handleSave}
+            className="flex h-10 flex-1 items-center justify-center rounded-[8px] bg-[#FACC15] px-5 text-[14px] font-medium leading-5 text-[#09090B] transition-colors hover:bg-[#eab308]"
+          >
+            Save
+          </button>
 
-      {/* Actions */}
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => onSave?.(apiKey)}
-          className="bg-[#F5B800] hover:bg-[#e0a900] text-black text-xs font-semibold px-4 py-1.5 rounded-md transition-colors"
-        >
-          Save
-        </button>
-        <button
-          type="button"
-          onClick={onClear}
-          className="bg-[#1e1e1e] hover:bg-[#252525] border border-[#2a2a2a] text-[#888] hover:text-white text-xs font-medium px-4 py-1.5 rounded-md transition-colors"
-        >
-          Clear
-        </button>
+          <button
+            type="button"
+            onClick={handleClear}
+            className="flex h-10 flex-1 items-center justify-center rounded-[8px] border border-[#3F3F46] bg-white/5 px-5 text-[14px] font-medium leading-5 text-[#FAFAFA] shadow-sm transition-colors hover:bg-white/10"
+          >
+            Clear
+          </button>
+        </div>
       </div>
     </div>
   );

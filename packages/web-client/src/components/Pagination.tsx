@@ -12,55 +12,45 @@ export function Pagination({
   totalPages,
   onPageChange,
 }: PaginationProps) {
-  // Generate page numbers to show
   function getPages(): (number | "...")[] {
-    if (totalPages <= 5) {
+    if (totalPages <= 6) {
       return Array.from({ length: totalPages }, (_, i) => i + 1);
     }
-    const pages: (number | "...")[] = [];
-    // Always show first 3
-    pages.push(1, 2, 3);
-    if (currentPage > 4 && currentPage < totalPages - 1) {
-      pages.push("...", currentPage, "...");
-    } else {
-      pages.push("...");
-    }
-    pages.push(totalPages);
-    return pages;
+
+    return [1, 2, 3, "...", totalPages];
   }
 
   const pages = getPages();
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex h-[30px] items-start gap-2">
       <button
         type="button"
         onClick={() => onPageChange(Math.max(1, currentPage - 1))}
         disabled={currentPage === 1}
-        className="w-8 h-8 flex items-center justify-center rounded-md text-[#555] hover:text-white hover:bg-[#1e1e1e] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        className="flex h-[30px] w-[30px] items-center justify-center rounded-[8px] bg-[#27272A] text-[#F4F4F5] disabled:opacity-40"
       >
-        <ChevronLeft size={14} />
+        <ChevronLeft size={20} />
       </button>
 
       {pages.map((page, i) =>
         page === "..." ? (
-          <span
-            // biome-ignore lint: ellipsis index ok here
+          <div
             key={`ellipsis-${i}`}
-            className="w-8 h-8 flex items-center justify-center text-[#555]"
+            className="flex h-[30px] w-[30px] items-center justify-center rounded-[8px] bg-[#27272A] text-[#F4F4F5]"
           >
-            <MoreHorizontal size={14} />
-          </span>
+            <MoreHorizontal size={20} />
+          </div>
         ) : (
           <button
             key={page}
             type="button"
             onClick={() => onPageChange(page as number)}
             className={cn(
-              "w-8 h-8 flex items-center justify-center rounded-md text-sm transition-colors",
+              "flex h-[30px] w-[30px] items-center justify-center rounded-[8px] text-[16px] leading-6",
               currentPage === page
-                ? "bg-[#F5B800] text-black font-bold"
-                : "text-[#888] hover:text-white hover:bg-[#1e1e1e]"
+                ? "bg-[#EAB308] text-[#27272A]"
+                : "bg-[#27272A] text-[#F4F4F5]"
             )}
           >
             {page}
@@ -72,9 +62,9 @@ export function Pagination({
         type="button"
         onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
         disabled={currentPage === totalPages}
-        className="w-8 h-8 flex items-center justify-center rounded-md text-[#555] hover:text-white hover:bg-[#1e1e1e] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        className="flex h-[30px] w-[30px] items-center justify-center rounded-[8px] bg-[#27272A] text-[#F4F4F5] disabled:opacity-40"
       >
-        <ChevronRight size={14} />
+        <ChevronRight size={20} />
       </button>
     </div>
   );

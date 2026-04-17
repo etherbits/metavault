@@ -1,12 +1,19 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { useState } from "react";
 import { Sidebar } from "@/components/Sidebar";
-import { QueryInput } from "@/components/QueryInput";
 import { HomeSection } from "@/components/HomeSection";
+import { QueryInput } from "@/components/QueryInput";
 import { IntegrationCard } from "@/components/IntegrationCard";
 import { NotePanel } from "@/components/NotePanel";
 import { Pagination } from "@/components/Pagination";
-import { Menu } from "lucide-react";
+import {
+  ChevronUp,
+  Database,
+  Download,
+  Home,
+  Menu,
+  Upload,
+} from "lucide-react";
 import type { MediaItem } from "@/components/MediaCard";
 import "./index.css";
 
@@ -71,17 +78,16 @@ const SAMPLE_ITEMS: MediaItem[] = [
 
 export function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [activePage, setActivePage] = useState<Page>("home");
+  const [activePage, setActivePage] = useState<Page>("query");
   const [query, setQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
-  // FIX: proper toggle
   const handleToggleSidebar = () => {
     setSidebarOpen((prev) => !prev);
   };
 
   return (
-    <div className="flex h-screen bg-[#0e0e0e] overflow-hidden">
+    <div className="flex h-screen overflow-hidden bg-[#0B0B12] text-white">
       <Sidebar
         activePage={activePage}
         onNavigate={setActivePage}
@@ -89,114 +95,208 @@ export function App() {
         onToggle={handleToggleSidebar}
       />
 
-      {/* Main */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Topbar */}
-        <header className="flex items-center gap-3 px-6 py-4 border-b border-[#1f1f1f] bg-[#0e0e0e] shrink-0">
-          {!sidebarOpen && (
+      <div className="flex flex-1 flex-col overflow-hidden">
+        {!sidebarOpen && (
+          <header className="flex shrink-0 items-center border-b border-[#1F1F29] bg-[#0B0B12] px-6 py-4">
             <button
               type="button"
               onClick={handleToggleSidebar}
-              className="text-[#555] hover:text-white transition-colors p-1"
+              className="p-1 text-[#A1A1AA] transition hover:text-white"
+              aria-label="Open sidebar"
             >
               <Menu size={18} />
             </button>
-          )}
+          </header>
+        )}
 
-          <div className="flex-1 max-w-xl">
-            <QueryInput
-              value={query}
-              onChange={setQuery}
-              onSearch={(v) => console.log("search:", v)}
-            />
-          </div>
-        </header>
-
-        {/* Content */}
-        <main className="flex-1 overflow-y-auto px-6 py-6">
+        <main className="flex-1 overflow-y-auto px-14 py-10">
           {activePage === "home" && (
-            <div className="flex flex-col gap-8 max-w-5xl mx-auto">
-              <HomeSection
-                title="In Progress"
-                count={2}
-                items={SAMPLE_ITEMS.filter((i) => i.status === "In Progress")}
-              />
-
-              <HomeSection
-                title="Recently Finished"
-                count={4}
-                items={SAMPLE_ITEMS.filter((i) => i.status === "Finished")}
-              />
-
-              <HomeSection
-                title="On Hold"
-                count={1}
-                items={SAMPLE_ITEMS.filter((i) => i.status === "On Hold")}
-                defaultOpen={false}
-              />
-
-              <div className="flex justify-between items-center">
-                <NotePanel placeholder="Add a note about your media..." />
+            <div className="mx-auto flex w-full max-w-[1488px] flex-col gap-12">
+              <div className="flex items-center gap-3">
+                <Home size={28} className="text-[#A1A1AA]" />
+                <h1 className="text-[30px] font-semibold leading-[30px] tracking-[-1px] text-[#D4D4D8]">
+                  Home
+                </h1>
               </div>
 
-              <div className="flex justify-center">
-                <Pagination
-                  currentPage={currentPage}
-                  totalPages={8}
-                  onPageChange={setCurrentPage}
+              <div className="flex w-full flex-col gap-12">
+                <HomeSection
+                  title="Recently Added"
+                  count={15}
+                  items={SAMPLE_ITEMS}
+                  defaultOpen
                 />
+
+                <HomeSection
+                  title="In Progress"
+                  count={2}
+                  items={SAMPLE_ITEMS.filter((i) => i.status === "In Progress")}
+                  defaultOpen
+                />
+
+                <div className="flex items-center justify-between">
+                  <NotePanel placeholder="Add a note about your media..." />
+                </div>
               </div>
             </div>
           )}
 
           {activePage === "query" && (
-            <div className="max-w-5xl mx-auto">
-              <Card className="bg-[#141414] border-[#1f1f1f]">
-                <CardContent className="pt-6">
-                  <h2 className="text-white text-lg font-semibold mb-4">
-                    Query Explorer
-                  </h2>
+            <div className="mx-auto flex w-full max-w-[1488px] flex-col gap-8">
+              <div className="flex items-start justify-between gap-6">
+                <div className="flex items-center gap-3">
+                  <Database size={28} className="text-[#A1A1AA]" />
+                  <h1 className="text-[30px] font-semibold leading-[30px] tracking-[-1px] text-[#D4D4D8]">
+                    Query
+                  </h1>
+                </div>
 
-                  <p className="text-[#666] text-sm">
-                    Use the search bar above to query your media collection.
-                    <br />
-                    Example:{" "}
-                    <code className="text-[#aaa] bg-[#1e1e1e] px-1 rounded">
-                      tag:action status:finished
-                    </code>
-                  </p>
-                </CardContent>
-              </Card>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    className="flex h-10 items-center justify-center gap-2 rounded-[10px] border border-[#3F3F46] bg-white/5 px-4 text-[14px] font-medium text-[#FAFAFA] shadow-sm transition hover:bg-white/10"
+                  >
+                    <Download size={14} />
+                    Export Items
+                  </button>
+
+                  <button
+                    type="button"
+                    className="flex h-10 items-center justify-center gap-2 rounded-[10px] border border-[#3F3F46] bg-white/5 px-4 text-[14px] font-medium text-[#FAFAFA] shadow-sm transition hover:bg-white/10"
+                  >
+                    <Upload size={14} />
+                    Import Items
+                  </button>
+                </div>
+              </div>
+
+              <div className="w-full">
+                <QueryInput
+                  value={query}
+                  onChange={setQuery}
+                  onSearch={(v) => console.log("search:", v)}
+                  placeholder="Search tag:action,comedy"
+                />
+              </div>
+
+              <p className="text-[16px] leading-6 text-[#A1A1AA]">
+                Retrieved 150 results
+              </p>
+
+              <div className="flex justify-end">
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={9}
+                  onPageChange={setCurrentPage}
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-x-[42px] gap-y-[42px]">
+                {Array.from({ length: 9 }).map((_, index) => (
+                  <div key={index}>
+                    <Card className="border-none bg-transparent shadow-none">
+                      <CardContent className="p-0">
+                        <div className="overflow-hidden rounded-[4px]">
+                          {/* keep your MediaCard here if already styled like screenshot */}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
           {activePage === "integrations" && (
-            <div className="max-w-2xl mx-auto flex flex-col gap-4">
-              <h2 className="text-white text-lg font-semibold">Integrations</h2>
+            <div className="mx-auto flex w-full max-w-[1488px] flex-col gap-12">
+              <div className="flex items-center gap-3">
+                <Home size={28} className="text-[#A1A1AA]" />
+                <h1 className="text-[30px] font-semibold leading-[30px] tracking-[-1px] text-[#D4D4D8]">
+                  Home
+                </h1>
+              </div>
 
-              <IntegrationCard
-                name="TMDB"
-                description="Fetch movie and TV show metadata from The Movie Database."
-                queryFlag="source:tmdb"
-                onSave={(k) => console.log("save tmdb key", k)}
-                onClear={() => console.log("clear tmdb")}
-              />
+              <section className="flex w-full flex-col gap-6">
+                <div className="flex w-full items-start justify-between gap-12">
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-[24px] font-medium leading-[29px] tracking-[-1px] text-[#D4D4D8]">
+                      Source Integrations
+                    </h2>
+                    <span className="text-[16px] leading-6 text-[#A1A1AA]">
+                      2/3 Integrations active
+                    </span>
+                  </div>
 
-              <IntegrationCard
-                name="AniList"
-                description="Sync your anime and manga list from AniList."
-                queryFlag="source:anilist"
-                onSave={(k) => console.log("save anilist key", k)}
-                onClear={() => console.log("clear anilist")}
-              />
+                  <button
+                    type="button"
+                    aria-label="Collapse source integrations"
+                    className="flex h-9 w-9 min-h-[36px] min-w-[36px] items-center justify-center rounded-[8px] border border-[#3F3F46] bg-white/5 text-[#FAFAFA] shadow-sm"
+                  >
+                    <ChevronUp size={16} />
+                  </button>
+                </div>
 
-              <IntegrationCard
-                name="RAWG"
-                description="Pull game data and reviews from RAWG.io."
-                queryFlag="source:rawg"
-                onSave={(k) => console.log("save rawg key", k)}
-                onClear={() => console.log("clear rawg")}
-              />
+                <div className="grid grid-cols-3 gap-x-[44px] gap-y-8">
+                  <IntegrationCard
+                    name="TMDB"
+                    description="The Movie Database (TMDB) is a community built movie and TV database. You can use it to enrich your movie and TV show library entries."
+                    queryFlag="source_integration:enrich"
+                    enabled={false}
+                    onSave={(k) => console.log("save tmdb key", k)}
+                    onClear={() => console.log("clear tmdb")}
+                  />
+
+                  <IntegrationCard
+                    name="AniList"
+                    description="The Movie Database (TMDB) is a community built movie and TV database. You can use it to enrich your movie and TV show library entries."
+                    queryFlag="source_integration:enrich"
+                    enabled
+                    onSave={(k) => console.log("save anilist key", k)}
+                    onClear={() => console.log("clear anilist")}
+                  />
+
+                  <IntegrationCard
+                    name="IGDB"
+                    description="The Movie Database (TMDB) is a community built movie and TV database. You can use it to enrich your movie and TV show library entries."
+                    queryFlag="source_integration:enrich"
+                    enabled
+                    onSave={(k) => console.log("save igdb key", k)}
+                    onClear={() => console.log("clear igdb")}
+                  />
+                </div>
+              </section>
+
+              <section className="flex w-full flex-col gap-6">
+                <div className="flex w-full items-start justify-between gap-12">
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-[24px] font-medium leading-[29px] tracking-[-1px] text-[#D4D4D8]">
+                      AI Integrations
+                    </h2>
+                    <span className="text-[16px] leading-6 text-[#A1A1AA]">
+                      1/1 Integrations active
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    aria-label="Collapse AI integrations"
+                    className="flex h-9 w-9 min-h-[36px] min-w-[36px] items-center justify-center rounded-[8px] border border-[#3F3F46] bg-white/5 text-[#FAFAFA] shadow-sm"
+                  >
+                    <ChevronUp size={16} />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-3 gap-x-[44px] gap-y-8">
+                  <IntegrationCard
+                    name="AI Floating Chat"
+                    description="The Movie Database (TMDB) is a community built movie and TV database. You can use it to enrich your movie and TV show library entries."
+                    queryFlag="source_integration:enrich"
+                    enabled
+                    onSave={(k) => console.log("save ai key", k)}
+                    onClear={() => console.log("clear ai")}
+                  />
+                </div>
+              </section>
             </div>
           )}
         </main>
