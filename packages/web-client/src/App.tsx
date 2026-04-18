@@ -7,6 +7,7 @@ import { NotePanel } from "@/components/NotePanel";
 import { Pagination } from "@/components/Pagination";
 import { AddToCollectionDialog } from "@/components/AddToCollectionDialog";
 import {
+  ArrowRight,
   Bot,
   ChevronDown,
   ChevronUp,
@@ -15,7 +16,11 @@ import {
   Home,
   MessageSquarePlus,
   Menu,
+  Plus,
+  Save,
   SendHorizontal,
+  Settings,
+  Trash2,
   Upload,
 } from "lucide-react";
 import {
@@ -25,7 +30,7 @@ import {
 } from "@/components/MediaCard";
 import "./index.css";
 
-type Page = "home" | "query" | "integrations";
+type Page = "home" | "query" | "integrations" | "settings";
 
 const SAMPLE_ITEMS: MediaItem[] = [
   {
@@ -329,6 +334,14 @@ export function App() {
   );
   const [queryError, setQueryError] = useState<string | null>(null);
   const [isQueryExecuting, setIsQueryExecuting] = useState(false);
+  const [aliasMappings, setAliasMappings] = useState([
+    { id: "1", alias: "good_action", query: "tag:action,combat rating:>7.5" },
+    {
+      id: "2",
+      alias: "comfort",
+      query: "tag:comedy collection:family_classics",
+    },
+  ]);
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [assistantDraft, setAssistantDraft] = useState("");
   const queryTimerRef = useRef<number | null>(null);
@@ -678,6 +691,39 @@ export function App() {
     setSidebarOpen(window.innerWidth >= 1024);
   };
 
+  const handleAliasChange = (
+    id: string,
+    field: "alias" | "query",
+    value: string
+  ) => {
+    setAliasMappings((previous) =>
+      previous.map((entry) =>
+        entry.id === id
+          ? {
+              ...entry,
+              [field]: value,
+            }
+          : entry
+      )
+    );
+  };
+
+  const handleAddAlias = () => {
+    const stamp = Date.now().toString();
+    setAliasMappings((previous) => [
+      ...previous,
+      {
+        id: stamp,
+        alias: "new_alias",
+        query: "tag:example",
+      },
+    ]);
+  };
+
+  const handleDeleteAlias = (id: string) => {
+    setAliasMappings((previous) => previous.filter((entry) => entry.id !== id));
+  };
+
   useEffect(() => {
     function handleResize() {
       if (window.innerWidth >= 1024) {
@@ -892,6 +938,111 @@ export function App() {
                   ))}
                 </div>
               )}
+            </div>
+          )}
+
+          {activePage === "settings" && (
+            <div className="mx-auto flex w-full max-w-[1488px] flex-col gap-12">
+              <div className="flex w-full items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <Settings size={28} className="text-[#A1A1AA]" />
+                  <h1 className="text-2xl font-semibold leading-none tracking-[-1px] text-[#D4D4D8] sm:text-[30px]">
+                    Settings
+                  </h1>
+                </div>
+
+                <button
+                  type="button"
+                  className="flex h-9 items-center gap-2 rounded-[8px] bg-[#FACC15]/50 px-3 text-sm font-medium text-[#09090B]"
+                >
+                  <Save size={16} />
+                  Save
+                </button>
+              </div>
+
+              <div className="mx-auto flex w-full max-w-[548px] flex-col gap-12">
+                <section className="flex flex-col gap-8">
+                  <h2 className="text-[30px] font-semibold leading-[30px] tracking-[-1px] text-[#D4D4D8]">
+                    Query settings
+                  </h2>
+
+                  <div className="flex flex-col gap-6">
+                    <div className="flex items-center justify-between gap-6">
+                      <div className="flex flex-col gap-3">
+                        <p className="text-sm leading-5 text-[#D4D4D4]">
+                          Alias Mappings
+                        </p>
+                        <p className="text-sm leading-5 text-[#A3A3A3]">
+                          Define aliases to commonly used query segments
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleAddAlias}
+                        className="flex h-9 items-center gap-2 rounded-[8px] border border-[#3F3F46] bg-white/5 px-3 text-sm font-medium text-[#FAFAFA] shadow-[0px_1px_2px_rgba(0,0,0,0.05)]"
+                      >
+                        <Plus size={16} />
+                        Add New
+                      </button>
+                    </div>
+
+                    <div className="flex flex-col gap-4">
+                      {aliasMappings.map((entry) => (
+                        <div key={entry.id} className="flex items-center gap-3">
+                          <input
+                            value={entry.alias}
+                            onChange={(event) =>
+                              handleAliasChange(
+                                entry.id,
+                                "alias",
+                                event.target.value
+                              )
+                            }
+                            className="h-9 w-[180px] rounded-[8px] border border-[#3F3F46] bg-white/5 px-3 text-sm leading-5 text-[#FAFAFA] outline-none"
+                          />
+
+                          <ArrowRight size={24} className="text-[#A1A1AA]" />
+
+                          <input
+                            value={entry.query}
+                            onChange={(event) =>
+                              handleAliasChange(
+                                entry.id,
+                                "query",
+                                event.target.value
+                              )
+                            }
+                            className="h-9 flex-1 rounded-[8px] border border-[#3F3F46] bg-white/5 px-3 text-sm leading-5 text-[#FAFAFA] outline-none"
+                          />
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteAlias(entry.id)}
+                            className="flex h-9 w-9 items-center justify-center rounded-[8px] bg-[#7F1D1D]/40 text-[#F87171]"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </section>
+
+                <section className="flex flex-col gap-8">
+                  <h3 className="text-[30px] font-semibold leading-[30px] tracking-[-1px] text-[#D4D4D8]">
+                    Account Settings
+                  </h3>
+
+                  <button
+                    type="button"
+                    className="flex h-9 w-fit items-center gap-2 rounded-[8px] bg-[#7F1D1D]/40 px-3 text-sm font-medium text-[#F87171]"
+                  >
+                    <Trash2 size={16} />
+                    Permanently delete account
+                  </button>
+                </section>
+              </div>
             </div>
           )}
 

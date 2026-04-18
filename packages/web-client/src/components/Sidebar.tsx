@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import MetaLogo from "@/assets/Meta.png";
 import { Button } from "@/components/ui/button";
 
-type SidebarPage = "home" | "query" | "integrations";
+type SidebarPage = "home" | "query" | "integrations" | "settings";
 
 interface SidebarUser {
   name: string;
@@ -160,12 +160,14 @@ function SidebarAction({
   isOpen,
   onClick,
   rotateWhenClosed = false,
+  active = false,
 }: {
   icon: LucideIcon;
   label: string;
   isOpen: boolean;
   onClick?: () => void;
   rotateWhenClosed?: boolean;
+  active?: boolean;
 }) {
   return (
     <Button
@@ -173,7 +175,10 @@ function SidebarAction({
       variant="ghost"
       onClick={onClick}
       className={cn(
-        "h-8 w-full justify-start rounded-md px-3 py-1 text-[#D4D4D8] shadow-none hover:bg-[#18181B] hover:text-[#D4D4D8]",
+        "h-8 w-full justify-start rounded-md px-3 py-1 shadow-none",
+        active
+          ? "bg-[#18181B] text-[#FACC15] hover:bg-[#18181B] hover:text-[#FACC15]"
+          : "text-[#D4D4D8] hover:bg-[#18181B] hover:text-[#D4D4D8]",
         !isOpen && "justify-center px-0"
       )}
     >
@@ -284,11 +289,15 @@ function SidebarUser({
 }
 
 function SidebarFooter({
+  activePage,
+  onNavigate,
   isOpen,
   onToggle,
   onSignOut,
   user,
 }: {
+  activePage: SidebarPage;
+  onNavigate: (page: SidebarPage) => void;
   isOpen: boolean;
   onToggle: () => void;
   onSignOut?: () => void;
@@ -306,7 +315,13 @@ function SidebarFooter({
         rotateWhenClosed
       />
 
-      <SidebarAction icon={Settings} label="Settings" isOpen={isOpen} />
+      <SidebarAction
+        icon={Settings}
+        label="Settings"
+        isOpen={isOpen}
+        onClick={() => onNavigate("settings")}
+        active={activePage === "settings"}
+      />
 
       <SidebarDivider />
       <SidebarUser user={user} isOpen={isOpen} onSignOut={onSignOut} />
@@ -345,6 +360,8 @@ export function Sidebar({
       </div>
 
       <SidebarFooter
+        activePage={activePage}
+        onNavigate={onNavigate}
         isOpen={isOpen}
         onToggle={onToggle}
         onSignOut={onSignOut}

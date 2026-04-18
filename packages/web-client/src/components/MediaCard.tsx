@@ -51,6 +51,7 @@ interface MediaCardProps {
   onRemoveStatus?: (id: string) => void;
   onDelete?: (id: string) => void;
   onAddToCollection?: (id: string) => void;
+  onViewDetails?: (item: MediaItem) => void;
 }
 
 function getTypeIcon(type: MediaType) {
@@ -80,6 +81,7 @@ export function MediaCard({
   onRemoveStatus,
   onDelete,
   onAddToCollection,
+  onViewDetails,
 }: MediaCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
@@ -290,6 +292,7 @@ export function MediaCard({
               type="button"
               onClick={(event) => {
                 event.stopPropagation();
+                onViewDetails?.(item);
               }}
               className="h-8 rounded-[8px] bg-[#FACC15] px-[10px] text-[14px] font-medium leading-5 text-[#27272A] hover:bg-[#eab308]"
             >
