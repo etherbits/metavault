@@ -300,7 +300,7 @@ function normalizeImportedItems(raw: unknown): Omit<MediaItem, "id">[] | null {
 }
 
 export function App() {
-  const initialQuery = "Delete target:title:Dune";
+  const initialQuery = "";
   const [isSignedOut, setIsSignedOut] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     if (typeof window === "undefined") return true;
@@ -312,9 +312,7 @@ export function App() {
   const [lastImportedIds, setLastImportedIds] = useState<string[]>([]);
   const [collectionIds, setCollectionIds] = useState<string[]>([]);
   const [homeHiddenIds, setHomeHiddenIds] = useState<string[]>([]);
-  const [queryResults, setQueryResults] = useState<MediaItem[]>(() =>
-    runQuery(initialQuery, QUERY_ITEMS, [], [])
-  );
+  const [queryResults, setQueryResults] = useState<MediaItem[]>(QUERY_ITEMS);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -326,7 +324,7 @@ export function App() {
     COLLECTION_OPTIONS[0]
   );
   const [queryError, setQueryError] = useState<string | null>(null);
-  const [isQueryExecuting, setIsQueryExecuting] = useState(true);
+  const [isQueryExecuting, setIsQueryExecuting] = useState(false);
   const queryTimerRef = useRef<number | null>(null);
   const isCreateQuery = query.trim().toLowerCase().startsWith("create ");
   const isUpdateQuery = query.trim().toLowerCase().startsWith("update ");
