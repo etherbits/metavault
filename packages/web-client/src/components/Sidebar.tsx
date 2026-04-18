@@ -249,25 +249,16 @@ function SidebarUser({
         </div>
       )}
 
-      <div
-        role={canOpenSignOut ? "button" : undefined}
-        tabIndex={canOpenSignOut ? 0 : undefined}
+      <button
+        type="button"
         onClick={
           canOpenSignOut ? () => setIsSignOutOpen((prev) => !prev) : undefined
         }
-        onKeyDown={
-          canOpenSignOut
-            ? (event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  setIsSignOutOpen((prev) => !prev);
-                }
-              }
-            : undefined
-        }
         className={cn(
-          "flex h-11 min-w-0 items-center gap-2 rounded-md px-2 py-1",
-          canOpenSignOut && "cursor-pointer hover:bg-[#18181B]",
+          "flex h-11 w-full min-w-0 items-center gap-2 rounded-md px-2 py-1 text-left",
+          canOpenSignOut
+            ? "cursor-pointer hover:bg-[#18181B]"
+            : "cursor-default",
           !isOpen && "justify-center px-0"
         )}
       >
@@ -283,7 +274,7 @@ function SidebarUser({
             </span>
           </div>
         </SidebarText>
-      </div>
+      </button>
     </div>
   );
 }
