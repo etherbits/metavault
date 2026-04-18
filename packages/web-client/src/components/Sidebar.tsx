@@ -72,7 +72,7 @@ function SidebarText({
 
 function SidebarBrand({ isOpen }: { isOpen: boolean }) {
   return (
-    <div className="flex h-11 min-w-0 items-center gap-2 px-2">
+    <div className="flex h-11 min-w-0 items-center gap-2 p-2">
       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[#27272A]">
         <img
           src={MetaLogo}
@@ -110,7 +110,7 @@ function SidebarNavItem({
       variant="ghost"
       onClick={onClick}
       className={cn(
-        "h-10 w-full justify-start rounded-[10px] px-3 text-sm shadow-none",
+        "h-8 w-full justify-start rounded-md px-3 py-1 text-sm shadow-none",
         "hover:bg-[#18181B] hover:text-[#D4D4D8]",
         active
           ? "bg-[#18181B] text-[#FACC15] hover:bg-[#18181B] hover:text-[#FACC15]"
@@ -171,7 +171,7 @@ function SidebarAction({
       variant="ghost"
       onClick={onClick}
       className={cn(
-        "h-10 w-full justify-start rounded-md px-3 text-[#D4D4D8] shadow-none hover:bg-[#18181B] hover:text-[#D4D4D8]",
+        "h-8 w-full justify-start rounded-md px-3 py-1 text-[#D4D4D8] shadow-none hover:bg-[#18181B] hover:text-[#D4D4D8]",
         !isOpen && "justify-center px-0"
       )}
     >
@@ -191,7 +191,7 @@ function SidebarUser({ user, isOpen }: { user: SidebarUser; isOpen: boolean }) {
   return (
     <div
       className={cn(
-        "flex min-w-0 items-center gap-2 px-2 py-2",
+        "flex h-11 min-w-0 items-center gap-2 px-2 py-1",
         !isOpen && "justify-center px-0"
       )}
     >
@@ -219,7 +219,7 @@ function SidebarFooter({
   user: SidebarUser;
 }) {
   return (
-    <div className="flex w-full min-w-0 flex-col gap-2">
+    <div className="flex w-full min-w-0 flex-col gap-1">
       <SidebarDivider />
 
       <SidebarAction
@@ -258,7 +258,7 @@ export function Sidebar({
           : "w-0 -translate-x-full p-0 lg:w-[72px] lg:translate-x-0 lg:p-3"
       )}
     >
-      <div className="flex w-full min-w-0 flex-col gap-4">
+      <div className="flex w-full min-w-0 flex-col gap-1">
         <SidebarBrand isOpen={isOpen} />
         <SidebarNav
           activePage={activePage}

@@ -83,6 +83,7 @@ export function MediaCard({
 }: MediaCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+  const [submenuSide, setSubmenuSide] = useState<"left" | "right">("left");
   const menuRef = useRef<HTMLDivElement | null>(null);
   const menuButtonRef = useRef<HTMLDivElement | null>(null);
 
@@ -90,12 +91,42 @@ export function MediaCard({
     if (!menuOpen) {
       const triggerRect = menuButtonRef.current?.getBoundingClientRect();
       if (triggerRect) {
-        const panelWidth = 186;
+        const panelWidth = 176;
+        const submenuWidth = 176;
         const panelHeight = 248;
         const gap = 12;
+        const viewportPadding = 8;
+        const viewportWidth = window.innerWidth;
 
-        const nextLeft = Math.max(8, triggerRect.left - panelWidth - gap);
+        let nextLeft = triggerRect.left - panelWidth - gap;
+
+        if (nextLeft < viewportPadding) {
+          nextLeft = triggerRect.right + gap;
+        }
+
+        const maxLeft = Math.max(
+          viewportPadding,
+          viewportWidth - panelWidth - viewportPadding
+        );
+        nextLeft = Math.min(Math.max(viewportPadding, nextLeft), maxLeft);
+
         const nextTop = Math.max(8, triggerRect.bottom - panelHeight);
+
+        const canOpenSubmenuLeft =
+          nextLeft - gap - submenuWidth >= viewportPadding;
+        const canOpenSubmenuRight =
+          nextLeft + panelWidth + gap + submenuWidth <=
+          viewportWidth - viewportPadding;
+
+        if (canOpenSubmenuLeft) {
+          setSubmenuSide("left");
+        } else if (canOpenSubmenuRight) {
+          setSubmenuSide("right");
+        } else {
+          const leftSpace = nextLeft;
+          const rightSpace = viewportWidth - (nextLeft + panelWidth);
+          setSubmenuSide(rightSpace > leftSpace ? "right" : "left");
+        }
 
         setMenuPosition({ top: nextTop, left: nextLeft });
       }
@@ -246,7 +277,7 @@ export function MediaCard({
                     onRemoveStatus?.(item.id);
                     setMenuOpen(false);
                   }}
-                  submenuSide="left"
+                  submenuSide={submenuSide}
                   style={{
                     top: `${menuPosition.top}px`,
                     left: `${menuPosition.left}px`,
