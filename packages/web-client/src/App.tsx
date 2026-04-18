@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { HomeSection } from "@/components/HomeSection";
 import { QueryInput } from "@/components/QueryInput";
@@ -157,25 +157,68 @@ function runQuery(
     return items.filter((item) => idSet.has(item.id));
   }
 
+  let filteredItems = items;
+  let hasStructuredFilters = false;
+
   const statusMatch = trimmed.match(/status:\s*"?([^"]+)"?/i);
   if (statusMatch?.[1]) {
+    hasStructuredFilters = true;
     const parsedStatus = statusMatch[1].trim();
     if (isMediaStatus(parsedStatus)) {
-      return items.filter((item) => item.status === parsedStatus);
+      filteredItems = filteredItems.filter(
+        (item) => item.status === parsedStatus
+      );
     }
   }
 
   const tagMatch = trimmed.match(/tag:\s*"?([^"]+)"?/i);
   if (tagMatch?.[1]) {
+    hasStructuredFilters = true;
     const parsedTag = tagMatch[1].trim().toLowerCase();
     if (parsedTag === "collection") {
       const collectionSet = new Set(collectionIds);
-      return items.filter((item) => collectionSet.has(item.id));
-    }
+      filteredItems = filteredItems.filter((item) =>
+        collectionSet.has(item.id)
+      );
+    } else {
+      const parsedTags = parsedTag
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean);
 
-    return items.filter((item) =>
-      item.tags.some((tag) => tag.toLowerCase() === parsedTag)
+      if (parsedTags.length > 1) {
+        filteredItems = filteredItems.filter((item) => {
+          const itemTags = item.tags.map((tag) => tag.toLowerCase());
+          return parsedTags.every((tag) => itemTags.includes(tag));
+        });
+      } else {
+        filteredItems = filteredItems.filter((item) =>
+          item.tags.some((tag) => tag.toLowerCase() === parsedTag)
+        );
+      }
+    }
+  }
+
+  const titleMatch = trimmed.match(/title:\s*"?([^"]+)"?/i);
+  if (titleMatch?.[1]) {
+    hasStructuredFilters = true;
+    const parsedTitle = titleMatch[1].trim().toLowerCase();
+    filteredItems = filteredItems.filter((item) =>
+      item.title.toLowerCase().includes(parsedTitle)
     );
+  }
+
+  const typeMatch = trimmed.match(/(?:content_type|type):\s*"?([^"]+)"?/i);
+  if (typeMatch?.[1]) {
+    hasStructuredFilters = true;
+    const parsedType = typeMatch[1].trim().toLowerCase();
+    filteredItems = filteredItems.filter(
+      (item) => item.type.toLowerCase() === parsedType
+    );
+  }
+
+  if (hasStructuredFilters) {
+    return filteredItems;
   }
 
   const needle = trimmed.toLowerCase();
@@ -185,6 +228,34 @@ function runQuery(
       item.tags.some((tag) => tag.toLowerCase().includes(needle)) ||
       item.type.toLowerCase().includes(needle)
   );
+}
+
+const VALID_QUERY_PREFIXES = new Set([
+  "tag",
+  "status",
+  "target",
+  "release",
+  "public_rating",
+  "description",
+  "alias",
+  "type",
+  "content_type",
+  "title",
+]);
+
+function getQueryValidationError(input: string): string | null {
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+
+  const matches = trimmed.matchAll(/\b([a-z_]+):/gi);
+  for (const match of matches) {
+    const prefix = match[1]?.toLowerCase();
+    if (prefix && !VALID_QUERY_PREFIXES.has(prefix)) {
+      return `Invalid query: “${prefix}” is not a valid metadata prefix`;
+    }
+  }
+
+  return null;
 }
 
 function normalizeImportedItems(raw: unknown): Omit<MediaItem, "id">[] | null {
@@ -229,18 +300,21 @@ function normalizeImportedItems(raw: unknown): Omit<MediaItem, "id">[] | null {
 }
 
 export function App() {
+  const initialQuery = "Delete target:title:Dune";
   const [isSignedOut, setIsSignedOut] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     if (typeof window === "undefined") return true;
     return window.innerWidth >= 1024;
   });
   const [activePage, setActivePage] = useState<Page>("query");
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const [libraryItems, setLibraryItems] = useState<MediaItem[]>(QUERY_ITEMS);
   const [lastImportedIds, setLastImportedIds] = useState<string[]>([]);
   const [collectionIds, setCollectionIds] = useState<string[]>([]);
   const [homeHiddenIds, setHomeHiddenIds] = useState<string[]>([]);
-  const [queryResults, setQueryResults] = useState<MediaItem[]>(QUERY_ITEMS);
+  const [queryResults, setQueryResults] = useState<MediaItem[]>(() =>
+    runQuery(initialQuery, QUERY_ITEMS, [], [])
+  );
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -251,20 +325,66 @@ export function App() {
   const [selectedCollection, setSelectedCollection] = useState(
     COLLECTION_OPTIONS[0]
   );
+  const [queryError, setQueryError] = useState<string | null>(null);
+  const [isQueryExecuting, setIsQueryExecuting] = useState(true);
+  const queryTimerRef = useRef<number | null>(null);
+  const isCreateQuery = query.trim().toLowerCase().startsWith("create ");
+  const isUpdateQuery = query.trim().toLowerCase().startsWith("update ");
+  const isDeleteQuery = query.trim().toLowerCase().startsWith("delete ");
+
+  const clearQueryTimer = useCallback(() => {
+    if (queryTimerRef.current !== null) {
+      window.clearTimeout(queryTimerRef.current);
+      queryTimerRef.current = null;
+    }
+  }, []);
+
+  const handleQueryChange = (value: string) => {
+    setQuery(value);
+    setQueryError(null);
+    setIsQueryExecuting(false);
+  };
 
   const handleQuerySearch = (value: string) => {
-    const results = runQuery(
-      value,
-      libraryItems,
-      lastImportedIds,
-      collectionIds
-    );
+    clearQueryTimer();
+
+    const validationError = getQueryValidationError(value);
     setQuery(value);
-    setQueryResults(results);
-    setCurrentPage(1);
-    setSelectMode(false);
-    setSelectedIds([]);
+
+    if (validationError) {
+      setQueryError(validationError);
+      setIsQueryExecuting(false);
+      setQueryResults([]);
+      setCurrentPage(1);
+      setSelectMode(false);
+      setSelectedIds([]);
+      return;
+    }
+
+    setQueryError(null);
+    setIsQueryExecuting(true);
+
+    queryTimerRef.current = window.setTimeout(() => {
+      const results = runQuery(
+        value,
+        libraryItems,
+        lastImportedIds,
+        collectionIds
+      );
+      setQueryResults(results);
+      setCurrentPage(1);
+      setSelectMode(false);
+      setSelectedIds([]);
+      setIsQueryExecuting(false);
+      queryTimerRef.current = null;
+    }, 600);
   };
+
+  useEffect(() => {
+    return () => {
+      clearQueryTimer();
+    };
+  }, [clearQueryTimer]);
 
   const handleQueryMore = (prefilledQuery: string) => {
     setActivePage("query");
@@ -420,11 +540,6 @@ export function App() {
         ? previousIds.filter((id) => id !== cardId)
         : [...previousIds, cardId]
     );
-  };
-
-  const handleClearSelection = () => {
-    setSelectMode(false);
-    setSelectedIds([]);
   };
 
   const handleExportItems = async () => {
@@ -679,81 +794,100 @@ export function App() {
                   </h1>
                 </div>
 
-                <div className="flex w-full flex-wrap items-center gap-3 lg:w-auto lg:justify-end">
-                  {selectedIds.length > 0 && (
-                    <div className="flex w-full flex-wrap items-center justify-end gap-3 lg:w-auto">
-                      <span className="rounded-[10px] border border-[#3F3F46] bg-white/5 px-3 py-2 text-[14px] text-[#FAFAFA]">
-                        {selectedIds.length} selected
-                      </span>
-                      <button
-                        type="button"
-                        onClick={handleClearSelection}
-                        className="h-10 rounded-[10px] border border-[#3F3F46] bg-white/5 px-4 text-[14px] font-medium text-[#FAFAFA] transition hover:bg-white/10"
-                      >
-                        Clear selection
-                      </button>
-                    </div>
-                  )}
+                {!isQueryExecuting && !isCreateQuery && (
+                  <div className="flex w-full flex-wrap items-center gap-3 lg:w-auto lg:justify-end">
+                    <button
+                      type="button"
+                      onClick={handleExportItems}
+                      className="flex h-8 flex-1 items-center justify-center gap-1.5 rounded-[8px] border border-[#3F3F46] bg-white/5 px-2.5 text-[14px] font-medium text-[#FAFAFA] shadow-sm transition hover:bg-white/10 sm:flex-none"
+                    >
+                      <Download size={16} />
+                      Export Items
+                    </button>
 
-                  <button
-                    type="button"
-                    onClick={handleExportItems}
-                    className="flex h-8 flex-1 items-center justify-center gap-1.5 rounded-[8px] border border-[#3F3F46] bg-white/5 px-2.5 text-[14px] font-medium text-[#FAFAFA] shadow-sm transition hover:bg-white/10 sm:flex-none"
-                  >
-                    <Download size={16} />
-                    Export Items
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleImportItems}
-                    className="flex h-8 flex-1 items-center justify-center gap-1.5 rounded-[8px] border border-[#3F3F46] bg-white/5 px-2.5 text-[14px] font-medium text-[#FAFAFA] shadow-sm transition hover:bg-white/10 sm:flex-none"
-                  >
-                    <Upload size={16} />
-                    Import Items
-                  </button>
-                </div>
+                    <button
+                      type="button"
+                      onClick={handleImportItems}
+                      className="flex h-8 flex-1 items-center justify-center gap-1.5 rounded-[8px] border border-[#3F3F46] bg-white/5 px-2.5 text-[14px] font-medium text-[#FAFAFA] shadow-sm transition hover:bg-white/10 sm:flex-none"
+                    >
+                      <Upload size={16} />
+                      Import Items
+                    </button>
+                  </div>
+                )}
               </div>
 
-              <div className="w-full">
+              <div className="flex w-full flex-col gap-4">
                 <QueryInput
                   value={query}
-                  onChange={setQuery}
+                  onChange={handleQueryChange}
                   onSearch={handleQuerySearch}
                   placeholder="Search tag:action,comedy"
+                  mode={
+                    isCreateQuery
+                      ? "create"
+                      : isUpdateQuery
+                        ? "update"
+                        : isDeleteQuery
+                          ? "delete"
+                          : "search"
+                  }
                 />
+
+                {isQueryExecuting ? (
+                  <p className="text-[14px] leading-5 text-[#A1A1AA]">
+                    Executing query...
+                  </p>
+                ) : isCreateQuery ? (
+                  <p className="text-[14px] leading-5 text-[#A1A1AA]">
+                    Created {queryResults.length}{" "}
+                    {queryResults.length === 1 ? "item" : "items"}
+                  </p>
+                ) : queryResults.length === 0 ? (
+                  queryError ? (
+                    <p className="w-fit max-w-[358px] text-[14px] leading-5 text-[#F87171]">
+                      {queryError}
+                    </p>
+                  ) : (
+                    <p className="text-[14px] leading-5 text-[#A1A1AA]">
+                      No results found
+                    </p>
+                  )
+                ) : (
+                  <div className="flex w-full items-center justify-between gap-4">
+                    <p className="text-[14px] leading-5 text-[#A1A1AA]">
+                      Retrieved {queryResults.length} results
+                    </p>
+
+                    <div className="flex justify-start sm:justify-end">
+                      <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        onPageChange={setCurrentPage}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
-              <div className="flex w-full items-center justify-between gap-4">
-                <p className="text-[14px] leading-5 text-[#A1A1AA]">
-                  Retrieved {queryResults.length} results
-                </p>
-
-                <div className="flex justify-start sm:justify-end">
-                  <Pagination
-                    currentPage={currentPage}
-                    totalPages={totalPages}
-                    onPageChange={setCurrentPage}
-                  />
+              {!isQueryExecuting && queryResults.length > 0 && (
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:gap-8 xl:grid-cols-3">
+                  {paginatedQueryItems.map((item) => (
+                    <MediaCard
+                      key={item.id}
+                      item={item}
+                      selectMode={selectMode}
+                      selected={selectedIds.includes(item.id)}
+                      onToggleSelect={handleToggleCardSelection}
+                      onEnterSelectMode={handleEnterSelectMode}
+                      onChangeStatus={handleCardStatusChange}
+                      onRemoveStatus={handleCardRemoveStatus}
+                      onDelete={handleCardDelete}
+                      onAddToCollection={handleCardAddToCollection}
+                    />
+                  ))}
                 </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:gap-8 xl:grid-cols-3">
-                {paginatedQueryItems.map((item) => (
-                  <MediaCard
-                    key={item.id}
-                    item={item}
-                    selectMode={selectMode}
-                    selected={selectedIds.includes(item.id)}
-                    onToggleSelect={handleToggleCardSelection}
-                    onEnterSelectMode={handleEnterSelectMode}
-                    onChangeStatus={handleCardStatusChange}
-                    onRemoveStatus={handleCardRemoveStatus}
-                    onDelete={handleCardDelete}
-                    onAddToCollection={handleCardAddToCollection}
-                  />
-                ))}
-              </div>
+              )}
             </div>
           )}
 
