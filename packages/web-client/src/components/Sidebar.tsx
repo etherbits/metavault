@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   Home,
@@ -189,24 +189,96 @@ function SidebarAction({
   );
 }
 
-function SidebarUser({ user, isOpen }: { user: SidebarUser; isOpen: boolean }) {
-  return (
-    <div
-      className={cn(
-        "flex h-11 min-w-0 items-center gap-2 px-2 py-1",
-        !isOpen && "justify-center px-0"
-      )}
-    >
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#18181B] text-sm font-semibold text-[#FAFAFA]">
-        {getInitials(user.name)}
-      </div>
+function SidebarUser({
+  user,
+  isOpen,
+  onSignOut,
+}: {
+  user: SidebarUser;
+  isOpen: boolean;
+  onSignOut?: () => void;
+}) {
+  const [isSignOutOpen, setIsSignOutOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const canOpenSignOut = isOpen && Boolean(onSignOut);
 
-      <SidebarText isOpen={isOpen} className="min-w-0 flex-1">
-        <div className="flex min-w-0 flex-col leading-tight">
-          <span className="truncate text-sm text-[#FAFAFA]">{user.name}</span>
-          <span className="truncate text-xs text-[#A1A1AA]">{user.email}</span>
+  useEffect(() => {
+    if (!isOpen) {
+      setIsSignOutOpen(false);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isSignOutOpen) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
+      ) {
+        setIsSignOutOpen(false);
+      }
+    };
+
+    window.addEventListener("mousedown", handlePointerDown);
+
+    return () => {
+      window.removeEventListener("mousedown", handlePointerDown);
+    };
+  }, [isSignOutOpen]);
+
+  return (
+    <div ref={containerRef} className="relative w-full">
+      {canOpenSignOut && isSignOutOpen && (
+        <div className="absolute left-full top-1/2 z-50 ml-2 w-40 -translate-y-1/2 rounded-[8px] border border-[#3F3F46] bg-[#18181B] p-2 shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.1),0px_2px_4px_-2px_rgba(0,0,0,0.1)]">
+          <button
+            type="button"
+            onClick={() => {
+              setIsSignOutOpen(false);
+              onSignOut?.();
+            }}
+            className="flex min-h-8 w-full items-center rounded-md px-2 py-[5.5px] text-left text-sm leading-5 text-[#F87171] transition-colors hover:bg-[#27272A]"
+          >
+            Sign out
+          </button>
         </div>
-      </SidebarText>
+      )}
+
+      <div
+        role={canOpenSignOut ? "button" : undefined}
+        tabIndex={canOpenSignOut ? 0 : undefined}
+        onClick={
+          canOpenSignOut ? () => setIsSignOutOpen((prev) => !prev) : undefined
+        }
+        onKeyDown={
+          canOpenSignOut
+            ? (event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  setIsSignOutOpen((prev) => !prev);
+                }
+              }
+            : undefined
+        }
+        className={cn(
+          "flex h-11 min-w-0 items-center gap-2 rounded-md px-2 py-1",
+          canOpenSignOut && "cursor-pointer hover:bg-[#18181B]",
+          !isOpen && "justify-center px-0"
+        )}
+      >
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#18181B] text-sm font-semibold text-[#FAFAFA]">
+          {getInitials(user.name)}
+        </div>
+
+        <SidebarText isOpen={isOpen} className="min-w-0 flex-1">
+          <div className="flex min-w-0 flex-col leading-tight">
+            <span className="truncate text-sm text-[#FAFAFA]">{user.name}</span>
+            <span className="truncate text-xs text-[#A1A1AA]">
+              {user.email}
+            </span>
+          </div>
+        </SidebarText>
+      </div>
     </div>
   );
 }
@@ -222,45 +294,6 @@ function SidebarFooter({
   onSignOut?: () => void;
   user: SidebarUser;
 }) {
-  const [isAccountActionsOpen, setIsAccountActionsOpen] = useState(false);
-  const accountActionsRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!isOpen) {
-      setIsAccountActionsOpen(false);
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (!isAccountActionsOpen) {
-      return;
-    }
-
-    function handlePointerDown(event: MouseEvent) {
-      if (!accountActionsRef.current) {
-        return;
-      }
-
-      if (!accountActionsRef.current.contains(event.target as Node)) {
-        setIsAccountActionsOpen(false);
-      }
-    }
-
-    function handleEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setIsAccountActionsOpen(false);
-      }
-    }
-
-    window.addEventListener("mousedown", handlePointerDown);
-    window.addEventListener("keydown", handleEscape);
-
-    return () => {
-      window.removeEventListener("mousedown", handlePointerDown);
-      window.removeEventListener("keydown", handleEscape);
-    };
-  }, [isAccountActionsOpen]);
-
   return (
     <div className="flex w-full min-w-0 flex-col gap-1">
       <SidebarDivider />
@@ -273,32 +306,10 @@ function SidebarFooter({
         rotateWhenClosed
       />
 
-      <div ref={accountActionsRef} className="relative w-full">
-        <SidebarAction
-          icon={Settings}
-          label="Settings"
-          isOpen={isOpen}
-          onClick={() => setIsAccountActionsOpen((prev) => !prev)}
-        />
-
-        {isOpen && isAccountActionsOpen && (
-          <div className="absolute bottom-full left-0 z-40 mb-2 flex w-44 flex-col gap-2 rounded-[8px] border border-[#3F3F46] bg-[#18181B] p-2 shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.1),0px_2px_4px_-2px_rgba(0,0,0,0.1)]">
-            <button
-              type="button"
-              onClick={() => {
-                setIsAccountActionsOpen(false);
-                onSignOut?.();
-              }}
-              className="flex min-h-8 w-40 items-center rounded-md px-2 py-[5.5px] text-left text-sm leading-5 text-[#F87171] transition-colors hover:bg-[#27272A]"
-            >
-              <span>Sign out</span>
-            </button>
-          </div>
-        )}
-      </div>
+      <SidebarAction icon={Settings} label="Settings" isOpen={isOpen} />
 
       <SidebarDivider />
-      <SidebarUser user={user} isOpen={isOpen} />
+      <SidebarUser user={user} isOpen={isOpen} onSignOut={onSignOut} />
     </div>
   );
 }
@@ -317,7 +328,7 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        "fixed inset-y-0 left-0 z-30 flex h-screen shrink-0 flex-col justify-between overflow-hidden border-r border-[#27272A] bg-[#09090B] lg:relative lg:z-20",
+        "fixed inset-y-0 left-0 z-30 flex h-screen shrink-0 flex-col justify-between overflow-visible border-r border-[#27272A] bg-[#09090B] lg:relative lg:z-20",
         "transition-[width,padding,transform] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
         isOpen
           ? "w-[240px] translate-x-0 p-3"

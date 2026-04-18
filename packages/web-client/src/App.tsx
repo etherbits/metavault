@@ -229,6 +229,7 @@ function normalizeImportedItems(raw: unknown): Omit<MediaItem, "id">[] | null {
 }
 
 export function App() {
+  const [isSignedOut, setIsSignedOut] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     if (typeof window === "undefined") return true;
     return window.innerWidth >= 1024;
@@ -546,6 +547,18 @@ export function App() {
     setSidebarOpen((prev) => !prev);
   };
 
+  const handleSignOut = () => {
+    setIsSignedOut(true);
+    setSidebarOpen(false);
+    setSelectMode(false);
+    setSelectedIds([]);
+  };
+
+  const handleSignIn = () => {
+    setIsSignedOut(false);
+    setSidebarOpen(window.innerWidth >= 1024);
+  };
+
   useEffect(() => {
     function handleResize() {
       if (window.innerWidth >= 1024) {
@@ -570,6 +583,26 @@ export function App() {
     );
   }, [queryResults]);
 
+  if (isSignedOut) {
+    return (
+      <div className="flex h-dvh min-h-screen items-center justify-center bg-[#18181B] p-6 text-white">
+        <div className="flex w-full max-w-md flex-col items-center gap-4 rounded-2xl border border-[#3F3F46] bg-[#09090B] p-8 text-center shadow-[0px_12px_32px_rgba(0,0,0,0.35)]">
+          <h1 className="text-2xl font-semibold text-[#FAFAFA]">Signed out</h1>
+          <p className="text-sm text-[#A1A1AA]">
+            You have been logged out of MetaVault.
+          </p>
+          <button
+            type="button"
+            onClick={handleSignIn}
+            className="mt-2 h-10 rounded-[10px] border border-[#3F3F46] bg-white/5 px-4 text-sm font-medium text-[#FAFAFA] transition hover:bg-white/10"
+          >
+            Sign in again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative flex h-dvh min-h-screen overflow-hidden bg-[#18181B] text-white">
       <Sidebar
@@ -577,6 +610,7 @@ export function App() {
         onNavigate={setActivePage}
         isOpen={sidebarOpen}
         onToggle={handleToggleSidebar}
+        onSignOut={handleSignOut}
       />
 
       {sidebarOpen && (
