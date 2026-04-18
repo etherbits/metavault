@@ -1,6 +1,6 @@
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useState } from "react";
-import { MediaCard, type MediaItem } from "./MediaCard";
+import { MediaCard, type MediaItem, type MediaStatus } from "./MediaCard";
 
 interface HomeSectionProps {
   title: string;
@@ -9,6 +9,10 @@ interface HomeSectionProps {
   loading?: boolean;
   defaultOpen?: boolean;
   onQueryMore?: () => void;
+  onChangeStatus?: (id: string, status: MediaStatus) => void;
+  onRemoveStatus?: (id: string) => void;
+  onDelete?: (id: string) => void;
+  onAddToCollection?: (id: string) => void;
 }
 
 export function HomeSection({
@@ -18,6 +22,10 @@ export function HomeSection({
   loading = false,
   defaultOpen = true,
   onQueryMore,
+  onChangeStatus,
+  onRemoveStatus,
+  onDelete,
+  onAddToCollection,
 }: HomeSectionProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
@@ -71,7 +79,14 @@ export function HomeSection({
           {!loading && items.length > 0 && (
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:gap-8 xl:grid-cols-3">
               {items.map((item) => (
-                <MediaCard key={item.id} item={item} />
+                <MediaCard
+                  key={item.id}
+                  item={item}
+                  onChangeStatus={onChangeStatus}
+                  onRemoveStatus={onRemoveStatus}
+                  onDelete={onDelete}
+                  onAddToCollection={onAddToCollection}
+                />
               ))}
             </div>
           )}
