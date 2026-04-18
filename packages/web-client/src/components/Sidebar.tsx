@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   Home,
@@ -22,6 +23,7 @@ interface SidebarProps {
   onNavigate: (page: SidebarPage) => void;
   isOpen: boolean;
   onToggle: () => void;
+  onSignOut?: () => void;
   user?: SidebarUser;
 }
 
@@ -52,7 +54,7 @@ function SidebarText({
   className,
 }: {
   isOpen: boolean;
-  children: React.ReactNode;
+  children: ReactNode;
   className?: string;
 }) {
   return (
@@ -212,12 +214,53 @@ function SidebarUser({ user, isOpen }: { user: SidebarUser; isOpen: boolean }) {
 function SidebarFooter({
   isOpen,
   onToggle,
+  onSignOut,
   user,
 }: {
   isOpen: boolean;
   onToggle: () => void;
+  onSignOut?: () => void;
   user: SidebarUser;
 }) {
+  const [isAccountActionsOpen, setIsAccountActionsOpen] = useState(false);
+  const accountActionsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setIsAccountActionsOpen(false);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isAccountActionsOpen) {
+      return;
+    }
+
+    function handlePointerDown(event: MouseEvent) {
+      if (!accountActionsRef.current) {
+        return;
+      }
+
+      if (!accountActionsRef.current.contains(event.target as Node)) {
+        setIsAccountActionsOpen(false);
+      }
+    }
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsAccountActionsOpen(false);
+      }
+    }
+
+    window.addEventListener("mousedown", handlePointerDown);
+    window.addEventListener("keydown", handleEscape);
+
+    return () => {
+      window.removeEventListener("mousedown", handlePointerDown);
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [isAccountActionsOpen]);
+
   return (
     <div className="flex w-full min-w-0 flex-col gap-1">
       <SidebarDivider />
@@ -230,7 +273,29 @@ function SidebarFooter({
         rotateWhenClosed
       />
 
-      <SidebarAction icon={Settings} label="Settings" isOpen={isOpen} />
+      <div ref={accountActionsRef} className="relative w-full">
+        <SidebarAction
+          icon={Settings}
+          label="Settings"
+          isOpen={isOpen}
+          onClick={() => setIsAccountActionsOpen((prev) => !prev)}
+        />
+
+        {isOpen && isAccountActionsOpen && (
+          <div className="absolute bottom-full left-0 z-40 mb-2 flex w-44 flex-col gap-2 rounded-[8px] border border-[#3F3F46] bg-[#18181B] p-2 shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.1),0px_2px_4px_-2px_rgba(0,0,0,0.1)]">
+            <button
+              type="button"
+              onClick={() => {
+                setIsAccountActionsOpen(false);
+                onSignOut?.();
+              }}
+              className="flex min-h-8 w-40 items-center rounded-md px-2 py-[5.5px] text-left text-sm leading-5 text-[#F87171] transition-colors hover:bg-[#27272A]"
+            >
+              <span>Sign out</span>
+            </button>
+          </div>
+        )}
+      </div>
 
       <SidebarDivider />
       <SidebarUser user={user} isOpen={isOpen} />
@@ -243,6 +308,7 @@ export function Sidebar({
   onNavigate,
   isOpen,
   onToggle,
+  onSignOut,
   user = {
     name: "Nika Qvrivishvili",
     email: "nikaqvrivishvili@gmail.com",
@@ -267,7 +333,12 @@ export function Sidebar({
         />
       </div>
 
-      <SidebarFooter isOpen={isOpen} onToggle={onToggle} user={user} />
+      <SidebarFooter
+        isOpen={isOpen}
+        onToggle={onToggle}
+        onSignOut={onSignOut}
+        user={user}
+      />
     </aside>
   );
 }

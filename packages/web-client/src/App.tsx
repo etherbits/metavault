@@ -5,6 +5,7 @@ import { QueryInput } from "@/components/QueryInput";
 import { IntegrationCard } from "@/components/IntegrationCard";
 import { NotePanel } from "@/components/NotePanel";
 import { Pagination } from "@/components/Pagination";
+import { AddToCollectionDialog } from "@/components/AddToCollectionDialog";
 import {
   ChevronUp,
   Database,
@@ -79,13 +80,40 @@ const SAMPLE_ITEMS: MediaItem[] = [
   },
 ];
 
-const HOME_SECTION_QUERIES = {
-  recentlyAdded: "all",
-  inProgress: 'status:"In Progress"',
-  collection: "tag:collection",
-} as const;
+const HOME_SECTIONS = [
+  {
+    title: "Recently added",
+    query: "all",
+    defaultOpen: true,
+  },
+  {
+    title: "In Progress",
+    query: 'status:"In Progress"',
+    defaultOpen: true,
+  },
+  {
+    title: "Dark tone collection",
+    query: 'tag:"Dark tone collection"',
+    defaultOpen: false,
+  },
+  {
+    title: "Trilogy collection",
+    query: 'tag:"Trilogy collection"',
+    defaultOpen: false,
+  },
+  {
+    title: "Dropped",
+    query: 'status:"Dropped"',
+    defaultOpen: false,
+  },
+] as const;
 
 const QUERY_PAGE_SIZE = 9;
+const COLLECTION_OPTIONS = [
+  "Dark tone collection",
+  "Trilogy collection",
+  "Favorites",
+];
 
 const QUERY_ITEMS: MediaItem[] = Array.from({ length: 18 }, (_, index) => {
   const source = SAMPLE_ITEMS[index % SAMPLE_ITEMS.length];
@@ -215,6 +243,13 @@ export function App() {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [collectionDialogOpen, setCollectionDialogOpen] = useState(false);
+  const [pendingCollectionIds, setPendingCollectionIds] = useState<string[]>(
+    []
+  );
+  const [selectedCollection, setSelectedCollection] = useState(
+    COLLECTION_OPTIONS[0]
+  );
 
   const handleQuerySearch = (value: string) => {
     const results = runQuery(
@@ -319,13 +354,54 @@ export function App() {
 
   const handleCardAddToCollection = (cardId: string) => {
     const targetIds = resolveActionIds(cardId);
-    const mergedIds = new Set([...collectionIds, ...targetIds]);
+    setPendingCollectionIds(targetIds);
+    setCollectionDialogOpen(true);
+  };
+
+  const handleConfirmAddToCollection = () => {
+    if (pendingCollectionIds.length === 0) {
+      setCollectionDialogOpen(false);
+      return;
+    }
+
+    const targetSet = new Set(pendingCollectionIds);
+    const collectionLabel = selectedCollection.trim();
+    const mergedIds = new Set([...collectionIds, ...pendingCollectionIds]);
     const nextCollectionIds = [...mergedIds];
 
     setCollectionIds(nextCollectionIds);
-    setQueryResults(
-      runQuery(query, libraryItems, lastImportedIds, nextCollectionIds)
+    applyLibraryUpdate(
+      (items) =>
+        items.map((item) => {
+          if (!targetSet.has(item.id) || collectionLabel === "") {
+            return item;
+          }
+
+          const hasCollectionTag = item.tags.some(
+            (tag) => tag.toLowerCase() === collectionLabel.toLowerCase()
+          );
+
+          if (hasCollectionTag) {
+            return item;
+          }
+
+          return {
+            ...item,
+            tags: [...item.tags, collectionLabel],
+          };
+        }),
+      lastImportedIds,
+      query,
+      nextCollectionIds
     );
+
+    setCollectionDialogOpen(false);
+    setPendingCollectionIds([]);
+  };
+
+  const handleCancelAddToCollection = () => {
+    setCollectionDialogOpen(false);
+    setPendingCollectionIds([]);
   };
 
   const handleEnterSelectMode = (cardId: string) => {
@@ -451,23 +527,20 @@ export function App() {
     startIndex,
     startIndex + QUERY_PAGE_SIZE
   );
-  const homeRecentlyAddedItems = libraryItems;
-  const homeInProgressItems = libraryItems.filter(
-    (item) => item.status === "In Progress"
-  );
-  const homeCollectionItems = libraryItems.filter((item) =>
-    collectionIds.includes(item.id)
-  );
   const homeHiddenSet = new Set(homeHiddenIds);
-  const visibleHomeRecentlyAddedItems = homeRecentlyAddedItems.filter(
-    (item) => !homeHiddenSet.has(item.id)
-  );
-  const visibleHomeInProgressItems = homeInProgressItems.filter(
-    (item) => !homeHiddenSet.has(item.id)
-  );
-  const visibleHomeCollectionItems = homeCollectionItems.filter(
-    (item) => !homeHiddenSet.has(item.id)
-  );
+  const homeSections = HOME_SECTIONS.map((section) => {
+    const items = runQuery(
+      section.query,
+      libraryItems,
+      lastImportedIds,
+      collectionIds
+    ).filter((item) => !homeHiddenSet.has(item.id));
+
+    return {
+      ...section,
+      items,
+    };
+  });
 
   const handleToggleSidebar = () => {
     setSidebarOpen((prev) => !prev);
@@ -540,47 +613,20 @@ export function App() {
               </div>
 
               <div className="flex w-full flex-col gap-12">
-                <HomeSection
-                  title="Recently Added"
-                  count={visibleHomeRecentlyAddedItems.length}
-                  items={visibleHomeRecentlyAddedItems}
-                  defaultOpen
-                  onChangeStatus={handleCardStatusChange}
-                  onRemoveStatus={handleCardRemoveStatus}
-                  onDelete={handleCardDeleteFromHome}
-                  onAddToCollection={handleCardAddToCollection}
-                  onQueryMore={() =>
-                    handleQueryMore(HOME_SECTION_QUERIES.recentlyAdded)
-                  }
-                />
-
-                <HomeSection
-                  title="In Progress"
-                  count={visibleHomeInProgressItems.length}
-                  items={visibleHomeInProgressItems}
-                  defaultOpen
-                  onChangeStatus={handleCardStatusChange}
-                  onRemoveStatus={handleCardRemoveStatus}
-                  onDelete={handleCardDeleteFromHome}
-                  onAddToCollection={handleCardAddToCollection}
-                  onQueryMore={() =>
-                    handleQueryMore(HOME_SECTION_QUERIES.inProgress)
-                  }
-                />
-
-                <HomeSection
-                  title="Collection"
-                  count={visibleHomeCollectionItems.length}
-                  items={visibleHomeCollectionItems}
-                  defaultOpen
-                  onChangeStatus={handleCardStatusChange}
-                  onRemoveStatus={handleCardRemoveStatus}
-                  onDelete={handleCardDeleteFromHome}
-                  onAddToCollection={handleCardAddToCollection}
-                  onQueryMore={() =>
-                    handleQueryMore(HOME_SECTION_QUERIES.collection)
-                  }
-                />
+                {homeSections.map((section) => (
+                  <HomeSection
+                    key={section.title}
+                    title={section.title}
+                    count={section.items.length}
+                    items={section.items}
+                    defaultOpen={section.defaultOpen}
+                    onChangeStatus={handleCardStatusChange}
+                    onRemoveStatus={handleCardRemoveStatus}
+                    onDelete={handleCardDeleteFromHome}
+                    onAddToCollection={handleCardAddToCollection}
+                    onQueryMore={() => handleQueryMore(section.query)}
+                  />
+                ))}
 
                 <div className="flex items-center justify-between">
                   <NotePanel placeholder="Add a note about your media..." />
@@ -771,6 +817,15 @@ export function App() {
           )}
         </main>
       </div>
+
+      <AddToCollectionDialog
+        open={collectionDialogOpen}
+        selectedCollection={selectedCollection}
+        collections={COLLECTION_OPTIONS}
+        onCollectionChange={setSelectedCollection}
+        onConfirm={handleConfirmAddToCollection}
+        onCancel={handleCancelAddToCollection}
+      />
     </div>
   );
 }
