@@ -19,9 +19,7 @@ export function AddToCollectionDialog({
   onCancel,
 }: AddToCollectionDialogProps) {
   useEffect(() => {
-    if (!open) {
-      return;
-    }
+    if (!open) return;
 
     function handleEscape(event: KeyboardEvent) {
       if (event.key === "Escape") {
@@ -33,14 +31,16 @@ export function AddToCollectionDialog({
     return () => window.removeEventListener("keydown", handleEscape);
   }, [open, onCancel]);
 
-  if (!open) {
-    return null;
-  }
+  if (!open) return null;
 
   return (
     <div
       className="fixed inset-0 z-[220] flex items-center justify-center bg-[#18181B]/[0.86] px-4 backdrop-blur-[8px]"
-      onClick={onCancel}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) {
+          onCancel();
+        }
+      }}
       aria-hidden="true"
     >
       <div
@@ -48,7 +48,6 @@ export function AddToCollectionDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="add-to-collection-title"
-        onClick={(event) => event.stopPropagation()}
       >
         <h2
           id="add-to-collection-title"
@@ -65,7 +64,7 @@ export function AddToCollectionDialog({
           <select
             value={selectedCollection}
             onChange={(event) => onCollectionChange(event.target.value)}
-            className="h-9 w-full appearance-none rounded-[8px] border border-[#3F3F46] bg-white/5 px-3 pr-10 text-[14px] leading-5 text-[#FAFAFA] shadow-[0px_1px_2px_rgba(0,0,0,0.05)] outline-none transition-colors focus:border-[#52525B]"
+            className="h-9 w-full appearance-none rounded-[8px] border border-[#3F3F46] bg-white/5 px-3 pr-10 text-[14px] leading-5 text-[#FAFAFA] shadow-sm outline-none focus:border-[#52525B]"
           >
             {collections.map((collectionName) => (
               <option
@@ -88,7 +87,7 @@ export function AddToCollectionDialog({
           <button
             type="button"
             onClick={onConfirm}
-            className="h-9 rounded-[8px] bg-[#FACC15] px-3 text-[14px] font-medium leading-5 text-[#09090B] transition-colors hover:bg-[#eab308]"
+            className="h-9 rounded-[8px] bg-[#FACC15] px-3 text-[14px] font-medium text-[#09090B] hover:bg-[#eab308]"
           >
             Move
           </button>
@@ -96,7 +95,7 @@ export function AddToCollectionDialog({
           <button
             type="button"
             onClick={onCancel}
-            className="h-9 rounded-[8px] border border-[#3F3F46] bg-white/5 px-3 text-[14px] font-medium leading-5 text-[#FAFAFA] shadow-[0px_1px_2px_rgba(0,0,0,0.05)] transition-colors hover:bg-white/10"
+            className="h-9 rounded-[8px] border border-[#3F3F46] bg-white/5 px-3 text-[14px] font-medium text-[#FAFAFA] hover:bg-white/10"
           >
             Cancel
           </button>
