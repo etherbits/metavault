@@ -7,11 +7,15 @@ import { NotePanel } from "@/components/NotePanel";
 import { Pagination } from "@/components/Pagination";
 import { AddToCollectionDialog } from "@/components/AddToCollectionDialog";
 import {
+  Bot,
+  ChevronDown,
   ChevronUp,
   Database,
   Download,
   Home,
+  MessageSquarePlus,
   Menu,
+  SendHorizontal,
   Upload,
 } from "lucide-react";
 import {
@@ -325,6 +329,8 @@ export function App() {
   );
   const [queryError, setQueryError] = useState<string | null>(null);
   const [isQueryExecuting, setIsQueryExecuting] = useState(false);
+  const [assistantOpen, setAssistantOpen] = useState(false);
+  const [assistantDraft, setAssistantDraft] = useState("");
   const queryTimerRef = useRef<number | null>(null);
   const isCreateQuery = query.trim().toLowerCase().startsWith("create ");
   const isUpdateQuery = query.trim().toLowerCase().startsWith("update ");
@@ -983,6 +989,84 @@ export function App() {
           )}
         </main>
       </div>
+
+      {activePage === "query" && assistantOpen && (
+        <>
+          <div className="fixed inset-0 z-40 bg-[#18181B]/[0.86] backdrop-blur-[8px]" />
+
+          <section className="fixed bottom-12 right-4 z-50 flex h-[500px] w-[calc(100vw-2rem)] max-w-[500px] flex-col gap-5 rounded-[8px] bg-[#18181B] px-5 pb-5 pt-3 shadow-[0px_20px_25px_-5px_rgba(0,0,0,0.1),0px_8px_10px_-6px_rgba(0,0,0,0.1)] sm:right-8 lg:right-[104px]">
+            <div className="flex h-8 items-center gap-3">
+              <h3 className="flex-1 text-[20px] font-semibold leading-6 text-[#E4E4E7]">
+                Metavault Assistant Chat
+              </h3>
+
+              <button
+                type="button"
+                className="flex h-8 items-center gap-1 rounded-[8px] border border-[#3F3F46] bg-white/5 px-2 py-1 text-xs text-[#FAFAFA] shadow-[0px_1px_2px_rgba(0,0,0,0.05)]"
+              >
+                <span>Select an item</span>
+                <ChevronDown size={16} className="text-[#A1A1AA]" />
+              </button>
+
+              <button
+                type="button"
+                className="flex h-8 w-8 items-center justify-center rounded-[8px] border border-[#3F3F46] bg-white/5 text-white shadow-[0px_1px_2px_rgba(0,0,0,0.05)]"
+              >
+                <MessageSquarePlus size={16} />
+              </button>
+            </div>
+
+            <div className="flex flex-1 flex-col gap-5">
+              <div className="flex flex-1 flex-col gap-5 px-2">
+                <p className="text-[16px] leading-6 text-[#D4D4D8]">
+                  How can I help?
+                </p>
+
+                <div className="flex justify-end">
+                  <div className="rounded-[6px] bg-[#27272A] px-3 py-2 text-[16px] leading-6 text-[#E4E4E7]">
+                    Could you describe the current results?
+                  </div>
+                </div>
+
+                <p className="text-[16px] leading-6 text-[#D4D4D8]">
+                  It seems like you have 150 identical entries of the movie “The
+                  Batman”. It might be caused by data duplication on the server
+                  side.
+                </p>
+              </div>
+
+              <div className="relative">
+                <textarea
+                  value={assistantDraft}
+                  onChange={(event) => setAssistantDraft(event.target.value)}
+                  className="h-[100px] w-full resize-none rounded-[8px] border border-[#3F3F46] bg-white/5 p-2 pr-12 text-[14px] leading-5 text-[#FAFAFA] outline-none placeholder:text-[#A1A1AA]"
+                  placeholder="Type your follow-up..."
+                />
+
+                <button
+                  type="button"
+                  className="absolute bottom-2 right-2 flex h-9 w-9 items-center justify-center rounded-[8px] bg-[#FACC15] text-[#09090B]"
+                >
+                  <SendHorizontal size={20} />
+                </button>
+              </div>
+            </div>
+          </section>
+        </>
+      )}
+
+      {activePage === "query" && (
+        <button
+          type="button"
+          onClick={() => setAssistantOpen((prev) => !prev)}
+          className="fixed bottom-12 right-12 z-[60] flex h-10 w-10 items-center justify-center rounded-[8px] bg-[#FACC15] text-[#09090B] shadow-[0px_20px_25px_-5px_rgba(0,0,0,0.1),0px_8px_10px_-6px_rgba(0,0,0,0.1)]"
+          aria-label={
+            assistantOpen ? "Close assistant chat" : "Open assistant chat"
+          }
+        >
+          <Bot size={20} />
+        </button>
+      )}
 
       <AddToCollectionDialog
         open={collectionDialogOpen}
