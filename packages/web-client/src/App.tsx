@@ -1,5 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { HomeSection } from "@/components/HomeSection";
 import { QueryInput } from "@/components/QueryInput";
@@ -77,7 +77,10 @@ const SAMPLE_ITEMS: MediaItem[] = [
 ];
 
 export function App() {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return window.innerWidth >= 1024;
+  });
   const [activePage, setActivePage] = useState<Page>("query");
   const [query, setQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -86,8 +89,19 @@ export function App() {
     setSidebarOpen((prev) => !prev);
   };
 
+  useEffect(() => {
+    function handleResize() {
+      if (window.innerWidth >= 1024) {
+        setSidebarOpen(true);
+      }
+    }
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   return (
-    <div className="flex h-screen overflow-hidden bg-[#0B0B12] text-white">
+    <div className="relative flex h-dvh min-h-screen overflow-hidden bg-[#0B0B12] text-white">
       <Sidebar
         activePage={activePage}
         onNavigate={setActivePage}
@@ -95,9 +109,18 @@ export function App() {
         onToggle={handleToggleSidebar}
       />
 
+      {sidebarOpen && (
+        <button
+          type="button"
+          className="fixed inset-0 z-20 bg-black/50 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+          aria-label="Close sidebar overlay"
+        />
+      )}
+
       <div className="flex flex-1 flex-col overflow-hidden">
         {!sidebarOpen && (
-          <header className="flex shrink-0 items-center border-b border-[#1F1F29] bg-[#0B0B12] px-6 py-4">
+          <header className="flex shrink-0 items-center border-b border-[#1F1F29] bg-[#0B0B12] px-4 py-4 sm:px-6">
             <button
               type="button"
               onClick={handleToggleSidebar}
@@ -109,12 +132,12 @@ export function App() {
           </header>
         )}
 
-        <main className="flex-1 overflow-y-auto px-14 py-10">
+        <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-8 sm:py-8 lg:px-10 lg:py-10 xl:px-14">
           {activePage === "home" && (
             <div className="mx-auto flex w-full max-w-[1488px] flex-col gap-12">
               <div className="flex items-center gap-3">
                 <Home size={28} className="text-[#A1A1AA]" />
-                <h1 className="text-[30px] font-semibold leading-[30px] tracking-[-1px] text-[#D4D4D8]">
+                <h1 className="text-2xl font-semibold leading-none tracking-[-1px] text-[#D4D4D8] sm:text-[30px]">
                   Home
                 </h1>
               </div>
@@ -143,18 +166,18 @@ export function App() {
 
           {activePage === "query" && (
             <div className="mx-auto flex w-full max-w-[1488px] flex-col gap-8">
-              <div className="flex items-start justify-between gap-6">
+              <div className="flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
                 <div className="flex items-center gap-3">
                   <Database size={28} className="text-[#A1A1AA]" />
-                  <h1 className="text-[30px] font-semibold leading-[30px] tracking-[-1px] text-[#D4D4D8]">
+                  <h1 className="text-2xl font-semibold leading-none tracking-[-1px] text-[#D4D4D8] sm:text-[30px]">
                     Query
                   </h1>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex w-full flex-wrap items-center gap-3 lg:w-auto lg:justify-end">
                   <button
                     type="button"
-                    className="flex h-10 items-center justify-center gap-2 rounded-[10px] border border-[#3F3F46] bg-white/5 px-4 text-[14px] font-medium text-[#FAFAFA] shadow-sm transition hover:bg-white/10"
+                    className="flex h-10 flex-1 items-center justify-center gap-2 rounded-[10px] border border-[#3F3F46] bg-white/5 px-4 text-[14px] font-medium text-[#FAFAFA] shadow-sm transition hover:bg-white/10 sm:flex-none"
                   >
                     <Download size={14} />
                     Export Items
@@ -162,7 +185,7 @@ export function App() {
 
                   <button
                     type="button"
-                    className="flex h-10 items-center justify-center gap-2 rounded-[10px] border border-[#3F3F46] bg-white/5 px-4 text-[14px] font-medium text-[#FAFAFA] shadow-sm transition hover:bg-white/10"
+                    className="flex h-10 flex-1 items-center justify-center gap-2 rounded-[10px] border border-[#3F3F46] bg-white/5 px-4 text-[14px] font-medium text-[#FAFAFA] shadow-sm transition hover:bg-white/10 sm:flex-none"
                   >
                     <Upload size={14} />
                     Import Items
@@ -183,7 +206,7 @@ export function App() {
                 Retrieved 150 results
               </p>
 
-              <div className="flex justify-end">
+              <div className="flex justify-start sm:justify-end">
                 <Pagination
                   currentPage={currentPage}
                   totalPages={9}
@@ -191,7 +214,7 @@ export function App() {
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-x-[42px] gap-y-[42px]">
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:gap-8 xl:grid-cols-3">
                 {[
                   "query-card-1",
                   "query-card-2",
@@ -217,14 +240,14 @@ export function App() {
             <div className="mx-auto flex w-full max-w-[1488px] flex-col gap-12">
               <div className="flex items-center gap-3">
                 <Home size={28} className="text-[#A1A1AA]" />
-                <h1 className="text-[30px] font-semibold leading-[30px] tracking-[-1px] text-[#D4D4D8]">
+                <h1 className="text-2xl font-semibold leading-none tracking-[-1px] text-[#D4D4D8] sm:text-[30px]">
                   Home
                 </h1>
               </div>
 
               <section className="flex w-full flex-col gap-6">
-                <div className="flex w-full items-start justify-between gap-12">
-                  <div className="flex items-center gap-3">
+                <div className="flex w-full flex-col items-start justify-between gap-4 lg:flex-row lg:items-center lg:gap-12">
+                  <div className="flex flex-wrap items-center gap-3">
                     <h2 className="text-[24px] font-medium leading-[29px] tracking-[-1px] text-[#D4D4D8]">
                       Source Integrations
                     </h2>
@@ -242,7 +265,7 @@ export function App() {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-3 gap-x-[44px] gap-y-8">
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
                   <IntegrationCard
                     name="TMDB"
                     description="The Movie Database (TMDB) is a community built movie and TV database. You can use it to enrich your movie and TV show library entries."
@@ -273,8 +296,8 @@ export function App() {
               </section>
 
               <section className="flex w-full flex-col gap-6">
-                <div className="flex w-full items-start justify-between gap-12">
-                  <div className="flex items-center gap-3">
+                <div className="flex w-full flex-col items-start justify-between gap-4 lg:flex-row lg:items-center lg:gap-12">
+                  <div className="flex flex-wrap items-center gap-3">
                     <h2 className="text-[24px] font-medium leading-[29px] tracking-[-1px] text-[#D4D4D8]">
                       AI Integrations
                     </h2>
@@ -292,7 +315,7 @@ export function App() {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-3 gap-x-[44px] gap-y-8">
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
                   <IntegrationCard
                     name="AI Floating Chat"
                     description="The Movie Database (TMDB) is a community built movie and TV database. You can use it to enrich your movie and TV show library entries."

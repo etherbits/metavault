@@ -251,9 +251,11 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        "relative z-20 flex h-screen shrink-0 flex-col justify-between overflow-hidden border-r border-[#27272A] bg-[#09090B]",
-        "transition-[width,padding] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
-        isOpen ? "w-[240px] p-3" : "w-[72px] p-3"
+        "fixed inset-y-0 left-0 z-30 flex h-screen shrink-0 flex-col justify-between overflow-hidden border-r border-[#27272A] bg-[#09090B] lg:relative lg:z-20",
+        "transition-[width,padding,transform] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+        isOpen
+          ? "w-[240px] translate-x-0 p-3"
+          : "w-0 -translate-x-full p-0 lg:w-[72px] lg:translate-x-0 lg:p-3"
       )}
     >
       <div className="flex w-full min-w-0 flex-col gap-4">

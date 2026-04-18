@@ -31,9 +31,9 @@ export interface MediaItem {
 
 export function MediaCard({ item }: { item: MediaItem }) {
   return (
-    <Card className="h-[300px] w-[420px] overflow-hidden rounded-[4px] border-none bg-[#27272A] py-0 text-white ring-0">
-      <div className="flex h-full">
-        <div className="h-[300px] w-[200px] shrink-0 bg-black">
+    <Card className="h-full min-h-[300px] w-full overflow-hidden rounded-[4px] border-none bg-[#27272A] py-0 text-white ring-0 sm:max-w-[420px]">
+      <div className="flex h-full flex-col sm:flex-row">
+        <div className="h-48 w-full shrink-0 bg-black sm:h-[300px] sm:w-[200px]">
           {item.posterUrl ? (
             <img
               src={item.posterUrl}
@@ -43,8 +43,10 @@ export function MediaCard({ item }: { item: MediaItem }) {
           ) : null}
         </div>
 
-        <CardContent className="flex w-[220px] flex-col gap-4 px-4 py-3">
-          <h3 className="truncate text-[20px] text-[#F4F4F5]">{item.title}</h3>
+        <CardContent className="flex w-full flex-col gap-4 px-4 py-3 sm:w-[220px]">
+          <h3 className="truncate text-lg text-[#F4F4F5] sm:text-[20px]">
+            {item.title}
+          </h3>
 
           <div className="flex flex-wrap gap-2">
             <span className="rounded border border-yellow-400 px-2 text-xs text-yellow-400">
@@ -78,7 +80,7 @@ export function MediaCard({ item }: { item: MediaItem }) {
             ))}
           </div>
 
-          <div className="mt-auto flex items-center justify-end gap-2">
+          <div className="mt-auto flex flex-wrap items-center justify-end gap-2">
             <Button
               type="button"
               variant="outline"

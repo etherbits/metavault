@@ -24,8 +24,8 @@ export function HomeSection({
   return (
     <section className="flex w-full flex-col gap-6">
       {/* Header */}
-      <div className="flex w-full items-start justify-between gap-12">
-        <div className="flex items-center gap-3">
+      <div className="flex w-full flex-col items-start justify-between gap-4 lg:flex-row lg:items-center lg:gap-12">
+        <div className="flex flex-wrap items-center gap-3">
           <h2 className="text-[24px] font-medium leading-[29px] tracking-[-1px] text-[#D4D4D8]">
             {title}
           </h2>
@@ -35,11 +35,11 @@ export function HomeSection({
           </span>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex w-full items-center gap-3 sm:w-auto">
           <button
             type="button"
             onClick={onQueryMore}
-            className="flex h-[36px] min-h-[36px] items-center justify-center rounded-[8px] border border-[#3F3F46] bg-white/5 px-3 text-[14px] font-medium leading-5 text-[#FAFAFA] shadow-[0px_1px_2px_rgba(0,0,0,0.05)] transition-colors hover:bg-white/10"
+            className="flex h-[36px] min-h-[36px] flex-1 items-center justify-center rounded-[8px] border border-[#3F3F46] bg-white/5 px-3 text-[14px] font-medium leading-5 text-[#FAFAFA] shadow-[0px_1px_2px_rgba(0,0,0,0.05)] transition-colors hover:bg-white/10 sm:flex-none"
           >
             Query More
           </button>
@@ -69,7 +69,7 @@ export function HomeSection({
           )}
 
           {!loading && items.length > 0 && (
-            <div className="grid grid-cols-3 gap-x-[32px] gap-y-[32px]">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:gap-8 xl:grid-cols-3">
               {items.map((item) => (
                 <MediaCard key={item.id} item={item} />
               ))}

@@ -48,7 +48,7 @@ export function IntegrationCard({
   }
 
   return (
-    <div className="flex h-[372px] w-[420px] flex-col gap-6 rounded-[8px] bg-[#27272A] p-6 shadow-xl">
+    <div className="flex min-h-[372px] w-full flex-col gap-6 rounded-[8px] bg-[#27272A] p-6 shadow-xl sm:max-w-[420px]">
       <div className="flex flex-1 flex-col gap-5">
         <div className="flex items-center gap-3">
           <button
@@ -109,7 +109,7 @@ export function IntegrationCard({
           </div>
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row">
           <button
             type="button"
             onClick={handleSave}
