@@ -712,6 +712,14 @@ export function App() {
   const fullStars = Math.floor(personalRating);
   const hasHalfStar = personalRating - fullStars >= 0.5;
   const emptyStars = Math.max(0, 5 - fullStars - (hasHalfStar ? 1 : 0));
+  const fullStarSlots = Array.from(
+    { length: fullStars },
+    (_, slot) => slot + 1
+  );
+  const emptyStarSlots = Array.from(
+    { length: emptyStars },
+    (_, slot) => slot + 1
+  );
 
   const handleToggleSidebar = () => {
     setSidebarOpen((prev) => !prev);
@@ -955,9 +963,9 @@ export function App() {
                             Personal Rating
                           </span>
                           <div className="inline-flex items-center gap-0.5 px-3">
-                            {Array.from({ length: fullStars }).map((_, idx) => (
+                            {fullStarSlots.map((slot) => (
                               <Star
-                                key={`full-${idx}`}
+                                key={`full-${slot}`}
                                 size={20}
                                 className="fill-[#FACC15] text-[#FACC15]"
                               />
@@ -968,15 +976,13 @@ export function App() {
                                 className="fill-[#FACC15]/50 text-[#FACC15]"
                               />
                             )}
-                            {Array.from({ length: emptyStars }).map(
-                              (_, idx) => (
-                                <Star
-                                  key={`empty-${idx}`}
-                                  size={20}
-                                  className="text-[#FACC15]"
-                                />
-                              )
-                            )}
+                            {emptyStarSlots.map((slot) => (
+                              <Star
+                                key={`empty-${slot}`}
+                                size={20}
+                                className="text-[#FACC15]"
+                              />
+                            ))}
                           </div>
                         </div>
 
