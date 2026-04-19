@@ -9,18 +9,27 @@ import { AddToCollectionDialog } from "@/components/AddToCollectionDialog";
 import {
   ArrowRight,
   Bot,
+  CalendarDays,
   ChevronDown,
   ChevronUp,
+  Clapperboard,
   Database,
   Download,
+  Flag,
+  GripVertical,
   Home,
+  Link2,
   MessageSquarePlus,
   Menu,
+  Pencil,
   Plus,
   Save,
   SendHorizontal,
+  Sparkles,
+  Star,
   Settings,
   Trash2,
+  Type,
   Upload,
 } from "lucide-react";
 import {
@@ -28,6 +37,7 @@ import {
   type MediaItem,
   type MediaStatus,
 } from "@/components/MediaCard";
+import HeroPoster from "@/assets/hero.png";
 import "./index.css";
 
 type Page = "home" | "query" | "integrations" | "settings";
@@ -344,6 +354,7 @@ export function App() {
   ]);
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [assistantDraft, setAssistantDraft] = useState("");
+  const [detailViewItemId, setDetailViewItemId] = useState<string | null>(null);
   const queryTimerRef = useRef<number | null>(null);
   const isCreateQuery = query.trim().toLowerCase().startsWith("create ");
   const isUpdateQuery = query.trim().toLowerCase().startsWith("update ");
@@ -404,8 +415,16 @@ export function App() {
   }, [clearQueryTimer]);
 
   const handleQueryMore = (prefilledQuery: string) => {
+    setDetailViewItemId(null);
     setActivePage("query");
     handleQuerySearch(prefilledQuery);
+  };
+
+  const handleViewDetails = (item: MediaItem) => {
+    setDetailViewItemId(item.id);
+    setSelectMode(false);
+    setSelectedIds([]);
+    setActivePage("query");
   };
 
   const applyLibraryUpdate = (
@@ -461,6 +480,10 @@ export function App() {
   const handleCardDelete = (cardId: string) => {
     const targetIds = new Set(resolveActionIds(cardId));
     const nextCollectionIds = collectionIds.filter((id) => !targetIds.has(id));
+
+    if (detailViewItemId !== null && targetIds.has(detailViewItemId)) {
+      setDetailViewItemId(null);
+    }
 
     setCollectionIds(nextCollectionIds);
     setHomeHiddenIds((previousIds) =>
@@ -675,8 +698,30 @@ export function App() {
     };
   });
 
+  const detailViewItem =
+    detailViewItemId === null
+      ? null
+      : (libraryItems.find((item) => item.id === detailViewItemId) ?? null);
+
+  const numericRating = detailViewItem
+    ? Number.parseFloat(detailViewItem.rating.replace(/[^\d.]/g, ""))
+    : Number.NaN;
+  const personalRating = Number.isFinite(numericRating)
+    ? Math.max(0, Math.min(5, numericRating / 2))
+    : 4.5;
+  const fullStars = Math.floor(personalRating);
+  const hasHalfStar = personalRating - fullStars >= 0.5;
+  const emptyStars = Math.max(0, 5 - fullStars - (hasHalfStar ? 1 : 0));
+
   const handleToggleSidebar = () => {
     setSidebarOpen((prev) => !prev);
+  };
+
+  const handleNavigate = (page: Page) => {
+    if (page !== "query") {
+      setDetailViewItemId(null);
+    }
+    setActivePage(page);
   };
 
   const handleSignOut = () => {
@@ -772,7 +817,7 @@ export function App() {
     <div className="relative flex h-dvh min-h-screen overflow-hidden bg-[#18181B] text-white">
       <Sidebar
         activePage={activePage}
-        onNavigate={setActivePage}
+        onNavigate={handleNavigate}
         isOpen={sidebarOpen}
         onToggle={handleToggleSidebar}
         onSignOut={handleSignOut}
@@ -823,6 +868,7 @@ export function App() {
                     onRemoveStatus={handleCardRemoveStatus}
                     onDelete={handleCardDeleteFromHome}
                     onAddToCollection={handleCardAddToCollection}
+                    onViewDetails={handleViewDetails}
                     onQueryMore={() => handleQueryMore(section.query)}
                   />
                 ))}
@@ -836,107 +882,313 @@ export function App() {
 
           {activePage === "query" && (
             <div className="mx-auto flex w-full max-w-[1488px] flex-col gap-8">
-              <div className="flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
-                <div className="flex items-center gap-3">
-                  <Database size={28} className="text-[#A1A1AA]" />
-                  <h1 className="text-2xl font-semibold leading-none tracking-[-1px] text-[#D4D4D8] sm:text-[30px]">
-                    Query
-                  </h1>
-                </div>
-
-                {!isQueryExecuting && !isCreateQuery && (
-                  <div className="flex w-full flex-wrap items-center gap-3 lg:w-auto lg:justify-end">
-                    <button
-                      type="button"
-                      onClick={handleExportItems}
-                      className="flex h-8 flex-1 items-center justify-center gap-1.5 rounded-[8px] border border-[#3F3F46] bg-white/5 px-2.5 text-[14px] font-medium text-[#FAFAFA] shadow-sm transition hover:bg-white/10 sm:flex-none"
-                    >
-                      <Download size={16} />
-                      Export Items
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleImportItems}
-                      className="flex h-8 flex-1 items-center justify-center gap-1.5 rounded-[8px] border border-[#3F3F46] bg-white/5 px-2.5 text-[14px] font-medium text-[#FAFAFA] shadow-sm transition hover:bg-white/10 sm:flex-none"
-                    >
-                      <Upload size={16} />
-                      Import Items
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex w-full flex-col gap-4">
-                <QueryInput
-                  value={query}
-                  onChange={handleQueryChange}
-                  onSearch={handleQuerySearch}
-                  placeholder="Search tag:action,comedy"
-                  mode={
-                    isCreateQuery
-                      ? "create"
-                      : isUpdateQuery
-                        ? "update"
-                        : isDeleteQuery
-                          ? "delete"
-                          : "search"
-                  }
-                />
-
-                {isQueryExecuting ? (
-                  <p className="text-[14px] leading-5 text-[#A1A1AA]">
-                    Executing query...
-                  </p>
-                ) : isCreateQuery ? (
-                  <p className="text-[14px] leading-5 text-[#A1A1AA]">
-                    Created {queryResults.length}{" "}
-                    {queryResults.length === 1 ? "item" : "items"}
-                  </p>
-                ) : queryResults.length === 0 ? (
-                  queryError ? (
-                    <p className="w-fit max-w-[358px] text-[14px] leading-5 text-[#F87171]">
-                      {queryError}
-                    </p>
-                  ) : (
-                    <p className="text-[14px] leading-5 text-[#A1A1AA]">
-                      No results found
-                    </p>
-                  )
-                ) : (
-                  <div className="flex w-full items-center justify-between gap-4">
-                    <p className="text-[14px] leading-5 text-[#A1A1AA]">
-                      Retrieved {queryResults.length} results
-                    </p>
-
-                    <div className="flex justify-start sm:justify-end">
-                      <Pagination
-                        currentPage={currentPage}
-                        totalPages={totalPages}
-                        onPageChange={setCurrentPage}
-                      />
+              {detailViewItem ? (
+                <>
+                  <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+                    <div className="flex items-center gap-3">
+                      <Clapperboard size={28} className="text-[#A1A1AA]" />
+                      <h1 className="text-2xl font-semibold leading-none tracking-[-1px] text-[#D4D4D8] sm:text-[30px]">
+                        {detailViewItem.title}
+                      </h1>
                     </div>
-                  </div>
-                )}
-              </div>
 
-              {!isQueryExecuting && queryResults.length > 0 && (
-                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:gap-8 xl:grid-cols-3">
-                  {paginatedQueryItems.map((item) => (
-                    <MediaCard
-                      key={item.id}
-                      item={item}
-                      selectMode={selectMode}
-                      selected={selectedIds.includes(item.id)}
-                      onToggleSelect={handleToggleCardSelection}
-                      onEnterSelectMode={handleEnterSelectMode}
-                      onChangeStatus={handleCardStatusChange}
-                      onRemoveStatus={handleCardRemoveStatus}
-                      onDelete={handleCardDelete}
-                      onAddToCollection={handleCardAddToCollection}
+                    <button
+                      type="button"
+                      onClick={() => setDetailViewItemId(null)}
+                      className="inline-flex h-9 items-center rounded-[8px] border border-[#3F3F46] bg-white/5 px-3 text-sm font-medium text-[#FAFAFA] shadow-sm hover:bg-white/10"
+                    >
+                      Back to results
+                    </button>
+                  </div>
+
+                  <div className="flex flex-col gap-8 xl:flex-row xl:gap-10">
+                    <section className="flex w-full max-w-[400px] flex-col gap-8">
+                      <div className="relative h-auto w-full overflow-hidden rounded-[4px] shadow-[4px_0px_16px_rgba(164,37,36,0.18)]">
+                        <img
+                          src={detailViewItem.posterUrl ?? HeroPoster}
+                          alt={detailViewItem.title}
+                          className="h-full min-h-[460px] w-full object-cover"
+                        />
+
+                        <div className="absolute left-3 top-3 inline-flex h-[35px] items-center gap-3 rounded-[4px] border border-[#60A5FA] bg-[#27272A]/60 px-3 backdrop-blur-[4px]">
+                          <Flag size={20} className="text-[#60A5FA]" />
+                          <span className="text-[18px] font-medium leading-[27px] text-[#60A5FA]">
+                            {detailViewItem.status ?? "On Hold"}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-4">
+                        <div className="inline-flex h-[35px] w-fit items-center overflow-hidden rounded-[6px] bg-[#3F3F46]">
+                          <span className="inline-flex h-full items-center gap-2 rounded-l-[6px] bg-[#262626] px-[10px] text-[18px] font-medium leading-[27px] text-[#A1A1AA]">
+                            <Clapperboard size={24} />
+                            Content Type
+                          </span>
+                          <span className="px-3 text-[18px] font-medium leading-[27px] text-[#D4D4D8]">
+                            {detailViewItem.type}
+                          </span>
+                        </div>
+
+                        <div className="inline-flex h-[35px] w-fit items-center overflow-hidden rounded-[6px] bg-[#3F3F46]">
+                          <span className="inline-flex h-full items-center gap-2 rounded-l-[6px] bg-[#262626] px-[10px] text-[18px] font-medium leading-[27px] text-[#A1A1AA]">
+                            <CalendarDays size={24} />
+                            Release Date
+                          </span>
+                          <span className="px-3 text-[18px] font-medium leading-[27px] text-[#D4D4D8]">
+                            {detailViewItem.date}
+                          </span>
+                        </div>
+
+                        <div className="inline-flex h-[35px] w-fit items-center overflow-hidden rounded-[6px] bg-[#3F3F46]">
+                          <span className="inline-flex h-full items-center gap-2 rounded-l-[6px] bg-[#262626] px-[10px] text-[18px] font-medium leading-[27px] text-[#A1A1AA]">
+                            <Star size={24} />
+                            Public Rating
+                          </span>
+                          <span className="px-3 text-[18px] font-medium leading-[27px] text-[#D4D4D8]">
+                            {detailViewItem.rating}
+                          </span>
+                        </div>
+
+                        <div className="inline-flex h-[35px] w-fit items-center overflow-hidden rounded-[6px] bg-[#3F3F46]">
+                          <span className="inline-flex h-full items-center gap-2 rounded-l-[6px] bg-[#262626] px-[10px] text-[18px] font-medium leading-[27px] text-[#A1A1AA]">
+                            <Sparkles size={24} />
+                            Personal Rating
+                          </span>
+                          <div className="inline-flex items-center gap-0.5 px-3">
+                            {Array.from({ length: fullStars }).map((_, idx) => (
+                              <Star
+                                key={`full-${idx}`}
+                                size={20}
+                                className="fill-[#FACC15] text-[#FACC15]"
+                              />
+                            ))}
+                            {hasHalfStar && (
+                              <Star
+                                size={20}
+                                className="fill-[#FACC15]/50 text-[#FACC15]"
+                              />
+                            )}
+                            {Array.from({ length: emptyStars }).map(
+                              (_, idx) => (
+                                <Star
+                                  key={`empty-${idx}`}
+                                  size={20}
+                                  className="text-[#FACC15]"
+                                />
+                              )
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap gap-4">
+                          {detailViewItem.tags.map((tag) => (
+                            <span
+                              key={tag}
+                              className="inline-flex h-[35px] items-center rounded-[6px] bg-[#262626] px-[10px] text-[18px] font-medium leading-[27px] text-[#A1A1AA]"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </section>
+
+                    <section className="flex min-w-0 flex-1 flex-col gap-6 pt-2 xl:pt-10">
+                      <div className="flex w-full flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <h2 className="text-[32px] font-semibold leading-[36px] tracking-[-1px] text-[#FAFAFA]">
+                          Content Nodes
+                        </h2>
+
+                        <button
+                          type="button"
+                          className="inline-flex h-9 w-fit items-center gap-2 rounded-[8px] border border-[#3F3F46] bg-white/5 px-3 text-sm font-medium text-[#FAFAFA] opacity-60 shadow-sm"
+                        >
+                          <Plus size={16} />
+                          Add New
+                        </button>
+                      </div>
+
+                      <div className="flex w-full flex-col gap-3">
+                        {[
+                          `${detailViewItem.title}: Blu-ray 2160p`,
+                          `${detailViewItem.title}: 1080P`,
+                        ].map((nodeTitle) => (
+                          <div
+                            key={nodeTitle}
+                            className="flex items-center gap-2"
+                          >
+                            <div className="flex h-[41px] min-w-0 flex-1 items-center gap-1.5 rounded-[8px] bg-[#27272A] px-3 text-left">
+                              <GripVertical
+                                size={20}
+                                className="shrink-0 text-[#A1A1AA]"
+                              />
+                              <span className="truncate text-[34px] font-semibold leading-[27px] text-[#D4D4D8] [font-size:clamp(16px,1.2vw,30px)]">
+                                {nodeTitle}
+                              </span>
+                            </div>
+
+                            <button
+                              type="button"
+                              className="inline-flex h-10 w-10 items-center justify-center rounded-[8px] border border-[#3F3F46] bg-white/5 text-[#FAFAFA] opacity-60 shadow-sm"
+                            >
+                              <Link2 size={16} />
+                            </button>
+
+                            <button
+                              type="button"
+                              className="inline-flex h-10 w-10 items-center justify-center rounded-[8px] border border-[#3F3F46] bg-white/5 text-[#FAFAFA] opacity-60 shadow-sm"
+                            >
+                              <Pencil size={16} />
+                            </button>
+
+                            <button
+                              type="button"
+                              className="inline-flex h-10 w-10 items-center justify-center rounded-[8px] bg-[#7F1D1D]/40 text-[#F87171]"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        ))}
+
+                        <div className="flex w-full flex-wrap items-center gap-2">
+                          <div className="flex h-[41px] min-w-[250px] flex-1 items-center gap-2 rounded-[8px] border border-[#3F3F46] bg-[#27272A] px-3 text-[#71717A]">
+                            <Type size={16} />
+                            <span className="text-[18px] font-semibold leading-[27px]">
+                              Movie name
+                            </span>
+                          </div>
+
+                          <div className="flex h-10 min-w-[250px] flex-1 items-center gap-2 rounded-[6px] border border-[#3F3F46] bg-[#27272A] px-3 text-[#71717A]">
+                            <Link2 size={16} />
+                            <span className="text-[16px] leading-6">
+                              http://sample.link
+                            </span>
+                          </div>
+
+                          <button
+                            type="button"
+                            className="inline-flex h-10 w-10 items-center justify-center rounded-[8px] border border-[#3F3F46] bg-white/5 text-[#FAFAFA] opacity-60 shadow-sm"
+                          >
+                            <Save size={16} />
+                          </button>
+
+                          <button
+                            type="button"
+                            className="inline-flex h-10 w-10 items-center justify-center rounded-[8px] bg-[#7F1D1D]/40 text-[#F87171]"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    </section>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
+                    <div className="flex items-center gap-3">
+                      <Database size={28} className="text-[#A1A1AA]" />
+                      <h1 className="text-2xl font-semibold leading-none tracking-[-1px] text-[#D4D4D8] sm:text-[30px]">
+                        Query
+                      </h1>
+                    </div>
+
+                    {!isQueryExecuting && !isCreateQuery && (
+                      <div className="flex w-full flex-wrap items-center gap-3 lg:w-auto lg:justify-end">
+                        <button
+                          type="button"
+                          onClick={handleExportItems}
+                          className="flex h-8 flex-1 items-center justify-center gap-1.5 rounded-[8px] border border-[#3F3F46] bg-white/5 px-2.5 text-[14px] font-medium text-[#FAFAFA] shadow-sm transition hover:bg-white/10 sm:flex-none"
+                        >
+                          <Download size={16} />
+                          Export Items
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={handleImportItems}
+                          className="flex h-8 flex-1 items-center justify-center gap-1.5 rounded-[8px] border border-[#3F3F46] bg-white/5 px-2.5 text-[14px] font-medium text-[#FAFAFA] shadow-sm transition hover:bg-white/10 sm:flex-none"
+                        >
+                          <Upload size={16} />
+                          Import Items
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex w-full flex-col gap-4">
+                    <QueryInput
+                      value={query}
+                      onChange={handleQueryChange}
+                      onSearch={handleQuerySearch}
+                      placeholder="Search tag:action,comedy"
+                      mode={
+                        isCreateQuery
+                          ? "create"
+                          : isUpdateQuery
+                            ? "update"
+                            : isDeleteQuery
+                              ? "delete"
+                              : "search"
+                      }
                     />
-                  ))}
-                </div>
+
+                    {isQueryExecuting ? (
+                      <p className="text-[14px] leading-5 text-[#A1A1AA]">
+                        Executing query...
+                      </p>
+                    ) : isCreateQuery ? (
+                      <p className="text-[14px] leading-5 text-[#A1A1AA]">
+                        Created {queryResults.length}{" "}
+                        {queryResults.length === 1 ? "item" : "items"}
+                      </p>
+                    ) : queryResults.length === 0 ? (
+                      queryError ? (
+                        <p className="w-fit max-w-[358px] text-[14px] leading-5 text-[#F87171]">
+                          {queryError}
+                        </p>
+                      ) : (
+                        <p className="text-[14px] leading-5 text-[#A1A1AA]">
+                          No results found
+                        </p>
+                      )
+                    ) : (
+                      <div className="flex w-full items-center justify-between gap-4">
+                        <p className="text-[14px] leading-5 text-[#A1A1AA]">
+                          Retrieved {queryResults.length} results
+                        </p>
+
+                        <div className="flex justify-start sm:justify-end">
+                          <Pagination
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            onPageChange={setCurrentPage}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {!isQueryExecuting && queryResults.length > 0 && (
+                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:gap-8 xl:grid-cols-3">
+                      {paginatedQueryItems.map((item) => (
+                        <MediaCard
+                          key={item.id}
+                          item={item}
+                          selectMode={selectMode}
+                          selected={selectedIds.includes(item.id)}
+                          onToggleSelect={handleToggleCardSelection}
+                          onEnterSelectMode={handleEnterSelectMode}
+                          onChangeStatus={handleCardStatusChange}
+                          onRemoveStatus={handleCardRemoveStatus}
+                          onDelete={handleCardDelete}
+                          onAddToCollection={handleCardAddToCollection}
+                          onViewDetails={handleViewDetails}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}

@@ -13,6 +13,7 @@ interface HomeSectionProps {
   onRemoveStatus?: (id: string) => void;
   onDelete?: (id: string) => void;
   onAddToCollection?: (id: string) => void;
+  onViewDetails?: (item: MediaItem) => void;
 }
 
 export function HomeSection({
@@ -26,6 +27,7 @@ export function HomeSection({
   onRemoveStatus,
   onDelete,
   onAddToCollection,
+  onViewDetails,
 }: HomeSectionProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
@@ -86,6 +88,7 @@ export function HomeSection({
                   onRemoveStatus={onRemoveStatus}
                   onDelete={onDelete}
                   onAddToCollection={onAddToCollection}
+                  onViewDetails={onViewDetails}
                 />
               ))}
             </div>
