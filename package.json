@@ -30,5 +30,8 @@
 		"packages/server",
 		"packages/web-client",
 		"tests"
-	]
+	],
+	"dependencies": {
+		"zod": "^4.3.6"
+	}
 }
