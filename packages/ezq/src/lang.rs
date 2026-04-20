@@ -3,6 +3,8 @@ pub const KEYWORD_SPACE: &str = "_";
 pub const ACTION_KEYWORDS: &[&str] = &["search", "create", "delete", "update"];
 
 pub const QUALIFIER_KEYWORDS: &[&str] = &[
+    "id",
+    "title",
     "tag",
     "status",
     "public_rating",

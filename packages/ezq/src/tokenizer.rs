@@ -62,7 +62,7 @@ impl Tokenizer {
         }
     }
 
-    fn tokenize_metadata(&self, metadata: &String) -> Vec<String> {
+    fn tokenize_qualifiers(&self, metadata: &String) -> Vec<String> {
         let metadata_re = Regex::new(r#"[^ ^:]+(?::[^ ^:]+)+"#).unwrap();
 
         let tokenized_metadata = metadata_re
@@ -70,25 +70,36 @@ impl Tokenizer {
             .map(|m| m.as_str().to_string())
             .collect();
 
-        self.refine_tokenized_metadata(tokenized_metadata)
+        self.refine_tokenized_qualifiers(tokenized_metadata)
     }
 
-    fn refine_tokenized_metadata(&self, tokenized_metadata: Vec<String>) -> Vec<String> {
-        tokenized_metadata
+    fn refine_tokenized_qualifiers(&self, tokenized_qualifiers: Vec<String>) -> Vec<String> {
+        tokenized_qualifiers
             .into_iter()
-            .flat_map(|m| {
-                let Some((meta_key, meta_value)) = m.split_once(':') else {
-                    return vec![m];
+            .flat_map(|tq| {
+                let Some((qualifier_section, qualifier_value_section)) = tq.split_once(':') else {
+                    return tq
+                        .split(",")
+                        .map(|s| s.trim().to_string())
+                        .collect::<Vec<String>>();
                 };
 
-                let metas = meta_value
+                let refined_qualifiers: Vec<String> = qualifier_section
                     .split(",")
                     .map(|s| s.trim().to_string())
                     .collect();
-                let refined_metas = self.refine_tokenized_metadata(metas);
-                refined_metas
+
+                let refined_inner_qualifiers =
+                    self.refine_tokenized_qualifiers(vec![qualifier_value_section.to_string()]);
+
+                refined_qualifiers
                     .into_iter()
-                    .map(|rm| (meta_key.to_owned() + ":" + &rm).to_string())
+                    .flat_map(|rq| {
+                        refined_inner_qualifiers
+                            .iter()
+                            .map(|inner_rq| (rq.to_string() + ":" + inner_rq).to_string())
+                            .collect::<Vec<String>>()
+                    })
                     .collect()
             })
             .collect()
@@ -101,7 +112,7 @@ impl Tokenizer {
         Ok(TokenizedQuery {
             action: tokenized_sections.action_section.clone(),
             targets: self.tokenize_target(&tokenized_sections.target_section),
-            qualifications: self.tokenize_metadata(&tokenized_sections.qualification_section),
+            qualifications: self.tokenize_qualifiers(&tokenized_sections.qualification_section),
         })
     }
 
@@ -236,9 +247,10 @@ mod tests {
         assert_eq!(
             tokenized_query.qualifications,
             vec![
-                "tag:action",
+                "tag:action:minor",
+                "tag:action:dark",
                 "tag:adventure:minor",
-                "tag:dark",
+                "tag:adventure:dark",
                 "tag:fantasy"
             ]
         );
