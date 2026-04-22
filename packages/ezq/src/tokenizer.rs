@@ -1,6 +1,8 @@
 use regex::Regex;
 use thiserror::Error;
 
+use crate::lang::KEYWORD_SPACE;
+
 pub struct Tokenizer {}
 
 impl Tokenizer {
@@ -75,20 +77,62 @@ impl Tokenizer {
         (query.to_string(), false)
     }
 
-    fn generate_token_expression_tree(&self, query: &str) -> TokenExpr {
+    fn get_action_term(&self, query: &str) -> Option<String> {
+        let mut escape = false;
+        let mut start_idx = 0;
+        let mut end_idx = 0;
+
+        for (i, ch) in query.char_indices() {
+            match ch {
+                '/' => start_idx = i,
+                ' ' | '|' | ':' | '(' | ')' => {
+                    end_idx = i;
+                    break;
+                }
+                '\\' => escape = !escape,
+                _ => escape = false,
+            }
+        }
+
+        if start_idx > query.len()
+            || end_idx > query.len()
+            || start_idx >= end_idx
+            || end_idx.abs_diff(start_idx) < 2
+        {
+            return None;
+        }
+
+        return Some(query[start_idx..end_idx].to_string());
+    }
+
+    fn generate_token_tree(&self, query: &str) -> TokenExpr {
+        let action = match self.get_action_term(query) {
+            Some(action) => action,
+            None => "/search".to_string(),
+        };
+
+        let query = &query.replace(&action, "").replace("/", "");
+
+        return TokenExpr::Root {
+            action: action.strip_prefix("/").unwrap().to_string(),
+            expression: Box::new(self.tokenize_expression(query)),
+        };
+    }
+
+    fn tokenize_expression(&self, query: &str) -> TokenExpr {
         let (query_without_global_paren, had_global_paren) = self.strip_global_paren(query.trim());
         let query = query_without_global_paren.as_str();
 
         if query.starts_with("!") && had_global_paren {
             return TokenExpr::Not(Box::new(
-                self.generate_token_expression_tree(query.strip_prefix("!").unwrap()),
+                self.tokenize_expression(query.strip_prefix("!").unwrap()),
             ));
         }
 
         if !query.contains("|") && !query.contains(" ") {
             if query.starts_with("!") {
                 return TokenExpr::Not(Box::new(
-                    self.generate_token_expression_tree(query.strip_prefix("!").unwrap()),
+                    self.tokenize_expression(query.strip_prefix("!").unwrap()),
                 ));
             }
 
@@ -133,7 +177,7 @@ impl Tokenizer {
                 self.split_at_indices(query, curr_or_indicies)
                     .iter()
                     .filter(|term| term.trim().len() > 0)
-                    .map(|term| self.generate_token_expression_tree(term))
+                    .map(|term| self.tokenize_expression(term))
                     .collect::<Vec<TokenExpr>>(),
             );
         } else {
@@ -141,7 +185,7 @@ impl Tokenizer {
                 self.split_at_indices(query, curr_and_indicies)
                     .iter()
                     .filter(|term| term.trim().len() > 0)
-                    .map(|term| self.generate_token_expression_tree(term))
+                    .map(|term| self.tokenize_expression(term))
                     .collect::<Vec<TokenExpr>>(),
             );
         }
@@ -153,8 +197,9 @@ impl Tokenizer {
             return Err(TokenizerError::EmptyInput);
         }
 
-        let token_tree = self.generate_token_expression_tree(input_query);
+        let token_tree = self.generate_token_tree(input_query);
         println!("{:#?}", token_tree);
+
         Ok(token_tree)
     }
 }
@@ -167,6 +212,10 @@ pub enum TokenizerError {
 
 #[derive(Debug, Clone)]
 pub enum TokenExpr {
+    Root {
+        action: String,
+        expression: Box<TokenExpr>,
+    },
     And(Vec<TokenExpr>),
     Or(Vec<TokenExpr>),
     Not(Box<TokenExpr>),
