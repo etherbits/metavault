@@ -1,7 +1,4 @@
-use regex::Regex;
 use thiserror::Error;
-
-use crate::lang::KEYWORD_SPACE;
 
 pub struct Tokenizer {}
 
