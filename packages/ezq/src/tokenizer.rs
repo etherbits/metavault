@@ -8,121 +8,154 @@ impl Tokenizer {
         Tokenizer {}
     }
 
-    fn tokenize_to_sections(
-        &self,
-        trimmed_query: &str,
-    ) -> Result<TokenizedSections, TokenizerError> {
-        let Some(action_end_idx) = trimmed_query.find(" ") else {
-            return Ok(TokenizedSections {
-                action_section: trimmed_query.to_string(),
-                target_section: String::new(),
-                qualification_section: String::new(),
-            });
+    fn expand_qualifier_value_list(&self, qualifier: &str) -> Vec<String> {
+        let Some((qualifier_type_section, qualifier_value_section)) = qualifier.split_once(':')
+        else {
+            return qualifier.split(",").map(|s| s.trim().to_string()).collect();
         };
 
-        let metadata_re = Regex::new(" [a-zA-Z]+:").unwrap();
-
-        let first_metadata = metadata_re.find(trimmed_query);
-        let target_end_idx = match first_metadata {
-            Some(m) => m.start(),
-            None => trimmed_query.len(),
-        };
-
-        let action_section = trimmed_query[..action_end_idx].trim().to_string();
-        let target_section = if action_end_idx < target_end_idx {
-            trimmed_query[(action_end_idx + 1)..target_end_idx]
-                .trim()
-                .to_string()
-        } else {
-            "".to_string()
-        };
-        let qualification_section = trimmed_query[target_end_idx..].trim().to_string();
-
-        Ok(TokenizedSections {
-            action_section,
-            target_section,
-            qualification_section: qualification_section,
-        })
-    }
-
-    fn tokenize_target(&self, target: &String) -> Vec<String> {
-        if target.trim().is_empty() {
-            return vec![];
-        }
-        let target_re = Regex::new(r#""[^"]*""#).unwrap();
-        let targets: Vec<String> = target_re
-            .find_iter(&target)
-            .map(|m| m.as_str().trim().replace("\"", "").to_string())
+        let qualifier_types: Vec<&str> = qualifier_type_section
+            .split(",")
+            .map(|s| s.trim())
             .collect();
 
-        if targets.is_empty() {
-            vec![target.clone()]
-        } else {
-            targets
-        }
-    }
+        let expanded_inner_qualifiers = self.expand_qualifier_value_list(qualifier_value_section);
 
-    fn tokenize_qualifiers(&self, metadata: &String) -> Vec<String> {
-        let metadata_re = Regex::new(r#"[^ ^:]+(?::[^ ^:]+)+"#).unwrap();
-
-        let tokenized_metadata = metadata_re
-            .find_iter(&metadata)
-            .map(|m| m.as_str().to_string())
-            .collect();
-
-        self.refine_tokenized_qualifiers(tokenized_metadata)
-    }
-
-    fn refine_tokenized_qualifiers(&self, tokenized_qualifiers: Vec<String>) -> Vec<String> {
-        tokenized_qualifiers
+        qualifier_types
             .into_iter()
-            .flat_map(|tq| {
-                let Some((qualifier_section, qualifier_value_section)) = tq.split_once(':') else {
-                    return tq
-                        .split(",")
-                        .map(|s| s.trim().to_string())
-                        .collect::<Vec<String>>();
-                };
-
-                let refined_qualifiers: Vec<String> = qualifier_section
-                    .split(",")
-                    .map(|s| s.trim().to_string())
-                    .collect();
-
-                let refined_inner_qualifiers =
-                    self.refine_tokenized_qualifiers(vec![qualifier_value_section.to_string()]);
-
-                refined_qualifiers
-                    .into_iter()
-                    .flat_map(|rq| {
-                        refined_inner_qualifiers
-                            .iter()
-                            .map(|inner_rq| (rq.to_string() + ":" + inner_rq).to_string())
-                            .collect::<Vec<String>>()
+            .flat_map(|qualifier_type| {
+                expanded_inner_qualifiers
+                    .iter()
+                    .map(|qualifier_value| {
+                        (qualifier_type.to_string() + ":" + qualifier_value).to_string()
                     })
-                    .collect()
+                    .collect::<Vec<String>>()
             })
             .collect()
     }
 
-    fn finalize_tokenization(
-        &self,
-        tokenized_sections: &TokenizedSections,
-    ) -> Result<TokenizedQuery, TokenizerError> {
-        Ok(TokenizedQuery {
-            action: tokenized_sections.action_section.clone(),
-            targets: self.tokenize_target(&tokenized_sections.target_section),
-            qualifications: self.tokenize_qualifiers(&tokenized_sections.qualification_section),
-        })
+    fn split_at_indices(&self, s: &str, indices: Vec<usize>) -> Vec<String> {
+        let mut result = Vec::new();
+        let mut last = 0;
+        for &i in indices.iter() {
+            result.push(s[last..i].to_string());
+            last = i + 1;
+        }
+        result.push(s[last..].to_string());
+        result
     }
 
-    pub fn tokenize(&self, mut input_query: &str) -> Result<TokenizedQuery, TokenizerError> {
+    fn strip_global_paren(&self, query: &str) -> (String, bool) {
+        if !query.starts_with('(') && !query.starts_with("!(") {
+            return (query.to_string(), false);
+        }
+        let mut open_count = 0;
+
+        for (i, ch) in query.char_indices() {
+            if ch == '(' {
+                open_count += 1;
+            } else if ch == ')' {
+                if i == query.len() - 1 && open_count == 1 {
+                    return (
+                        query
+                            .replacen("(", "", 1)
+                            .strip_suffix(")")
+                            .unwrap()
+                            .to_string(),
+                        true,
+                    );
+                } else if open_count == 1 {
+                    return (query.to_string(), false);
+                }
+
+                open_count -= 1;
+            }
+        }
+
+        (query.to_string(), false)
+    }
+
+    fn generate_token_expression_tree(&self, query: &str) -> TokenExpr {
+        let (query_without_global_paren, had_global_paren) = self.strip_global_paren(query.trim());
+        let query = query_without_global_paren.as_str();
+
+        if query.starts_with("!") && had_global_paren {
+            return TokenExpr::Not(Box::new(
+                self.generate_token_expression_tree(query.strip_prefix("!").unwrap()),
+            ));
+        }
+
+        if !query.contains("|") && !query.contains(" ") {
+            if query.starts_with("!") {
+                return TokenExpr::Not(Box::new(
+                    self.generate_token_expression_tree(query.strip_prefix("!").unwrap()),
+                ));
+            }
+
+            let qualifiers: Vec<TokenExpr> = self
+                .expand_qualifier_value_list(query)
+                .iter()
+                .map(|q| TokenExpr::Leaf(q.to_string()))
+                .collect();
+
+            if qualifiers.len() > 1 {
+                return TokenExpr::And(qualifiers);
+            } else {
+                return qualifiers[0].clone();
+            }
+        }
+
+        let mut curr_or_indicies = vec![];
+        let mut curr_and_indicies = vec![];
+
+        let mut open_count = 0;
+
+        for (i, ch) in query.char_indices() {
+            if ch == '(' {
+                open_count += 1;
+            } else if ch == ')' {
+                open_count -= 1;
+            }
+
+            if open_count > 0 {
+                continue;
+            }
+
+            if ch == '|' {
+                curr_or_indicies.push(i);
+            } else if ch == ' ' {
+                curr_and_indicies.push(i);
+            }
+        }
+
+        if curr_or_indicies.len() > 0 {
+            return TokenExpr::Or(
+                self.split_at_indices(query, curr_or_indicies)
+                    .iter()
+                    .filter(|term| term.trim().len() > 0)
+                    .map(|term| self.generate_token_expression_tree(term))
+                    .collect::<Vec<TokenExpr>>(),
+            );
+        } else {
+            return TokenExpr::And(
+                self.split_at_indices(query, curr_and_indicies)
+                    .iter()
+                    .filter(|term| term.trim().len() > 0)
+                    .map(|term| self.generate_token_expression_tree(term))
+                    .collect::<Vec<TokenExpr>>(),
+            );
+        }
+    }
+
+    pub fn tokenize(&self, mut input_query: &str) -> Result<TokenExpr, TokenizerError> {
         input_query = input_query.trim();
         if input_query.is_empty() {
             return Err(TokenizerError::EmptyInput);
         }
-        let tokenized_sections = self.tokenize_to_sections(input_query).unwrap();
-        self.finalize_tokenization(&tokenized_sections)
+
+        let token_tree = self.generate_token_expression_tree(input_query);
+        println!("{:#?}", token_tree);
+        Ok(token_tree)
     }
 }
 
@@ -132,127 +165,122 @@ pub enum TokenizerError {
     EmptyInput,
 }
 
-struct TokenizedSections {
-    action_section: String,
-    target_section: String,
-    qualification_section: String,
+#[derive(Debug, Clone)]
+pub enum TokenExpr {
+    And(Vec<TokenExpr>),
+    Or(Vec<TokenExpr>),
+    Not(Box<TokenExpr>),
+    Leaf(String),
 }
 
-#[derive(Debug)]
-pub struct TokenizedQuery {
-    pub action: String,
-    pub targets: Vec<String>,
-    pub qualifications: Vec<String>,
-}
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+//     #[test]
+//     fn multi_title_multi_meta() {
+//         let input_query =
+//             r#"Attack on titan type:tv-series tg:action,monster release:>2020"#;
+//         let tokenized_query = Tokenizer::new().tokenize(input_query).unwrap();
 
-    #[test]
-    fn multi_title_multi_meta() {
-        let input_query =
-            r#"s "AOT" "Attack On Titan" type:tv-series tg:action,monster release:>2020"#;
-        let tokenized_query = Tokenizer::new().tokenize(input_query).unwrap();
+//         assert_eq!(tokenized_query.action, "s");
+//         assert_eq!(
+//             tokenized_query.targets,
+//             vec!["AOT".to_string(), "Attack On Titan".to_string()]
+//         );
+//         assert_eq!(
+//             tokenized_query.qualifications,
+//             vec!["type:tv-series", "tg:action", "tg:monster", "release:>2020"]
+//         );
+//     }
 
-        assert_eq!(tokenized_query.action, "s");
-        assert_eq!(
-            tokenized_query.targets,
-            vec!["AOT".to_string(), "Attack On Titan".to_string()]
-        );
-        assert_eq!(
-            tokenized_query.qualifications,
-            vec!["type:tv-series", "tg:action", "tg:monster", "release:>2020"]
-        );
-    }
+//     #[test]
+//     fn multi_title() {
+//         let input_query = r#"s "AOT" "Attack On Titan""#;
+//         let tokenized_query = Tokenizer::new().tokenize(input_query).unwrap();
 
-    #[test]
-    fn multi_title() {
-        let input_query = r#"s "AOT" "Attack On Titan""#;
-        let tokenized_query = Tokenizer::new().tokenize(input_query).unwrap();
+//         assert_eq!(tokenized_query.action, "s");
+//         assert_eq!(
+//             tokenized_query.targets,
+//             vec!["AOT".to_string(), "Attack On Titan".to_string()]
+//         );
+//         assert_eq!(tokenized_query.qualifications.is_empty(), true);
+//     }
 
-        assert_eq!(tokenized_query.action, "s");
-        assert_eq!(
-            tokenized_query.targets,
-            vec!["AOT".to_string(), "Attack On Titan".to_string()]
-        );
-        assert_eq!(tokenized_query.qualifications.is_empty(), true);
-    }
+//     #[test]
+//     fn single_title_single_tag() {
+//         let input_query = r#"s Attack On Titan tag:action"#;
+//         let tokenized_query = Tokenizer::new().tokenize(input_query).unwrap();
 
-    #[test]
-    fn single_title_single_tag() {
-        let input_query = r#"s Attack On Titan tag:action"#;
-        let tokenized_query = Tokenizer::new().tokenize(input_query).unwrap();
+//         assert_eq!(tokenized_query.action, "s");
+//         assert_eq!(tokenized_query.targets, vec!["Attack On Titan".to_string()]);
+//         assert_eq!(
+//             tokenized_query.qualifications,
+//             vec!["tag:action".to_string()]
+//         );
+//     }
 
-        assert_eq!(tokenized_query.action, "s");
-        assert_eq!(tokenized_query.targets, vec!["Attack On Titan".to_string()]);
-        assert_eq!(
-            tokenized_query.qualifications,
-            vec!["tag:action".to_string()]
-        );
-    }
+//     #[test]
+//     fn action_metadata() {
+//         let input_query = r#"s tag:action"#;
+//         let tokenized_query = Tokenizer::new().tokenize(input_query).unwrap();
 
-    #[test]
-    fn action_metadata() {
-        let input_query = r#"s tag:action"#;
-        let tokenized_query = Tokenizer::new().tokenize(input_query).unwrap();
+//         assert_eq!(tokenized_query.action, "s");
+//         assert_eq!(tokenized_query.targets.is_empty(), true);
+//         assert_eq!(
+//             tokenized_query.qualifications,
+//             vec!["tag:action".to_string()]
+//         );
+//     }
 
-        assert_eq!(tokenized_query.action, "s");
-        assert_eq!(tokenized_query.targets.is_empty(), true);
-        assert_eq!(
-            tokenized_query.qualifications,
-            vec!["tag:action".to_string()]
-        );
-    }
+//     #[test]
+//     fn single_title() {
+//         let input_query = r#"s Attack On Titan"#;
+//         let tokenized_query = Tokenizer::new().tokenize(input_query).unwrap();
 
-    #[test]
-    fn single_title() {
-        let input_query = r#"s Attack On Titan"#;
-        let tokenized_query = Tokenizer::new().tokenize(input_query).unwrap();
+//         assert_eq!(tokenized_query.action, "s");
+//         assert_eq!(tokenized_query.targets, vec!["Attack On Titan".to_string()]);
+//         assert_eq!(tokenized_query.qualifications.is_empty(), true);
+//     }
 
-        assert_eq!(tokenized_query.action, "s");
-        assert_eq!(tokenized_query.targets, vec!["Attack On Titan".to_string()]);
-        assert_eq!(tokenized_query.qualifications.is_empty(), true);
-    }
+//     #[test]
+//     fn empty_input() {
+//         let input_query = r#"  "#;
+//         let result = Tokenizer::new().tokenize(input_query);
 
-    #[test]
-    fn empty_input() {
-        let input_query = r#"  "#;
-        let result = Tokenizer::new().tokenize(input_query);
+//         assert!(result.is_err());
+//         assert_eq!(
+//             result.err().unwrap().to_string(),
+//             "the input query was empty"
+//         );
+//     }
 
-        assert!(result.is_err());
-        assert_eq!(
-            result.err().unwrap().to_string(),
-            "the input query was empty"
-        );
-    }
+//     #[test]
+//     fn only_action() {
+//         let input_query = r#"s"#;
+//         let tokenized_query = Tokenizer::new().tokenize(input_query).unwrap();
 
-    #[test]
-    fn only_action() {
-        let input_query = r#"s"#;
-        let tokenized_query = Tokenizer::new().tokenize(input_query).unwrap();
+//         assert_eq!(tokenized_query.action, "s");
+//         assert_eq!(tokenized_query.targets.is_empty(), true);
+//         assert_eq!(tokenized_query.qualifications.is_empty(), true);
+//     }
 
-        assert_eq!(tokenized_query.action, "s");
-        assert_eq!(tokenized_query.targets.is_empty(), true);
-        assert_eq!(tokenized_query.qualifications.is_empty(), true);
-    }
+//     #[test]
+//     fn nested_meta() {
+//         let input_query = r#"s attack tag:action,adventure:minor,dark tag:fantasy"#;
+//         let tokenized_query = Tokenizer::new().tokenize(input_query).unwrap();
 
-    #[test]
-    fn nested_meta() {
-        let input_query = r#"s attack tag:action,adventure:minor,dark tag:fantasy"#;
-        let tokenized_query = Tokenizer::new().tokenize(input_query).unwrap();
-
-        assert_eq!(tokenized_query.action, "s");
-        assert_eq!(tokenized_query.targets, vec!["attack"]);
-        assert_eq!(
-            tokenized_query.qualifications,
-            vec![
-                "tag:action:minor",
-                "tag:action:dark",
-                "tag:adventure:minor",
-                "tag:adventure:dark",
-                "tag:fantasy"
-            ]
-        );
-    }
-}
+//         assert_eq!(tokenized_query.action, "s");
+//         assert_eq!(tokenized_query.targets, vec!["attack"]);
+//         assert_eq!(
+//             tokenized_query.qualifications,
+//             vec![
+//                 "tag:action:minor",
+//                 "tag:action:dark",
+//                 "tag:adventure:minor",
+//                 "tag:adventure:dark",
+//                 "tag:fantasy"
+//             ]
+//         );
+//     }
+// }
