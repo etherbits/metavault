@@ -79,20 +79,33 @@ impl Tokenizer {
 
     fn get_action_term(&self, query: &str) -> Option<String> {
         let mut escape = false;
-        let mut start_idx = 0;
-        let mut end_idx = 0;
+        let mut start_idx = None;
+        let mut end_idx = None;
 
         for (i, ch) in query.char_indices() {
             match ch {
-                '/' => start_idx = i,
+                '/' => start_idx = Some(i),
                 ' ' | '|' | ':' | '(' | ')' => {
-                    end_idx = i;
+                    if start_idx.is_none() {
+                        continue;
+                    };
+                    end_idx = Some(i);
                     break;
                 }
                 '\\' => escape = !escape,
                 _ => escape = false,
             }
         }
+
+        if start_idx.is_none() {
+            return None;
+        }
+
+        let start_idx = start_idx.unwrap();
+        let end_idx = match end_idx {
+            Some(idx) => idx,
+            None => query.len(),
+        };
 
         if start_idx > query.len()
             || end_idx > query.len()
