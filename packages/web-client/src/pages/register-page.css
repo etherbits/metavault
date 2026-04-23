@@ -1,0 +1,207 @@
+.register-page {
+  --page-bg: #18181b;
+  --card-bg: #27272a;
+  --text-primary: #e4e4e7;
+  --text-secondary: #d4d4d8;
+  --text-label: #fafafa;
+  --text-muted: #a1a1aa;
+  --border: #3f3f46;
+  --field-bg: rgba(255, 255, 255, 0.05);
+  --accent: #facc15;
+
+  position: relative;
+  min-height: 100vh;
+  background: radial-gradient(circle at 50% 0%, #11141b 0%, var(--page-bg) 52%);
+  padding: 32px 16px;
+  overflow: hidden;
+}
+
+.register-shell {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, rgba(250, 204, 21, 0.03), transparent 40%);
+  pointer-events: none;
+}
+
+.register-content {
+  position: relative;
+  z-index: 1;
+  min-height: calc(100vh - 64px);
+  display: grid;
+  place-items: center;
+  gap: 48px;
+}
+
+.register-logo {
+  font-family: "Geist Variable", sans-serif;
+  font-size: 74px;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: -0.06em;
+  color: var(--accent);
+}
+
+.register-card {
+  width: min(320px, 100%);
+  background: var(--card-bg);
+  border-radius: 8px;
+  padding: 24px;
+  color: var(--text-primary);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  box-shadow: 0 18px 32px rgba(0, 0, 0, 0.24);
+}
+
+.register-header h1 {
+  line-height: 1.2;
+  font-weight: 600;
+  margin: 0;
+  font-size: 20px;
+}
+
+.register-header p {
+  margin: 12px 0 0;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.register-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.register-label {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  color: var(--text-label);
+}
+
+.register-input-wrap {
+  min-height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--field-bg);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+}
+
+.field-icon {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+  flex: 0 0 auto;
+}
+
+.register-input {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 20px;
+  outline: none;
+}
+
+.register-input::placeholder {
+  color: var(--text-muted);
+}
+
+.field-action {
+  margin-left: auto;
+  display: grid;
+  place-items: center;
+}
+
+.field-icon-button {
+  width: 20px;
+  height: 20px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  padding: 0;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.field-icon-button:hover {
+  color: var(--text-primary);
+}
+
+.register-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 8px;
+}
+
+.primary-button,
+.secondary-button {
+  width: 100%;
+  min-height: 36px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 8px 12px;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: transform 120ms ease, filter 120ms ease;
+}
+
+.primary-button {
+  background: var(--accent);
+  color: #09090b;
+}
+
+.secondary-button {
+  border-color: var(--border);
+  background: var(--field-bg);
+  color: var(--text-label);
+}
+
+.primary-button:hover,
+.secondary-button:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.04);
+}
+
+.primary-button:focus-visible,
+.secondary-button:focus-visible,
+.register-input:focus,
+.field-icon-button:focus-visible {
+  outline: 2px solid rgba(250, 204, 21, 0.4);
+  outline-offset: 1px;
+}
+
+@media (max-width: 420px) {
+  .register-page {
+    padding: 20px 12px;
+  }
+
+  .register-content {
+    gap: 30px;
+  }
+
+  .register-card {
+    padding: 20px;
+    gap: 20px;
+  }
+
+  .register-logo {
+    font-size: 62px;
+  }
+
+  .register-header h1 {
+    font-size: 20px;
+  }
+}
