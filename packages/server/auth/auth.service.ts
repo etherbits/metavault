@@ -6,20 +6,24 @@ import { UserModel } from "../user/user.model";
 import { EmailService } from "../email/email.service";
 import { sql } from "../db";
 import { logger } from "../logger";
+import crypto from "crypto";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 const OTP_EXPIRY_MINUTES = 3;
 
 function generateOTP(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  const otp = crypto.randomInt(0, 1000000);
+  return otp.toString().padStart(6, "0");
 }
 
 function hashPassword(password: string): Promise<string> {
-  return bcrypt.hash(password, 10);
+  return Bun.password.hash(password, {
+    algorithm: "argon2id",
+  });
 }
 
 function verifyPassword(password: string, hash: string): Promise<boolean> {
-  return bcrypt.compare(password, hash);
+  return Bun.password.verify(password, hash);
 }
 
 function generateJWT(userId: string): string {
@@ -117,10 +121,17 @@ async function signIn(req: Request, res: Response) {
     // Generate JWT
     const token = generateJWT(user.id);
 
+    // Set cookie
+    res.cookie("access_token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 1000 * 60 * 60,
+    });
+
     logger.info(`User signed in: ${user.email}`);
     res.json({
       message: "Sign in successful",
-      token,
       user: {
         id: user.id,
         email: user.email,
