@@ -6,6 +6,7 @@ import { logger } from "./logger";
 import { loggerMiddleware } from "./middleware/logger";
 import { run_query } from "@etherbits/ezq-node";
 import authRouter from "./auth/auth.controller";
+import libraryRouter from "./library/library.controller";
 
 const app = express();
 const port = Number(process.env.PORT ?? 3435);
@@ -22,6 +23,7 @@ app.use(
 );
 
 app.use("/auth", authRouter);
+app.use("/library", libraryRouter);
 
 // biome-ignore lint/correctness/noUnusedFunctionParameters: req unused but required by Express signature
 app.get("/health", (req, res) => {
