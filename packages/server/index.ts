@@ -1,21 +1,27 @@
 import express from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 import { sql } from "./db/index";
 import { logger } from "./logger";
 import { loggerMiddleware } from "./middleware/logger";
 import { run_query } from "@etherbits/ezq-node";
+import authRouter from "./auth/auth.controller";
 
 const app = express();
 const port = Number(process.env.PORT ?? 3435);
 const clientOrigin = process.env.CLIENT_ORIGIN ?? "http://localhost:3534";
 
 app.use(express.json());
+app.use(cookieParser());
 app.use(loggerMiddleware);
 app.use(
   cors({
     origin: clientOrigin,
-  })
+    credentials: true,
+  }),
 );
+
+app.use("/auth", authRouter);
 
 // biome-ignore lint/correctness/noUnusedFunctionParameters: req unused but required by Express signature
 app.get("/health", (req, res) => {
