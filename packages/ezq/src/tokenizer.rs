@@ -115,7 +115,7 @@ impl Tokenizer {
         return Some(query[start_idx..end_idx].to_string());
     }
 
-    fn generate_token_tree(&self, query: &str) -> TokenExpr {
+    fn generate_token_tree(&self, query: &str) -> ASTExpr {
         let action = match self.get_action_term(query) {
             Some(action) => action,
             None => "/search".to_string(),
@@ -123,37 +123,37 @@ impl Tokenizer {
 
         let query = &query.replace(&action, "").replace("/", "");
 
-        return TokenExpr::Root {
+        return ASTExpr::Root {
             action: action.strip_prefix("/").unwrap().to_string(),
             expression: Box::new(self.tokenize_expression(query)),
         };
     }
 
-    fn tokenize_expression(&self, query: &str) -> TokenExpr {
+    fn tokenize_expression(&self, query: &str) -> ASTExpr {
         let (query_without_global_paren, had_global_paren) = self.strip_global_paren(query.trim());
         let query = query_without_global_paren.as_str();
 
         if query.starts_with("!") && had_global_paren {
-            return TokenExpr::Not(Box::new(
+            return ASTExpr::Not(Box::new(
                 self.tokenize_expression(query.strip_prefix("!").unwrap()),
             ));
         }
 
         if !query.contains("|") && !query.contains(" ") {
             if query.starts_with("!") {
-                return TokenExpr::Not(Box::new(
+                return ASTExpr::Not(Box::new(
                     self.tokenize_expression(query.strip_prefix("!").unwrap()),
                 ));
             }
 
-            let qualifiers: Vec<TokenExpr> = self
+            let qualifiers: Vec<ASTExpr> = self
                 .expand_qualifier_value_list(query)
                 .iter()
-                .map(|q| TokenExpr::Leaf(q.to_string()))
+                .map(|q| ASTExpr::Leaf(q.to_string()))
                 .collect();
 
             if qualifiers.len() > 1 {
-                return TokenExpr::And(qualifiers);
+                return ASTExpr::And(qualifiers);
             } else {
                 return qualifiers[0].clone();
             }
@@ -183,34 +183,71 @@ impl Tokenizer {
         }
 
         if curr_or_indicies.len() > 0 {
-            return TokenExpr::Or(
+            return ASTExpr::Or(
                 self.split_at_indices(query, curr_or_indicies)
                     .iter()
                     .filter(|term| term.trim().len() > 0)
                     .map(|term| self.tokenize_expression(term))
-                    .collect::<Vec<TokenExpr>>(),
+                    .collect::<Vec<ASTExpr>>(),
             );
         } else {
-            return TokenExpr::And(
+            return ASTExpr::And(
                 self.split_at_indices(query, curr_and_indicies)
                     .iter()
                     .filter(|term| term.trim().len() > 0)
                     .map(|term| self.tokenize_expression(term))
-                    .collect::<Vec<TokenExpr>>(),
+                    .collect::<Vec<ASTExpr>>(),
             );
         }
     }
 
-    pub fn tokenize(&self, mut input_query: &str) -> Result<TokenExpr, TokenizerError> {
+    /// Normalizes a [`TokenExpr`] by flattening nested logical expressions.
+    ///
+    /// Applies the following rules recursively:
+    /// - `And(And(a, b), c)` → `And(a, b, c)` (nested `And` inside `And` is flattened)
+    /// - `Or(Or(a, b), c)` → `Or(a, b, c)` (nested `Or` inside `Or` is flattened)
+    fn normalize_expr(&self, expr: ASTExpr) -> ASTExpr {
+        match expr {
+            ASTExpr::And(children) => {
+                let mut flat = Vec::new();
+                for child in children {
+                    match self.normalize_expr(child) {
+                        ASTExpr::And(inner) => flat.extend(inner),
+                        other => flat.push(other),
+                    }
+                }
+                ASTExpr::And(flat)
+            }
+            ASTExpr::Or(children) => {
+                let mut flat = Vec::new();
+                for child in children {
+                    match self.normalize_expr(child) {
+                        ASTExpr::Or(inner) => flat.extend(inner),
+                        other => flat.push(other),
+                    }
+                }
+                ASTExpr::Or(flat)
+            }
+            ASTExpr::Not(inner) => ASTExpr::Not(Box::new(self.normalize_expr(*inner))),
+            ASTExpr::Root { action, expression } => ASTExpr::Root {
+                action,
+                expression: Box::new(self.normalize_expr(*expression)),
+            },
+            leaf => leaf,
+        }
+    }
+
+    pub fn tokenize(&self, mut input_query: &str) -> Result<ASTExpr, TokenizerError> {
         input_query = input_query.trim();
         if input_query.is_empty() {
             return Err(TokenizerError::EmptyInput);
         }
 
         let token_tree = self.generate_token_tree(input_query);
-        println!("{:#?}", token_tree);
+        let normalized_tree = self.normalize_expr(token_tree);
+        println!("{:#?}", normalized_tree);
 
-        Ok(token_tree)
+        Ok(normalized_tree)
     }
 }
 
@@ -220,15 +257,16 @@ pub enum TokenizerError {
     EmptyInput,
 }
 
-#[derive(Debug, Clone)]
-pub enum TokenExpr {
+#[derive(Debug, Clone, serde::Serialize, tsify_next::Tsify)]
+#[tsify(into_wasm_abi)]
+pub enum ASTExpr {
     Root {
         action: String,
-        expression: Box<TokenExpr>,
+        expression: Box<ASTExpr>,
     },
-    And(Vec<TokenExpr>),
-    Or(Vec<TokenExpr>),
-    Not(Box<TokenExpr>),
+    And(Vec<ASTExpr>),
+    Or(Vec<ASTExpr>),
+    Not(Box<ASTExpr>),
     Leaf(String),
 }
 

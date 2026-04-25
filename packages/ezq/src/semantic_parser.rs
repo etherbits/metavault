@@ -1,7 +1,7 @@
 use crate::lang::{ACTION_KEYWORDS, QUALIFIER_KEYWORDS};
 use thiserror::Error;
 
-use crate::{fuzzy_matcher::FuzzyMatcher, tokenizer::TokenExpr};
+use crate::{fuzzy_matcher::FuzzyMatcher, tokenizer::ASTExpr};
 
 pub struct SemanticParser {
     matcher: FuzzyMatcher,
@@ -14,7 +14,8 @@ impl SemanticParser {
         }
     }
 
-    fn parse_action(&self, action: &String) -> String {
+    fn parse_action(&self, action: &str) -> String {
+        let action = action.strip_prefix("/").unwrap_or(action);
         let parsed_action = self.matcher.fuzzy_match(action, &ACTION_KEYWORDS);
         parsed_action
     }
@@ -37,27 +38,63 @@ impl SemanticParser {
         return parsed_qualifier + ":" + rest;
     }
 
-    pub fn parse(&self, token_tree: TokenExpr) -> Result<ParsedQuery, ParseError> {
-        Ok(ParsedQuery {
-            action: "action".to_string(),
-            targets: vec!["targets".to_string()],
-            qualifications: vec![format!("{:?}", token_tree)],
-        })
-        // if token_tree.action.len() == 0 {
-        //     return Err(ParseError::MissingAction);
-        // }
-        // Ok(ParsedQuery {
-        //     action: self.parse_action(&tokenized_query.action),
-        //     targets: tokenized_query.targets,
-        //     qualifications: self.parse_qualifications(&tokenized_query.qualifications),
-        // })
+    fn construct_title(&self, expr: ASTExpr) -> (Option<String>, ASTExpr) {
+        let ASTExpr::And(exprs) = expr else {
+            return (None, expr);
+        };
+
+        let (leaves, rest): (Vec<_>, Vec<_>) = exprs
+            .into_iter()
+            .partition(|expr| matches!(expr, ASTExpr::Leaf(inner) if !inner.contains(':')));
+
+        let title = leaves
+            .into_iter()
+            .filter_map(|expr| {
+                if let ASTExpr::Leaf(inner) = expr {
+                    Some(inner)
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("_");
+
+        let title = if title.is_empty() {
+            None
+        } else {
+            Some(format!("title:{title}"))
+        };
+        (title, ASTExpr::And(rest))
+    }
+
+    fn parse_token_tree(&self, token_tree: ASTExpr) -> ASTExpr {
+        let (title, mut token_tree) = self.construct_title(token_tree);
+        if let Some(title) = title {
+            if let ASTExpr::And(exprs) = &mut token_tree {
+                exprs.push(ASTExpr::Leaf(title));
+            }
+        }
+        token_tree
+    }
+
+    pub fn parse(&self, token_tree: ASTExpr) -> Result<ASTExpr, ParseError> {
+        let ast = match token_tree {
+            ASTExpr::Root { action, expression } => Ok(ASTExpr::Root {
+                action: self.parse_action(&action),
+                expression: Box::new(self.parse_token_tree(*expression)),
+            }),
+            _ => Err(ParseError::UnsupportedExpression),
+        };
+
+        println!("{:#?}", ast);
+        ast
     }
 }
 
 #[derive(Debug, Error)]
 pub enum ParseError {
-    #[error("the tokenized query is missing action segment")]
-    MissingAction,
+    #[error("Pass Root ASTExpr into parse")]
+    UnsupportedExpression,
 }
 
 #[derive(Debug, serde::Serialize, tsify_next::Tsify)]
