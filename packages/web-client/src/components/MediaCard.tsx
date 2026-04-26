@@ -71,6 +71,20 @@ function getTypeIcon(type: MediaType) {
   }
 }
 
+function formatDisplayDate(input: string) {
+  const isoDate = /^\d{4}-\d{2}-\d{2}$/;
+  if (!isoDate.test(input)) return input;
+
+  const [year, month, day] = input.split("-");
+  if (!year || !month || !day) return input;
+
+  return `${day}/${month}/${year}`;
+}
+
+function normalizeRating(value: string) {
+  return value.replace(/\s*\/\s*/g, "/");
+}
+
 export function MediaCard({
   item,
   selectMode = false,
@@ -177,23 +191,33 @@ export function MediaCard({
 
   return (
     <Card
-      className={`relative h-full min-h-[300px] w-full overflow-visible rounded-[4px] border-none bg-[#27272A] py-0 text-white ring-0 shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)] sm:max-w-[420px] ${
+      className={`relative h-full min-h-[300px] w-full overflow-visible rounded-[4px] border-none bg-[#27272A] py-0 text-white ring-0 shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)] sm:h-[300px] sm:max-w-[420px] ${
         menuOpen ? "z-40" : ""
       } ${selected ? "ring-2 ring-[#FACC15]" : ""}`}
       onClick={handleCardClick}
     >
       <div className="flex h-full flex-col sm:flex-row">
-        <div className="h-52 w-full shrink-0 overflow-hidden rounded-t-[4px] bg-black sm:h-[300px] sm:max-w-[200px] sm:basis-[46%] sm:rounded-l-[4px] sm:rounded-tr-none">
+        <div className="h-52 w-full shrink-0 overflow-hidden rounded-t-[4px] bg-[#09090B] sm:h-[300px] sm:max-w-[200px] sm:basis-[46%] sm:rounded-l-[4px] sm:rounded-tr-none sm:shadow-[4px_0px_16px_rgba(164,37,36,0.18)]">
           {item.posterUrl ? (
             <img
               src={item.posterUrl}
               alt={item.title}
               className="h-full w-full object-cover"
             />
-          ) : null}
+          ) : (
+            <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-[radial-gradient(circle_at_30%_20%,rgba(250,204,21,0.16),transparent_60%),linear-gradient(160deg,#121217,#09090B)] p-4 text-center">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[#3F3F46] bg-black/30 text-[#A1A1AA]">
+                {getTypeIcon(item.type)}
+              </div>
+              <p className="line-clamp-2 text-sm font-medium text-[#D4D4D8]">
+                {item.title}
+              </p>
+              <p className="text-xs text-[#A1A1AA]">No poster available</p>
+            </div>
+          )}
         </div>
 
-        <CardContent className="flex w-full min-w-0 flex-1 flex-col gap-4 px-4 py-3">
+        <CardContent className="flex w-full min-w-0 flex-1 flex-col gap-4 px-4 py-3 sm:w-[220px] sm:min-w-[220px]">
           <h3 className="truncate text-lg font-medium leading-7 text-[#F4F4F5] sm:text-[20px]">
             {item.title}
           </h3>
@@ -216,12 +240,12 @@ export function MediaCard({
             <div className="flex flex-col gap-2">
               <span className="inline-flex h-5 w-fit items-center gap-1 rounded-[8px] bg-[#3F3F46] px-2 text-[12px] font-semibold leading-4 text-[#FAFAFA]">
                 <Calendar size={12} />
-                {item.date}
+                {formatDisplayDate(item.date)}
               </span>
 
               <span className="inline-flex h-5 w-fit items-center gap-1 rounded-[8px] bg-[#3F3F46] px-2 text-[12px] font-semibold leading-4 text-[#FAFAFA]">
                 <Star size={12} />
-                {item.rating}
+                {normalizeRating(item.rating)}
               </span>
             </div>
           </div>
@@ -232,7 +256,7 @@ export function MediaCard({
                 key={tag}
                 className="inline-flex h-5 items-center rounded-[8px] border border-[#3F3F46] bg-white/5 px-2 text-[12px] font-semibold leading-4 text-[#FAFAFA]"
               >
-                {tag}
+                {tag.charAt(0).toUpperCase() + tag.slice(1)}
               </span>
             ))}
           </div>
@@ -294,7 +318,7 @@ export function MediaCard({
                 event.stopPropagation();
                 onViewDetails?.(item);
               }}
-              className="h-8 rounded-[8px] bg-[#FACC15] px-[10px] text-[14px] font-medium leading-5 text-[#27272A] hover:bg-[#eab308]"
+              className="h-8 min-h-8 rounded-[8px] bg-[#FACC15] px-[10px] text-[14px] font-medium leading-5 text-[#27272A] hover:bg-[#eab308]"
             >
               <Maximize2 size={16} />
               View Details
