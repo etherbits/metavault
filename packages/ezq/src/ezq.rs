@@ -1,5 +1,5 @@
 use crate::{
-    semantic_parser::{ParseError, ParsedQuery, SemanticParser},
+    semantic_parser::{ParseError, SemanticParser},
     tokenizer::{ASTExpr, Tokenizer, TokenizerError},
 };
 

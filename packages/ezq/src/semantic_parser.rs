@@ -1,4 +1,8 @@
-use crate::lang::{ACTION_KEYWORDS, QUALIFIER_KEYWORDS};
+use crate::lang::{
+    ACTION_KEYWORDS, QUALIFIER_SEMANTICS,
+    QualifierSegmentRule::{self, *},
+};
+use chrono::NaiveDate;
 use thiserror::Error;
 
 use crate::{fuzzy_matcher::FuzzyMatcher, tokenizer::ASTExpr};
@@ -20,22 +24,102 @@ impl SemanticParser {
         parsed_action
     }
 
-    fn parse_qualifications(&self, qualifications: &[String]) -> Vec<String> {
-        qualifications
-            .into_iter()
-            .map(|q| self.parse_qualification(q))
-            .collect()
+    fn parse_qualifiers(&self, expr: ASTExpr) -> Result<ASTExpr, ParseError> {
+        Ok(match expr {
+            ASTExpr::Leaf(qualifier) => ASTExpr::Leaf(self.parse_qualifier(qualifier)?),
+            ASTExpr::And(exprs) => ASTExpr::And(
+                exprs
+                    .iter()
+                    .map(|expr| self.parse_qualifiers(expr.clone()))
+                    .collect::<Result<Vec<_>, _>>()?,
+            ),
+            ASTExpr::Or(exprs) => ASTExpr::Or(
+                exprs
+                    .iter()
+                    .map(|expr| self.parse_qualifiers(expr.clone()))
+                    .collect::<Result<Vec<_>, _>>()?,
+            ),
+            ASTExpr::Not(expr) => ASTExpr::Not(Box::new(self.parse_qualifiers(*expr)?)),
+            _ => expr,
+        })
     }
 
-    fn parse_qualification(&self, qualification: &String) -> String {
-        let (qualifier, rest) = match qualification.split_once(":") {
-            Some((q, rest)) => (q, rest),
-            None => ("", ""),
+    fn parse_qualifier(&self, qualifier: String) -> Result<String, ParseError> {
+        let qualifier_segments = qualifier.split(":").collect::<Vec<&str>>();
+        let qualifier_prefix = self.matcher.fuzzy_match(
+            qualifier_segments.first().unwrap(),
+            QUALIFIER_SEMANTICS
+                .iter()
+                .map(|q| {
+                    let Single(prefix) = q.first().unwrap() else {
+                        unreachable!("Something went wrong getting qualifier prefix rule")
+                    };
+
+                    *prefix
+                })
+                .collect::<Vec<&str>>()
+                .as_slice(),
+        );
+
+        let qualifier_semantic_rules = QUALIFIER_SEMANTICS
+            .iter()
+            .find(|q| match q.first().unwrap() {
+                Single(prefix) => *prefix == qualifier_prefix,
+                _ => false,
+            })
+            .unwrap();
+
+        let rules = &qualifier_semantic_rules[1..];
+        let mut parsed_segments = vec![qualifier_prefix.clone()];
+        for (i, rule) in rules.iter().enumerate() {
+            parsed_segments.push(self.parse_qualifier_rule(
+                qualifier_segments.iter().nth(i + 1).unwrap_or(&""),
+                rule,
+                &qualifier_prefix,
+            )?)
+        }
+
+        Ok(parsed_segments.join(":"))
+    }
+
+    fn parse_qualifier_rule(
+        &self,
+        segment: &str,
+        rule: &QualifierSegmentRule,
+        prefix: &String,
+    ) -> Result<String, ParseError> {
+        if !rule.is_valid(segment) {
+            return Err(ParseError::InvalidQualifierSemantics(format!(
+                "({}): {}",
+                prefix,
+                rule.get_err_msg(segment)
+            )));
         };
 
-        let parsed_qualifier = self.matcher.fuzzy_match(qualifier, &QUALIFIER_KEYWORDS);
+        match rule {
+            FuzzyList(options) => Ok(self.matcher.fuzzy_match(segment, options)),
+            FuzzyListWithDefault(options, default) => Ok(if segment.len() > 0 {
+                self.matcher.fuzzy_match(segment, options)
+            } else {
+                default.to_string()
+            }),
+            Date => {
+                let (inequality, value) = rule.split_inequality_value(segment);
 
-        return parsed_qualifier + ":" + rest;
+                Ok(format!(
+                    "{}{}",
+                    inequality,
+                    NaiveDate::parse_from_str(&value, "%d-%m-%Y")
+                        .unwrap()
+                        .and_hms_opt(0, 0, 0)
+                        .unwrap()
+                        .and_utc()
+                        .timestamp()
+                        .to_string()
+                ))
+            }
+            _ => Ok(segment.to_string()),
+        }
     }
 
     fn construct_title(&self, expr: ASTExpr) -> (Option<String>, ASTExpr) {
@@ -67,21 +151,22 @@ impl SemanticParser {
         (title, ASTExpr::And(rest))
     }
 
-    fn parse_token_tree(&self, token_tree: ASTExpr) -> ASTExpr {
+    fn parse_token_tree(&self, token_tree: ASTExpr) -> Result<ASTExpr, ParseError> {
         let (title, mut token_tree) = self.construct_title(token_tree);
         if let Some(title) = title {
             if let ASTExpr::And(exprs) = &mut token_tree {
                 exprs.push(ASTExpr::Leaf(title));
             }
         }
-        token_tree
+
+        self.parse_qualifiers(token_tree)
     }
 
     pub fn parse(&self, token_tree: ASTExpr) -> Result<ASTExpr, ParseError> {
         let ast = match token_tree {
             ASTExpr::Root { action, expression } => Ok(ASTExpr::Root {
                 action: self.parse_action(&action),
-                expression: Box::new(self.parse_token_tree(*expression)),
+                expression: Box::new(self.parse_token_tree(*expression)?),
             }),
             _ => Err(ParseError::UnsupportedExpression),
         };
@@ -93,8 +178,10 @@ impl SemanticParser {
 
 #[derive(Debug, Error)]
 pub enum ParseError {
-    #[error("Pass Root ASTExpr into parse")]
+    #[error("Did not pass Root ASTExpr into parse")]
     UnsupportedExpression,
+    #[error("Invalid qualifier semantics")]
+    InvalidQualifierSemantics(String),
 }
 
 #[derive(Debug, serde::Serialize, tsify_next::Tsify)]
