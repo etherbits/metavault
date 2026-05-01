@@ -1,4 +1,5 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3435";
+const rawApiBaseUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3435";
+const API_BASE_URL = rawApiBaseUrl.replace(/\/+$/, "");
 
 type RequestOptions = {
   method: "POST";
@@ -15,14 +16,23 @@ type ApiSuccessResponse = {
 };
 
 async function request(path: string, options: RequestOptions): Promise<ApiSuccessResponse> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    method: options.method,
-    headers: {
-      "Content-Type": "application/json",
-    },
-    credentials: "include",
-    body: JSON.stringify(options.body),
-  });
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}${normalizedPath}`, {
+      method: options.method,
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify(options.body),
+    });
+  } catch {
+    throw new Error(
+      `Cannot reach API server at ${API_BASE_URL}. Make sure backend is running.`
+    );
+  }
 
   const data = (await response.json().catch(() => null)) as
     | { message?: string }
