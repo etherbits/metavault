@@ -1,7 +1,11 @@
 import { defineConfig } from "@playwright/test";
+import path from "node:path";
 
 // biome-ignore lint/complexity/useLiteralKeys: bracket notation keeps env var names explicit
 const isCI = !!process.env["CI"];
+const projectRoot = process.cwd();
+const serverDataDir = path.join(projectRoot, "packages/server/data");
+const serverDbPath = path.join(serverDataDir, "db.sqlite");
 
 export default defineConfig({
   testDir: "./e2e",
@@ -14,8 +18,7 @@ export default defineConfig({
     video: "retain-on-failure",
   },
   webServer: {
-    command:
-      "mkdir -p ../packages/server/data && DATABASE_URL=sqlite:///../packages/server/data/db.sqlite bun ../packages/server/index.ts",
+    command: `mkdir -p "${serverDataDir}" && DATABASE_URL=sqlite://${serverDbPath} bun "${path.join(projectRoot, "packages/server/index.ts")}"`,
     url: "http://localhost:3435/health",
     reuseExistingServer: !isCI,
     stdout: "pipe",
