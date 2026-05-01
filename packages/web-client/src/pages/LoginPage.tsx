@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Eye, EyeOff, Lock, User } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { AUTH_STORAGE_KEY, signIn } from "@/lib/authApi";
 
 export function LoginPage() {

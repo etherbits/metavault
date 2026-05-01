@@ -1,6 +1,6 @@
 import { useState, type InputHTMLAttributes, type ReactNode } from "react";
 import { Eye, EyeOff, Lock, Mail, User } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { signUp } from "@/lib/authApi";
 
 type FieldProps = {

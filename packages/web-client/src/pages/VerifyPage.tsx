@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { KeyRound, Mail } from "lucide-react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router";
 import { resendVerificationCode, verifyUser } from "@/lib/authApi";
 
 export function VerifyPage() {
