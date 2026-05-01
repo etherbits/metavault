@@ -39,7 +39,7 @@ import {
   type MediaStatus,
 } from "@/components/MediaCard";
 import HeroPoster from "@/assets/hero.png";
-import { AUTH_STORAGE_KEY, AUTH_USER_STORAGE_KEY } from "@/lib/authApi";
+import { AUTH_STORAGE_KEY } from "@/lib/authApi";
 import "./index.css";
 
 type Page = "home" | "query" | "integrations" | "settings";
@@ -739,7 +739,6 @@ export function App() {
     setSelectMode(false);
     setSelectedIds([]);
     localStorage.removeItem(AUTH_STORAGE_KEY);
-    localStorage.removeItem(AUTH_USER_STORAGE_KEY);
     navigate("/login");
   };
 
@@ -808,7 +807,6 @@ export function App() {
         isOpen={sidebarOpen}
         onToggle={handleToggleSidebar}
         onSignOut={handleSignOut}
-        user={sidebarUser}
       />
 
       {sidebarOpen && (
@@ -1470,17 +1468,3 @@ export function App() {
 }
 
 export default App;
-  const storedUser = (() => {
-    try {
-      const raw = localStorage.getItem(AUTH_USER_STORAGE_KEY);
-      if (!raw) return null;
-      return JSON.parse(raw) as { username?: string; email?: string };
-    } catch {
-      return null;
-    }
-  })();
-
-  const sidebarUser = {
-    name: storedUser?.username?.trim() || "User",
-    email: storedUser?.email?.trim() || "",
-  };

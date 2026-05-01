@@ -1,11 +1,7 @@
 import { useState } from "react";
 import { Eye, EyeOff, Lock, User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import {
-  AUTH_STORAGE_KEY,
-  AUTH_USER_STORAGE_KEY,
-  signIn,
-} from "@/lib/authApi";
+import { AUTH_STORAGE_KEY, signIn } from "@/lib/authApi";
 
 export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -41,11 +37,8 @@ export function LoginPage() {
             setIsSubmitting(true);
 
             try {
-              const response = await signIn({ username: username.trim(), password });
+              await signIn({ username: username.trim(), password });
               localStorage.setItem(AUTH_STORAGE_KEY, "true");
-              if (response.user) {
-                localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(response.user));
-              }
               navigate("/app");
             } catch (error) {
               setErrorMessage(
