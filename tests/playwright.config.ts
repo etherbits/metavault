@@ -14,7 +14,8 @@ export default defineConfig({
     video: "retain-on-failure",
   },
   webServer: {
-    command: "bun ../packages/server/index.ts",
+    command:
+      "mkdir -p ../packages/server/data && DATABASE_URL=sqlite:///../packages/server/data/db.sqlite bun ../packages/server/index.ts",
     url: "http://localhost:3435/health",
     reuseExistingServer: !isCI,
     stdout: "pipe",
