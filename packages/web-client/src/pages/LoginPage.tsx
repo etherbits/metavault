@@ -1,9 +1,14 @@
 import { useState } from "react";
 import { Eye, EyeOff, Lock, User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { AUTH_STORAGE_KEY, signIn } from "@/lib/authApi";
 
 export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const navigate = useNavigate();
 
   return (
@@ -26,9 +31,22 @@ export function LoginPage() {
 
         <form
           className="flex w-full max-w-[320px] flex-col gap-6 rounded-lg bg-[#27272a] p-6 text-[#e4e4e7] shadow-[0_18px_32px_rgba(0,0,0,0.24)] max-[420px]:gap-5 max-[420px]:p-5"
-          onSubmit={(event) => {
+          onSubmit={async (event) => {
             event.preventDefault();
-            navigate("/app");
+            setErrorMessage("");
+            setIsSubmitting(true);
+
+            try {
+              await signIn({ username: username.trim(), password });
+              localStorage.setItem(AUTH_STORAGE_KEY, "true");
+              navigate("/app");
+            } catch (error) {
+              setErrorMessage(
+                error instanceof Error ? error.message : "Unable to sign in"
+              );
+            } finally {
+              setIsSubmitting(false);
+            }
           }}
         >
           <header>
@@ -54,6 +72,8 @@ export function LoginPage() {
                 type="text"
                 placeholder="User01"
                 autoComplete="username"
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
                 required
               />
             </span>
@@ -75,6 +95,8 @@ export function LoginPage() {
                 type={showPassword ? "text" : "password"}
                 placeholder="********"
                 autoComplete="current-password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
                 required
               />
 
@@ -90,11 +112,18 @@ export function LoginPage() {
           </label>
 
           <div className="flex flex-col gap-4 pt-2">
+            {errorMessage ? (
+              <p className="rounded-md border border-[#ef4444]/45 bg-[#450a0a] px-3 py-2 text-sm leading-5 text-[#fecaca]">
+                {errorMessage}
+              </p>
+            ) : null}
+
             <button
               type="submit"
+              disabled={isSubmitting}
               className="min-h-9 w-full cursor-pointer rounded-lg border border-transparent bg-[#facc15] px-3 py-2 text-sm leading-5 font-medium text-[#09090b] transition-[transform,filter] duration-120 hover:-translate-y-px hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#facc1566]"
             >
-              Log In
+              {isSubmitting ? "Logging in..." : "Log In"}
             </button>
 
             <button
