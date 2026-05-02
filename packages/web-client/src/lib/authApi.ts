@@ -70,3 +70,4 @@ export function resendVerificationCode(payload: { email: string }) {
 }
 
 export const AUTH_STORAGE_KEY = "metavault.authenticated";
+export const AUTH_USER_STORAGE_KEY = "metavault.user";

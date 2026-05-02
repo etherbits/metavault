@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Eye, EyeOff, Lock, User } from "lucide-react";
 import { useNavigate } from "react-router";
-import { AUTH_STORAGE_KEY, signIn } from "@/lib/authApi";
+import { AUTH_STORAGE_KEY, AUTH_USER_STORAGE_KEY, signIn } from "@/lib/authApi";
 
 export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -37,8 +37,22 @@ export function LoginPage() {
             setIsSubmitting(true);
 
             try {
-              await signIn({ username: username.trim(), password });
+              const response = await signIn({ username: username.trim(), password });
+              const typedUsername = username.trim();
+              const resolvedUsername =
+                response.user?.username?.trim() || typedUsername;
+              const resolvedEmail = response.user?.email?.trim() || "";
               localStorage.setItem(AUTH_STORAGE_KEY, "true");
+              localStorage.setItem(
+                AUTH_USER_STORAGE_KEY,
+                JSON.stringify({
+                  name: resolvedUsername,
+                  username: resolvedUsername,
+                  email: resolvedEmail,
+                })
+              );
+              localStorage.setItem("metavault.username", resolvedUsername);
+              localStorage.setItem("metavault.email", resolvedEmail);
               navigate("/app");
             } catch (error) {
               setErrorMessage(

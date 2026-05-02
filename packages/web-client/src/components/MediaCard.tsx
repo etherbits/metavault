@@ -13,6 +13,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusDropdown } from "./StatusDropdown";
+import BatmanPoster from "@/assets/download.jpeg";
 
 export type MediaType =
   | "Movie"
@@ -99,6 +100,7 @@ export function MediaCard({
         const gap = 12;
         const viewportPadding = 8;
         const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
 
         let nextLeft = triggerRect.left - panelWidth - gap;
 
@@ -112,7 +114,14 @@ export function MediaCard({
         );
         nextLeft = Math.min(Math.max(viewportPadding, nextLeft), maxLeft);
 
-        const nextTop = Math.max(8, triggerRect.bottom - panelHeight);
+        let nextTop = triggerRect.bottom + gap;
+
+        if (nextTop + panelHeight > viewportHeight - viewportPadding) {
+          nextTop = Math.max(
+            viewportPadding,
+            viewportHeight - panelHeight - viewportPadding
+          );
+        }
 
         const canOpenSubmenuLeft =
           nextLeft - gap - submenuWidth >= viewportPadding;
@@ -183,14 +192,12 @@ export function MediaCard({
       onClick={handleCardClick}
     >
       <div className="flex h-full flex-col sm:flex-row">
-        <div className="h-52 w-full shrink-0 overflow-hidden rounded-t-[4px] bg-black sm:h-[300px] sm:max-w-[200px] sm:basis-[46%] sm:rounded-l-[4px] sm:rounded-tr-none">
-          {item.posterUrl ? (
-            <img
-              src={item.posterUrl}
-              alt={item.title}
-              className="h-full w-full object-cover"
-            />
-          ) : null}
+        <div className="h-52 w-full shrink-0 overflow-hidden rounded-t-[4px] bg-black sm:h-auto sm:self-stretch sm:max-w-[200px] sm:basis-[46%] sm:rounded-l-[4px] sm:rounded-tr-none">
+          <img
+            src={item.posterUrl ?? BatmanPoster}
+            alt={item.title}
+            className="h-full w-full object-cover"
+          />
         </div>
 
         <CardContent className="flex w-full min-w-0 flex-1 flex-col gap-4 px-4 py-3">
