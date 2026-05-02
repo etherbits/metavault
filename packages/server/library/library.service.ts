@@ -75,7 +75,7 @@ async function updateEntry(req: Request, res: Response) {
     const id = req.params.id as string;
     const body = req.body;
 
-    let imageSrc = undefined;
+    let imageSrc: string | undefined;
 
     if (req.file) {
       const imagePaths = await processAndSaveImage(req.file.buffer, userId, id);

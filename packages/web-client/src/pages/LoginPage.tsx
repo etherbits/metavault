@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Eye, EyeOff, Lock, User } from "lucide-react";
 import { useNavigate } from "react-router";
 import { AUTH_STORAGE_KEY, AUTH_USER_STORAGE_KEY, signIn } from "@/lib/authApi";
+import MetaLogo from "@/assets/Meta.svg";
 
 export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -12,25 +13,21 @@ export function LoginPage() {
   const navigate = useNavigate();
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_50%_0%,#11141b_0%,#18181b_52%)] px-4 py-8">
-      <div
-        className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(250,204,21,0.03),transparent_40%)]"
-        aria-hidden="true"
-      />
+    <main className="relative min-h-screen overflow-hidden bg-[#18181B] px-4 py-8">
 
       <section
-        className="relative z-10 grid min-h-[calc(100vh-64px)] place-items-center gap-12 max-[420px]:gap-[30px]"
+        className="relative z-10 mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-[320px] flex-col items-center justify-center gap-12"
         aria-label="Log in to account"
       >
-        <div
-          className="font-heading text-[74px] leading-none font-extrabold tracking-[-0.06em] text-[#facc15] max-[420px]:text-[62px]"
-          aria-hidden="true"
-        >
-          M
-        </div>
+        <img
+          src={MetaLogo}
+          alt="MetaVault"
+          className="h-[42px] w-12 object-contain"
+        />
 
         <form
-          className="flex w-full max-w-[320px] flex-col gap-6 rounded-lg bg-[#27272a] p-6 text-[#e4e4e7] shadow-[0_18px_32px_rgba(0,0,0,0.24)] max-[420px]:gap-5 max-[420px]:p-5"
+          className="flex w-full flex-col gap-8 rounded-[8px] bg-[#27272A] p-6 text-[#e4e4e7]"
+          autoComplete="off"
           onSubmit={async (event) => {
             event.preventDefault();
             setErrorMessage("");
@@ -64,7 +61,7 @@ export function LoginPage() {
           }}
         >
           <header>
-            <h1 className="m-0 text-xl leading-tight font-semibold">Log In</h1>
+            <h1 className="m-0 text-[20px] leading-6 font-semibold">Log In</h1>
             <p className="mt-3 text-base leading-6 text-[#d4d4d8]">
               Fill in the details below to log into your account
             </p>
@@ -73,7 +70,7 @@ export function LoginPage() {
           <label className="flex flex-col gap-1">
             <span className="text-sm leading-5 font-medium text-[#fafafa]">Username</span>
 
-            <span className="flex min-h-9 items-center gap-2 rounded-lg border border-[#3f3f46] bg-[rgba(255,255,255,0.05)] px-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+            <span className="flex h-9 min-h-9 items-center gap-2 rounded-lg border border-[#3f3f46] bg-[rgba(255,255,255,0.05)] px-3 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
               <span
                 className="grid h-5 w-5 flex-none place-items-center text-[#a1a1aa]"
                 aria-hidden="true"
@@ -85,7 +82,8 @@ export function LoginPage() {
                 className="w-full border-0 bg-transparent text-sm leading-5 text-[#e4e4e7] outline-none placeholder:text-[#a1a1aa]"
                 type="text"
                 placeholder="User01"
-                autoComplete="username"
+                autoComplete="off"
+                name="login-username"
                 value={username}
                 onChange={(event) => setUsername(event.target.value)}
                 required
@@ -96,7 +94,7 @@ export function LoginPage() {
           <label className="flex flex-col gap-1">
             <span className="text-sm leading-5 font-medium text-[#fafafa]">Password</span>
 
-            <span className="flex min-h-9 items-center gap-2 rounded-lg border border-[#3f3f46] bg-[rgba(255,255,255,0.05)] px-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+            <span className="flex h-9 min-h-9 items-center gap-2 rounded-lg border border-[#3f3f46] bg-[rgba(255,255,255,0.05)] px-3 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
               <span
                 className="grid h-5 w-5 flex-none place-items-center text-[#a1a1aa]"
                 aria-hidden="true"
@@ -108,7 +106,8 @@ export function LoginPage() {
                 className="w-full border-0 bg-transparent text-sm leading-5 text-[#e4e4e7] outline-none placeholder:text-[#a1a1aa]"
                 type={showPassword ? "text" : "password"}
                 placeholder="********"
-                autoComplete="current-password"
+                autoComplete="new-password"
+                name="login-password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 required
@@ -125,7 +124,7 @@ export function LoginPage() {
             </span>
           </label>
 
-          <div className="flex flex-col gap-4 pt-2">
+           <div className="flex flex-col gap-4">
             {errorMessage ? (
               <p className="rounded-md border border-[#ef4444]/45 bg-[#450a0a] px-3 py-2 text-sm leading-5 text-[#fecaca]">
                 {errorMessage}
