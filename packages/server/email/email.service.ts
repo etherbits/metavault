@@ -3,17 +3,21 @@ import "dotenv/config";
 
 const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST,
-  port: 587,
+  port: Number(process.env.EMAIL_PORT ?? 587),
   secure: false,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
+  ...(process.env.EMAIL_USER && process.env.EMAIL_PASS
+    ? {
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS,
+        },
+      }
+    : {}),
 });
 
 async function sendOtpCode(to: string, otpCode: string) {
   return transporter.sendMail({
-    from: "Metavault",
+    from: "Metavault <no-reply@metavault.local>",
     to,
     subject: "Verify your account",
     html: `
@@ -32,7 +36,7 @@ async function sendOtpCode(to: string, otpCode: string) {
 
 async function sendWelcomeEmail(to: string) {
   return transporter.sendMail({
-    from: "Metavault",
+    from: "Metavault <no-reply@metavault.local>",
     to,
     subject: "Welcome",
     html: `

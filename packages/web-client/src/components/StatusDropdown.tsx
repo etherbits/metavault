@@ -36,6 +36,8 @@ export function StatusDropdown({
   style,
 }: StatusDropdownProps) {
   const [showStatusMenu, setShowStatusMenu] = useState(false);
+  const baseItemClass =
+    "flex min-h-8 w-40 items-center rounded-md px-2 py-[5.5px] text-left text-sm leading-5 transition-colors";
 
   return (
     <div className={cn("relative", className)} style={style}>
@@ -83,7 +85,7 @@ export function StatusDropdown({
         </div>
       )}
 
-      <div className="z-[120] flex h-[177px] w-44 flex-col gap-2 rounded-[8px] border border-[#3F3F46] bg-[#18181B] p-2 shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.1),0px_2px_4px_-2px_rgba(0,0,0,0.1)]">
+      <div className="z-[120] flex w-44 flex-col gap-2 rounded-[8px] border border-[#3F3F46] bg-[#18181B] p-2 shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.1),0px_2px_4px_-2px_rgba(0,0,0,0.1)]">
         <button
           type="button"
           onClick={onSelect}
@@ -95,38 +97,44 @@ export function StatusDropdown({
           Select
         </button>
 
-        <div className="flex flex-col gap-2">
-          <button
-            type="button"
-            onClick={() => setShowStatusMenu((prev) => !prev)}
-            className="flex min-h-8 w-40 items-center gap-2 rounded-md bg-[#18181b] px-2 py-[5.5px] text-left text-sm leading-5 text-[#FAFAFA] transition-colors hover:bg-[#27272A]"
-          >
-            {submenuSide === "left" ? (
-              <ChevronLeft size={16} className="shrink-0 text-[#A1A1AA]" />
-            ) : (
-              <ChevronRight size={16} className="shrink-0 text-[#A1A1AA]" />
-            )}
-            <span className="truncate">Change status</span>
-          </button>
+        <button
+          type="button"
+          onClick={() => setShowStatusMenu((prev) => !prev)}
+          aria-expanded={showStatusMenu}
+          aria-label="Change status"
+          className={cn(
+            baseItemClass,
+            "gap-2 text-[#FAFAFA]",
+            showStatusMenu ? "bg-[#27272A]" : "hover:bg-[#27272A]"
+          )}
+        >
+          {submenuSide === "left" ? (
+            <ChevronLeft size={16} className="shrink-0 text-[#A1A1AA]" />
+          ) : (
+            <ChevronRight size={16} className="shrink-0 text-[#A1A1AA]" />
+          )}
+          <span className="truncate">Change status</span>
+        </button>
 
-          <button
-            type="button"
-            onClick={onAddToCollection}
-            className="flex min-h-8 w-40 items-center rounded-md px-2 py-[5.5px] text-left text-sm leading-5 text-[#FAFAFA] transition-colors hover:bg-[#27272A]"
-          >
-            Add to collection
-          </button>
+        <button
+          type="button"
+          onClick={onAddToCollection}
+          aria-label="Add to collection"
+          className={cn(baseItemClass, "text-[#FAFAFA] hover:bg-[#27272A]")}
+        >
+          Add to collection
+        </button>
 
-          <div className="h-px w-40 bg-[#3F3F46]" />
+        <div className="h-px w-40 bg-[#3F3F46]" />
 
-          <button
-            type="button"
-            onClick={onDelete}
-            className="flex min-h-8 w-40 items-center rounded-md px-2 py-[5.5px] text-left text-sm leading-5 text-[#F87171] transition-colors hover:bg-[#27272A]"
-          >
-            Delete
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={onDelete}
+          aria-label="Delete card"
+          className={cn(baseItemClass, "text-[#F87171] hover:bg-[#27272A]")}
+        >
+          Delete
+        </button>
       </div>
     </div>
   );

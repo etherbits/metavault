@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-import { sql } from "./db/index";
+import { applySchema, sql } from "./db/index";
 import { logger } from "./logger";
 import { loggerMiddleware } from "./middleware/logger";
 import { run_query } from "@etherbits/ezq-node";
@@ -42,8 +42,17 @@ app.get("/users", async (req, res) => {
   res.json(users);
 });
 
-app.listen(port, () => {
-  logger.info({ port }, "Server started");
+async function startServer() {
+  await applySchema();
+
+  app.listen(port, () => {
+    logger.info({ port }, "Server started");
+  });
+}
+
+startServer().catch((error) => {
+  logger.error("Server startup failed: " + (error as Error).message);
+  process.exit(1);
 });
 
 export type Test = { a: "b" };

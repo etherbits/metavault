@@ -1,9 +1,14 @@
 services:
+  mailhog:
+    image: mailhog/mailhog:latest
+    ports:
+      - "8025:8025"
+
   server:
     build:
       context: .
       dockerfile: packages/server/Dockerfile
-    command: ["bun", "--hot", "index.ts"]
+    command: ["sh", "-lc", "mkdir -p data && bun --hot index.ts"]
     ports:
       - "3435:3435"
     volumes:
@@ -12,6 +17,11 @@ services:
       DATABASE_URL: sqlite:///app/packages/server/data/db.sqlite
       PORT: "3435"
       CLIENT_ORIGIN: "http://localhost:3534"
+      EMAIL_HOST: "mailhog"
+      EMAIL_PORT: "1025"
+    
+    depends_on:
+      - mailhog
 
   web-client:
     build:
