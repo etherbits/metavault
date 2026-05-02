@@ -3,6 +3,7 @@ import type { SQL } from "bun";
 export async function createLibraryEntriesTable(sql: SQL) {
   await sql`
     CREATE TABLE IF NOT EXISTS library_entries (
+      title TEXT NOT NULL,
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
       media_id TEXT NOT NULL,

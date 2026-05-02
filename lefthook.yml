@@ -1,13 +1,13 @@
 pre-commit:
   commands:
     format:
-      glob: "**/*.{ts,tsx,json,html}"
-      run: bunx @biomejs/biome format --write {staged_files}
+      glob: "*/.{ts,tsx,json,html}"
+      run: bun format --write {staged_files}
       stage_fixed: true
 
 pre-push:
   commands:
     lint:
-      run: bunx @biomejs/biome lint .
+      run: bun lint .
     unit-tests:
       run: bun test tests/unit-tests
