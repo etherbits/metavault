@@ -65,7 +65,20 @@ async function signUp(req: Request, res: Response) {
     // Check if user already exists
     const existingUser = await UserModel.getUserByEmail(email);
     if (existingUser) {
-      return res.status(400).json({ message: "User already exists" });
+      if (existingUser.is_verified) {
+        return res.status(400).json({ message: "User already exists" });
+      }
+
+      await deleteOTP(existingUser.id);
+      const otpCode = generateOTP();
+      await createOTP(existingUser.id, otpCode);
+      await EmailService.sendOtpCode(email, otpCode);
+
+      logger.info(`Unverified user sign-up retry: ${email}`);
+      return res.json({
+        message:
+          "Account already exists but is not verified. A new verification code has been sent.",
+      });
     }
 
     // Hash password
