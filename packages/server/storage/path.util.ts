@@ -7,6 +7,10 @@ export function getUserLibraryEntryDir(userId: string, entryId: string) {
   return path.join(MEDIA_ROOT, "users", userId, "library", entryId);
 }
 
+export function getUserMediaDir(userId: string) {
+  return path.join(MEDIA_ROOT, "users", userId);
+}
+
 export function getImagePublicPath(
   userId: string,
   entryId: string,

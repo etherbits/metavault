@@ -49,6 +49,7 @@ export class UserModel {
   static async deleteUser(id: string): Promise<boolean> {
     const result = await sql`
       DELETE FROM users WHERE id = ${id}
+      RETURNING id
     `;
 
     return result.length > 0;

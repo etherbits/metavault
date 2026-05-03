@@ -39,6 +39,10 @@ export const resendVerificationSchema = z.object({
   email: z.email("Invalid email address"),
 });
 
+export const userIdSchema = z.object({
+  id: z.uuid("Invalid user ID"),
+});
+
 export type SignUpInput = z.infer<typeof signUpSchema>;
 export type SignInInput = z.infer<typeof signInSchema>;
 export type VerifyUserInput = z.infer<typeof verifyUserSchema>;
