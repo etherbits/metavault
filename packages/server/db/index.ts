@@ -2,6 +2,7 @@ import { SQL } from "bun";
 import { logger } from "../logger";
 import { createUsersTable } from "./schema/users";
 import { createLibraryEntriesTable } from "./schema/libraryEntries";
+import { createLibraryEntryTagsTable } from "./schema/libraryEntryTags";
 import { createTagsTable } from "./schema/tags";
 import { createSourceIntegrationsTable } from "./schema/sourceIntegrations";
 import { createAiIntegrationsTable } from "./schema/aiIntegrations";
@@ -24,6 +25,7 @@ export async function applySchema() {
   await createLibraryEntriesTable(sql);
   await createCollectionsTable(sql);
   await createTagsTable(sql);
+  await createLibraryEntryTagsTable(sql);
   await createSourceIntegrationsTable(sql);
   await createAiIntegrationsTable(sql);
   await createAliasMappingsTable(sql);

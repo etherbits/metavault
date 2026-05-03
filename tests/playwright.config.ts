@@ -14,9 +14,10 @@ export default defineConfig({
     video: "retain-on-failure",
   },
   webServer: {
-    command: "bun ../packages/server/index.ts",
+    command:
+      "cd .. && DATABASE_URL=sqlite://packages/server/data/db.sqlite bun packages/server/scripts/reset.ts && DATABASE_URL=sqlite://packages/server/data/db.sqlite bun tests/seed-test-user.ts && bash scripts/build-ezq.sh && DATABASE_URL=sqlite://packages/server/data/db.sqlite bun packages/server/index.ts",
     url: "http://localhost:3435/health",
-    reuseExistingServer: !isCI,
+    reuseExistingServer: false,
     stdout: "pipe",
     stderr: "pipe",
   },

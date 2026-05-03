@@ -1,93 +1,100 @@
 use crate::lang::KEYWORD_SPACE;
-use std::f64::INFINITY;
-
-type SeqScoreFN = fn(usize, usize, usize) -> f64;
-
-struct FuzzyScoreWeights {
-    seq_acronym: SeqScoreFN,
-    seq_regular: SeqScoreFN,
-}
+use fuzzy_matcher::{FuzzyMatcher as _, skim::SkimMatcherV2};
 
 pub struct FuzzyMatcher {
-    weights: FuzzyScoreWeights,
+    matcher: SkimMatcherV2,
 }
 
 impl FuzzyMatcher {
     pub fn new() -> Self {
         FuzzyMatcher {
-            weights: FuzzyScoreWeights {
-                seq_acronym: |i, i_idx, c_idx| {
-                    (i + 1).pow(2) as f64 * 5. * if i_idx == c_idx { 2. } else { 1. }
-                },
-                seq_regular: |i, i_idx, c_idx| {
-                    (i + 1) as f64 * 3. * if i_idx == c_idx { 2. } else { 1. }
-                },
-            },
+            matcher: SkimMatcherV2::default(),
         }
     }
 
     pub fn fuzzy_match(&self, input: &str, candidates: &[&str]) -> String {
-        let mut candidate_scores: Vec<(&str, f64)> = candidates
+        let mut candidate_scores: Vec<(&str, MatchScore)> = candidates
             .iter()
             .map(|candidate| (*candidate, self.get_match_score(input, candidate)))
             .collect();
 
-        candidate_scores.sort_by(|a, b| b.1.total_cmp(&a.1));
+        candidate_scores.sort_by(|a, b| b.1.cmp(&a.1));
         candidate_scores[0].0.to_string()
     }
 
-    fn get_match_score(&self, input: &str, candidate: &str) -> f64 {
-        if self.get_normalized_keyword(input) == self.get_normalized_keyword(candidate) {
-            return INFINITY;
+    fn get_match_score(&self, input: &str, candidate: &str) -> MatchScore {
+        let normalized_input = self.get_normalized_keyword(input);
+        let normalized_candidate = self.get_normalized_keyword(candidate);
+        let acronym = self.get_acronym(candidate);
+
+        MatchScore {
+            exact_match: normalized_input == normalized_candidate,
+            exact_acronym_match: normalized_input == acronym,
+            prefix_match_len: common_prefix_len(&normalized_input, &normalized_candidate),
+            fuzzy_score: self
+                .matcher
+                .fuzzy_match(&normalized_candidate, &normalized_input)
+                .unwrap_or(i64::MIN),
+            acronym_fuzzy_score: self
+                .matcher
+                .fuzzy_match(&acronym, &normalized_input)
+                .unwrap_or(i64::MIN),
+            length_distance: normalized_candidate.len().abs_diff(normalized_input.len()),
+            candidate_len: normalized_candidate.len(),
         }
-
-        let acronym_score = self.get_acronym_score(input, candidate);
-        let queue_score = self.get_queue_score(input, candidate, self.weights.seq_regular);
-
-        f64::max(acronym_score, queue_score)
     }
 
-    fn get_acronym_score(&self, input: &str, candidate: &str) -> f64 {
-        let acronym: String = candidate
+    fn get_acronym(&self, candidate: &str) -> String {
+        candidate
             .split(KEYWORD_SPACE)
             .map(|w| w.chars().next().unwrap())
-            .collect();
-
-        self.get_queue_score(input, acronym.as_str(), self.weights.seq_acronym)
-    }
-
-    fn get_queue_score(&self, input: &str, candidate: &str, score_fn: SeqScoreFN) -> f64 {
-        let queue_normalized_input = self.get_normalized_keyword(input);
-        let queue_normalized_candidate = self.get_normalized_keyword(candidate);
-        let mut input_chars = queue_normalized_input.chars();
-        let mut input_char = match input_chars.next() {
-            Some(c) => c,
-            None => return 0.,
-        };
-        let mut score = 0.;
-        let mut seq_match_count = 0;
-        let mut input_idx = 0;
-
-        for (candidate_idx, candidate_char) in queue_normalized_candidate.chars().enumerate() {
-            if input_char == candidate_char {
-                score += score_fn(seq_match_count, input_idx, candidate_idx);
-                seq_match_count += 1;
-                input_char = match input_chars.next() {
-                    Some(c) => c,
-                    None => break,
-                };
-                input_idx += 1;
-            } else {
-                seq_match_count = 0;
-            }
-        }
-
-        score
+            .collect()
     }
 
     fn get_normalized_keyword(&self, keyword: &str) -> String {
         keyword.replace(KEYWORD_SPACE, "").to_lowercase()
     }
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+struct MatchScore {
+    exact_match: bool,
+    exact_acronym_match: bool,
+    prefix_match_len: usize,
+    fuzzy_score: i64,
+    acronym_fuzzy_score: i64,
+    length_distance: usize,
+    candidate_len: usize,
+}
+
+impl MatchScore {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        (
+            self.exact_match,
+            self.exact_acronym_match,
+            self.fuzzy_score,
+            self.acronym_fuzzy_score,
+            self.prefix_match_len,
+            std::cmp::Reverse(self.length_distance),
+            std::cmp::Reverse(self.candidate_len),
+        )
+            .cmp(&(
+                other.exact_match,
+                other.exact_acronym_match,
+                other.fuzzy_score,
+                other.acronym_fuzzy_score,
+                other.prefix_match_len,
+                std::cmp::Reverse(other.length_distance),
+                std::cmp::Reverse(other.candidate_len),
+            ))
+    }
+}
+
+fn common_prefix_len(left: &str, right: &str) -> usize {
+    left.chars()
+        .zip(right.chars())
+        .take_while(|(l, r)| l == r)
+        .count()
 }
 
 #[cfg(test)]
@@ -124,6 +131,24 @@ mod tests {
         assert_eq!(
             FuzzyMatcher::new().fuzzy_match(input, &candidates),
             "search".to_string()
+        );
+    }
+
+    #[test]
+    fn prefer_shorter_matches() {
+        let candidates = ["title", "tag"];
+
+        assert_eq!(FuzzyMatcher::new().fuzzy_match("t", &candidates), "tag");
+        assert_eq!(FuzzyMatcher::new().fuzzy_match("tg", &candidates), "tag");
+        assert_eq!(FuzzyMatcher::new().fuzzy_match("ti", &candidates), "title");
+    }
+
+    #[test]
+    fn fuzzy_subsequence_outranks_shared_starting_letter() {
+        let candidates = ["in_progress", "dropped", "planning", "on_hold", "finished"];
+        assert_eq!(
+            FuzzyMatcher::new().fuzzy_match("progress", &candidates),
+            "in_progress",
         );
     }
 }

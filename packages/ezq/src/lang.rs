@@ -1,11 +1,12 @@
-use QualifierSegmentRule::*;
 use chrono::NaiveDate;
+use QualifierSegmentRule::*;
 
 pub const KEYWORD_SPACE: &str = "_";
 
 pub const ACTION_KEYWORDS: &[&str] = &["search", "create", "delete", "update"];
 pub const QUALIFIER_SEMANTICS: &[&[QualifierSegmentRule]] = &[
     &[Single("id"), NonEmpty],
+    &[Single("title"), NonEmpty],
     &[
         Single("tag"),
         NonEmpty,
