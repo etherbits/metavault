@@ -1,7 +1,6 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-import { applySchema, sql } from "./db/index";
 import { logger } from "./logger";
 import { loggerMiddleware } from "./middleware/logger";
 import { run_query } from "@etherbits/ezq-node";
@@ -36,23 +35,8 @@ app.get("/", (req, res) => {
   res.send(run_query("c attack tag:action,adventure:minor,dark tag:fantasy"));
 });
 
-app.get("/users", async (req, res) => {
-  const users = await sql`SELECT id, username, email, created_at FROM users`;
-  req.log.debug({ count: users.length }, "fetched users");
-  res.json(users);
-});
-
-async function startServer() {
-  await applySchema();
-
-  app.listen(port, () => {
-    logger.info({ port }, "Server started");
-  });
-}
-
-startServer().catch((error) => {
-  logger.error("Server startup failed: " + (error as Error).message);
-  process.exit(1);
+app.listen(port, () => {
+  logger.info({ port }, "Server started");
 });
 
 export type Test = { a: "b" };
