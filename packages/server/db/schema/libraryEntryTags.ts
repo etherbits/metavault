@@ -6,8 +6,8 @@ export async function createLibraryEntryTagsTable(sql: SQL) {
       library_entry_id TEXT NOT NULL,
       tag_id TEXT NOT NULL,
       PRIMARY KEY (library_entry_id, tag_id),
-      FOREIGN KEY (library_entry_id) REFERENCES library_entries(id),
-      FOREIGN KEY (tag_id) REFERENCES tags(id)
+      FOREIGN KEY (library_entry_id) REFERENCES library_entries(id) ON DELETE CASCADE,
+      FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
     )
   `;
 

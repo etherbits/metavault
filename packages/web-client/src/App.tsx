@@ -33,6 +33,18 @@ export function App() {
     "loading query parser..."
   );
 
+  const [ztatus, setZtatus] = useState("");
+
+  async function fetchit() {
+    await fetch(new URL("health", API_BASE_URL))
+      .then((res) => res.json())
+      .then((data) => {
+        return "data: " + data;
+      })
+      .catch(() => "error");
+    return "";
+  }
+
   useEffect(() => {
     let isCancelled = false;
 
@@ -63,6 +75,15 @@ export function App() {
       </div>
 
       <Card className="bg-card/50 backdrop-blur-sm border-muted">
+        <button
+          type="button"
+          onClick={async () => {
+            setZtatus(await fetchit());
+          }}
+        >
+          update ztatus
+        </button>
+        <div>{ztatus}</div>
         <CardContent className="pt-6">
           <h1 className="text-5xl font-bold my-4 leading-tight">Metavault</h1>
           <h2>{queryResult}</h2>

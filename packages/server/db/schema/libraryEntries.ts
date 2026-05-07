@@ -1,4 +1,5 @@
 import type { SQL } from "bun";
+import { z } from "zod";
 
 export async function createLibraryEntriesTable(sql: SQL) {
   await sql`
@@ -26,3 +27,41 @@ export async function createLibraryEntriesTable(sql: SQL) {
     ON library_entries(user_id)
   `;
 }
+
+export const EntryStatusSchema = z.enum([
+  "in_progress",
+  "dropped",
+  "planning",
+  "on_hold",
+  "finished",
+]);
+
+export type EntryStatus = z.infer<typeof EntryStatusSchema>;
+
+export const EntryMediaTypeSchema = z.enum([
+  "movie",
+  "tv_show",
+  "anime",
+  "game",
+  "book",
+  "manga",
+  "other",
+]);
+export type EntryMediaType = z.infer<typeof EntryMediaTypeSchema>;
+
+export const LibraryEntrySchema = z.object({
+  id: z.string(),
+  title: z.string().nullable(),
+  user_id: z.string(),
+  media_id: z.string().nullable(),
+  source_id: z.string().nullable(),
+  image_src: z.string().nullable(),
+  media_type: EntryMediaTypeSchema.nullable(),
+  status: EntryStatusSchema.nullable(),
+  public_rating: z.number().nullable(),
+  personal_rating: z.number().nullable(),
+  released_at: z.string().nullable(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+export type LibraryEntry = z.infer<typeof LibraryEntrySchema>;

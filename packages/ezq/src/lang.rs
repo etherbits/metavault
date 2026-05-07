@@ -1,5 +1,5 @@
-use chrono::NaiveDate;
 use QualifierSegmentRule::*;
+use chrono::NaiveDate;
 
 pub const KEYWORD_SPACE: &str = "_";
 
@@ -25,7 +25,20 @@ pub const QUALIFIER_SEMANTICS: &[&[QualifierSegmentRule]] = &[
         ]),
     ],
     &[Single("created_at"), Date],
-    &[Single("updated_at"), Date],
+    &[
+        Single("sort"),
+        FuzzyList(&[
+            "id",
+            "title",
+            "status",
+            "media_type",
+            "public_rating",
+            "personal_rating",
+            "created_at",
+            "updated_at",
+        ]),
+        FuzzyListWithDefault(&["ascending", "descending"], "descending"),
+    ],
 ];
 
 const RATING_RULE: QualifierSegmentRule = Float { min: 0., max: 10. };

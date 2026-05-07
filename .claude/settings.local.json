@@ -7,7 +7,8 @@
       "mcp__context7__query-docs",
       "Bash(bun --bun tsc --noEmit -p packages/server/tsconfig.json)",
       "Bash(bun playwright *)",
-      "Bash(bash scripts/build-ezq.sh)"
+      "Bash(bash scripts/build-ezq.sh)",
+      "Bash(bun run *)"
     ]
   }
 }

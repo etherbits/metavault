@@ -1,4 +1,20 @@
 import type { SQL } from "bun";
+import { z } from "zod";
+
+export const TagWeightSchema = z.enum(["major", "minor"]);
+export type TagWeight = z.infer<typeof TagWeightSchema>;
+
+export const EmbeddedTagSchema = z.object({
+  id: z.string(),
+  value: z.string(),
+  weight: TagWeightSchema,
+});
+export type EmbeddedTag = z.infer<typeof EmbeddedTagSchema>;
+
+export const TagSchema = EmbeddedTagSchema.extend({
+  user_id: z.string(),
+});
+export type Tag = z.infer<typeof TagSchema>;
 
 export async function createTagsTable(sql: SQL) {
   await sql`

@@ -387,9 +387,9 @@ mod tests {
     fn qualifier_date_plain() {
         assert_eq!(
             parser()
-                .parse_qualifier("updated_at:01-06-2024".into())
+                .parse_qualifier("created_at:01-06-2024".into())
                 .unwrap(),
-            "updated_at:01-06-2024"
+            "created_at:01-06-2024"
         );
     }
 
@@ -561,7 +561,7 @@ mod tests {
             "update",
             update(
                 ASTExpr::And(vec![leaf("attack"), leaf("stat:fin")]),
-                ASTExpr::And(vec![leaf("upda:01-06-2024"), leaf("ta:action")]),
+                ASTExpr::And(vec![leaf("crea:01-06-2024"), leaf("ta:action")]),
             ),
         );
         let result = parser().parse(input).unwrap();
@@ -572,7 +572,7 @@ mod tests {
                 update(
                     ASTExpr::And(vec![leaf("status:finished"), leaf("title:attack")]),
                     ASTExpr::And(vec![
-                        leaf("updated_at:01-06-2024"),
+                        leaf("created_at:01-06-2024"),
                         leaf("tag:action:major"),
                     ]),
                 )

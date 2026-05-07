@@ -35,15 +35,26 @@ impl SqlGenerator {
         expr: ASTExpr,
         extras: &Extras,
     ) -> Result<Vec<EzqSqlStep>, SqlGenerateError> {
+        let (filter_expr, sort) = self.extract_sort(expr)?;
         let mut params = vec![];
-        let where_clause = self.build_where_with_extras(expr, &mut params, extras)?;
-        let sql = if where_clause.is_empty() {
-            "SELECT * FROM library_entries".to_string()
+        let where_clause = self.build_where_with_extras(filter_expr, &mut params, extras)?;
+        let select_cols = "library_entries.*, COALESCE((SELECT json_group_array(json_object('id', tags.id, 'value', tags.value, 'weight', tags.weight)) FROM library_entry_tags JOIN tags ON tags.id = library_entry_tags.tag_id WHERE library_entry_tags.library_entry_id = library_entries.id), '[]') AS tags";
+        let where_part = if where_clause.is_empty() {
+            String::new()
         } else {
-            format!("SELECT * FROM library_entries WHERE {}", where_clause)
+            format!(" WHERE {}", where_clause)
+        };
+        let order_part = match sort {
+            Some(Sort { column, direction }) => {
+                format!(" ORDER BY library_entries.{} {}", column, direction)
+            }
+            None => String::new(),
         };
         Ok(vec![EzqSqlStep {
-            sql,
+            sql: format!(
+                "SELECT {} FROM library_entries{}{}",
+                select_cols, where_part, order_part
+            ),
             params,
             outputs: vec![],
         }])
@@ -57,6 +68,7 @@ impl SqlGenerator {
         if self.is_empty_expr(&expr) {
             return Err(SqlGenerateError::MissingMatchCriteria);
         }
+        self.assert_no_sort(&expr)?;
         let mut params = vec![];
         let where_clause = self.build_where_with_extras(expr, &mut params, extras)?;
         Ok(vec![EzqSqlStep {
@@ -71,6 +83,7 @@ impl SqlGenerator {
         expr: ASTExpr,
         extras: &Extras,
     ) -> Result<Vec<EzqSqlStep>, SqlGenerateError> {
+        self.assert_no_sort(&expr)?;
         let leaves = self
             .extract_write_leaves(expr)
             .ok_or(SqlGenerateError::UnsupportedCreateShape)?;
@@ -154,6 +167,8 @@ impl SqlGenerator {
         if self.is_empty_expr(selection.as_ref()) {
             return Err(SqlGenerateError::MissingMatchCriteria);
         }
+        self.assert_no_sort(&selection)?;
+        self.assert_no_sort(&values)?;
 
         let mut match_params = vec![];
         let where_clause = self.build_where_with_extras(*selection, &mut match_params, extras)?;
@@ -171,11 +186,12 @@ impl SqlGenerator {
         let mut statements = vec![];
 
         if !set_pairs.is_empty() {
-            let set_clause = set_pairs
+            let mut set_clause_parts: Vec<String> = set_pairs
                 .iter()
                 .map(|(c, _)| format!("{} = ?", c))
-                .collect::<Vec<_>>()
-                .join(", ");
+                .collect();
+            set_clause_parts.push("updated_at = CURRENT_TIMESTAMP".to_string());
+            let set_clause = set_clause_parts.join(", ");
             let mut params: Vec<String> = set_pairs.into_iter().map(|(_, v)| v).collect();
             params.extend(match_params.iter().cloned());
             statements.push(EzqSqlStep {
@@ -319,7 +335,7 @@ impl SqlGenerator {
                     }
                     scalar_cols.push((prefix.to_string(), num));
                 }
-                "created_at" | "updated_at" => {
+                "created_at" => {
                     let value = first_segment(&segments, leaf)?;
                     let (op, date) = split_op_value(value);
                     if op != "=" {
@@ -378,7 +394,7 @@ impl SqlGenerator {
                 params.push(num);
                 Ok(format!("library_entries.{} {} ?", prefix, op))
             }
-            "created_at" | "updated_at" => {
+            "created_at" => {
                 let value = first_segment(&segments, leaf)?;
                 let (op, date) = split_op_value(value);
                 params.push(reformat_date(&date)?);
@@ -438,6 +454,57 @@ impl SqlGenerator {
             ASTExpr::Update { .. } | ASTExpr::Root { .. } => false,
         }
     }
+
+    fn extract_sort(
+        &self,
+        expr: ASTExpr,
+    ) -> Result<(ASTExpr, Option<Sort>), SqlGenerateError> {
+        match expr {
+            ASTExpr::Leaf(s) if is_sort_leaf(&s) => {
+                Ok((ASTExpr::Leaf(String::new()), Some(parse_sort_leaf(&s)?)))
+            }
+            ASTExpr::And(items) => {
+                let mut sort: Option<Sort> = None;
+                let mut filtered = Vec::with_capacity(items.len());
+                for item in items {
+                    if let ASTExpr::Leaf(ref s) = item {
+                        if is_sort_leaf(s) {
+                            if sort.is_some() {
+                                return Err(SqlGenerateError::MultipleSortsNotAllowed);
+                            }
+                            sort = Some(parse_sort_leaf(s)?);
+                            continue;
+                        }
+                    }
+                    self.assert_no_sort(&item)?;
+                    filtered.push(item);
+                }
+                Ok((ASTExpr::And(filtered), sort))
+            }
+            other => {
+                self.assert_no_sort(&other)?;
+                Ok((other, None))
+            }
+        }
+    }
+
+    fn assert_no_sort(&self, expr: &ASTExpr) -> Result<(), SqlGenerateError> {
+        match expr {
+            ASTExpr::Leaf(s) if is_sort_leaf(s) => {
+                Err(SqlGenerateError::SortInInvalidPosition)
+            }
+            ASTExpr::Leaf(_) => Ok(()),
+            ASTExpr::And(items) | ASTExpr::Or(items) => {
+                items.iter().try_for_each(|i| self.assert_no_sort(i))
+            }
+            ASTExpr::Not(inner) => self.assert_no_sort(inner),
+            ASTExpr::Update { selection, values } => {
+                self.assert_no_sort(selection)?;
+                self.assert_no_sort(values)
+            }
+            ASTExpr::Root { .. } => Ok(()),
+        }
+    }
 }
 
 struct WriteParts {
@@ -448,6 +515,51 @@ struct WriteParts {
 struct TagWrite {
     value: String,
     weight: String,
+}
+
+struct Sort {
+    column: String,
+    direction: &'static str,
+}
+
+const SORTABLE_COLUMNS: &[&str] = &[
+    "id",
+    "title",
+    "status",
+    "media_type",
+    "public_rating",
+    "personal_rating",
+    "created_at",
+];
+
+fn is_sort_leaf(leaf: &str) -> bool {
+    leaf == "sort" || leaf.starts_with("sort:")
+}
+
+fn parse_sort_leaf(leaf: &str) -> Result<Sort, SqlGenerateError> {
+    let mut parts = leaf.split(':');
+    let prefix = parts.next().unwrap_or("");
+    if prefix != "sort" {
+        return Err(SqlGenerateError::MalformedQualifier(leaf.to_string()));
+    }
+    let column = parts
+        .next()
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| SqlGenerateError::MalformedQualifier(leaf.to_string()))?;
+    if !SORTABLE_COLUMNS.contains(&column) {
+        return Err(SqlGenerateError::InvalidSortColumn(column.to_string()));
+    }
+    let direction = match parts.next() {
+        Some("ascending") => "ASC",
+        Some("descending") | None => "DESC",
+        Some(other) => {
+            return Err(SqlGenerateError::InvalidSortDirection(other.to_string()));
+        }
+    };
+    Ok(Sort {
+        column: column.to_string(),
+        direction,
+    })
 }
 
 fn first_segment<'a>(segments: &'a [&'a str], leaf: &str) -> Result<&'a str, SqlGenerateError> {
@@ -517,6 +629,14 @@ pub enum SqlGenerateError {
     IdNotAllowedInWriteContext,
     #[error("`create` allows at most one `title` qualifier")]
     MultipleTitlesNotAllowed,
+    #[error("only one `sort` qualifier is allowed per query")]
+    MultipleSortsNotAllowed,
+    #[error("`sort` qualifier is only allowed at the top level of a search query")]
+    SortInInvalidPosition,
+    #[error("invalid sort column `{0}`")]
+    InvalidSortColumn(String),
+    #[error("invalid sort direction `{0}`")]
+    InvalidSortDirection(String),
 }
 
 #[cfg(test)]
@@ -584,7 +704,7 @@ mod tests {
         assert_eq!(sql.len(), 1);
         assert_eq!(
             sql[0].sql,
-            "SELECT * FROM library_entries WHERE (library_entries.status = ? AND (library_entries.id IN (SELECT library_entry_tags.library_entry_id FROM library_entry_tags JOIN tags ON tags.id = library_entry_tags.tag_id WHERE tags.value = ? AND tags.weight = ?) OR NOT (library_entries.media_type = ?)) AND library_entries.title LIKE ? AND date(library_entries.created_at) >= date(?))"
+            "SELECT library_entries.*, COALESCE((SELECT json_group_array(json_object('id', tags.id, 'value', tags.value, 'weight', tags.weight)) FROM library_entry_tags JOIN tags ON tags.id = library_entry_tags.tag_id WHERE library_entry_tags.library_entry_id = library_entries.id), '[]') AS tags FROM library_entries WHERE (library_entries.status = ? AND (library_entries.id IN (SELECT library_entry_tags.library_entry_id FROM library_entry_tags JOIN tags ON tags.id = library_entry_tags.tag_id WHERE tags.value = ? AND tags.weight = ?) OR NOT (library_entries.media_type = ?)) AND library_entries.title LIKE ? AND date(library_entries.created_at) >= date(?))"
         );
         assert_eq!(
             sql[0].params,
@@ -604,7 +724,10 @@ mod tests {
         let ast = root("search", leaf(""));
         let sql = generator().generate(ast, Extras::default()).unwrap();
         assert_eq!(sql.len(), 1);
-        assert_eq!(sql[0].sql, "SELECT * FROM library_entries");
+        assert_eq!(
+            sql[0].sql,
+            "SELECT library_entries.*, COALESCE((SELECT json_group_array(json_object('id', tags.id, 'value', tags.value, 'weight', tags.weight)) FROM library_entry_tags JOIN tags ON tags.id = library_entry_tags.tag_id WHERE library_entry_tags.library_entry_id = library_entries.id), '[]') AS tags FROM library_entries"
+        );
         assert_eq!(sql[0].params, Vec::<String>::new());
     }
 
@@ -622,9 +745,152 @@ mod tests {
         assert_eq!(sql.len(), 1);
         assert_eq!(
             sql[0].sql,
-            "SELECT * FROM library_entries WHERE library_entries.user_id = ?"
+            "SELECT library_entries.*, COALESCE((SELECT json_group_array(json_object('id', tags.id, 'value', tags.value, 'weight', tags.weight)) FROM library_entry_tags JOIN tags ON tags.id = library_entry_tags.tag_id WHERE library_entry_tags.library_entry_id = library_entries.id), '[]') AS tags FROM library_entries WHERE library_entries.user_id = ?"
         );
         assert_eq!(sql[0].params, vec!["user-1".to_string()]);
+    }
+
+    #[test]
+    fn search_with_only_sort_appends_order_by_descending_default() {
+        let ast = root("search", leaf("sort:personal_rating"));
+        let sql = generator().generate(ast, Extras::default()).unwrap();
+        assert_eq!(sql.len(), 1);
+        assert!(sql[0]
+            .sql
+            .ends_with(" FROM library_entries ORDER BY library_entries.personal_rating DESC"));
+        assert_eq!(sql[0].params, Vec::<String>::new());
+    }
+
+    #[test]
+    fn search_with_sort_and_filters_keeps_filters_and_appends_order() {
+        let ast = root(
+            "search",
+            and(vec![
+                leaf("status:finished"),
+                leaf("sort:title:ascending"),
+            ]),
+        );
+        let sql = generator().generate(ast, Extras::default()).unwrap();
+        assert_eq!(sql.len(), 1);
+        assert!(sql[0].sql.contains("WHERE (library_entries.status = ?)"));
+        assert!(sql[0]
+            .sql
+            .ends_with(" ORDER BY library_entries.title ASC"));
+        assert_eq!(sql[0].params, vec!["finished".to_string()]);
+    }
+
+    #[test]
+    fn search_sort_with_user_scope_keeps_user_id_in_where() {
+        let ast = root("search", leaf("sort:created_at:descending"));
+        let sql = generator()
+            .generate(
+                ast,
+                Extras {
+                    user_id: Some("user-1".to_string()),
+                },
+            )
+            .unwrap();
+        assert!(sql[0]
+            .sql
+            .contains("WHERE library_entries.user_id = ?"));
+        assert!(sql[0]
+            .sql
+            .ends_with(" ORDER BY library_entries.created_at DESC"));
+        assert_eq!(sql[0].params, vec!["user-1".to_string()]);
+    }
+
+    #[test]
+    fn search_rejects_multiple_sort_qualifiers() {
+        let ast = root(
+            "search",
+            and(vec![leaf("sort:title:ascending"), leaf("sort:status:descending")]),
+        );
+        let err = generator().generate(ast, Extras::default()).unwrap_err();
+        assert!(matches!(err, SqlGenerateError::MultipleSortsNotAllowed));
+    }
+
+    #[test]
+    fn search_rejects_sort_inside_or_or_not() {
+        let or_err = generator()
+            .generate(
+                root(
+                    "search",
+                    or(vec![leaf("status:finished"), leaf("sort:title:ascending")]),
+                ),
+                Extras::default(),
+            )
+            .unwrap_err();
+        assert!(matches!(or_err, SqlGenerateError::SortInInvalidPosition));
+
+        let not_err = generator()
+            .generate(
+                root("search", not(leaf("sort:title:ascending"))),
+                Extras::default(),
+            )
+            .unwrap_err();
+        assert!(matches!(not_err, SqlGenerateError::SortInInvalidPosition));
+    }
+
+    #[test]
+    fn delete_rejects_sort_qualifier() {
+        let err = generator()
+            .generate(
+                root(
+                    "delete",
+                    and(vec![leaf("status:finished"), leaf("sort:title:ascending")]),
+                ),
+                Extras::default(),
+            )
+            .unwrap_err();
+        assert!(matches!(err, SqlGenerateError::SortInInvalidPosition));
+    }
+
+    #[test]
+    fn create_rejects_sort_qualifier() {
+        let err = generator()
+            .generate(
+                root(
+                    "create",
+                    and(vec![leaf("status:finished"), leaf("sort:title:ascending")]),
+                ),
+                Extras::default(),
+            )
+            .unwrap_err();
+        assert!(matches!(err, SqlGenerateError::SortInInvalidPosition));
+    }
+
+    #[test]
+    fn update_rejects_sort_qualifier_in_either_side() {
+        let in_selection = generator()
+            .generate(
+                root(
+                    "update",
+                    update(
+                        and(vec![leaf("id:42"), leaf("sort:title:ascending")]),
+                        leaf("status:finished"),
+                    ),
+                ),
+                Extras::default(),
+            )
+            .unwrap_err();
+        assert!(matches!(
+            in_selection,
+            SqlGenerateError::SortInInvalidPosition
+        ));
+
+        let in_values = generator()
+            .generate(
+                root(
+                    "update",
+                    update(
+                        leaf("id:42"),
+                        and(vec![leaf("status:finished"), leaf("sort:title:ascending")]),
+                    ),
+                ),
+                Extras::default(),
+            )
+            .unwrap_err();
+        assert!(matches!(in_values, SqlGenerateError::SortInInvalidPosition));
     }
 
     #[test]
@@ -834,7 +1100,7 @@ mod tests {
                         and(vec![leaf("id:42"), leaf("title:attack_on_titan")]),
                         and(vec![
                             leaf("status:finished"),
-                            leaf("updated_at:01-06-2024"),
+                            leaf("created_at:01-06-2024"),
                             leaf("tag:action:major"),
                         ]),
                     ),
@@ -846,7 +1112,7 @@ mod tests {
         assert_eq!(sql.len(), 3);
         assert_eq!(
             sql[0].sql,
-            "UPDATE library_entries SET status = ?, updated_at = ? WHERE (library_entries.id = ? AND library_entries.title LIKE ?)"
+            "UPDATE library_entries SET status = ?, created_at = ?, updated_at = CURRENT_TIMESTAMP WHERE (library_entries.id = ? AND library_entries.title LIKE ?)"
         );
         assert_eq!(
             sql[0].params,
@@ -921,7 +1187,7 @@ mod tests {
 
         assert_eq!(
             sql[0].sql,
-            "UPDATE library_entries SET status = ? WHERE (library_entries.id = ?) AND library_entries.user_id = ?"
+            "UPDATE library_entries SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE (library_entries.id = ?) AND library_entries.user_id = ?"
         );
         assert_eq!(
             sql[0].params,
@@ -968,7 +1234,7 @@ mod tests {
         assert_eq!(sql.len(), 1);
         assert_eq!(
             sql[0].sql,
-            "UPDATE library_entries SET public_rating = ?, title = ? WHERE ((library_entries.status = ? OR library_entries.status = ?) AND NOT (library_entries.media_type = ?))"
+            "UPDATE library_entries SET public_rating = ?, title = ?, updated_at = CURRENT_TIMESTAMP WHERE ((library_entries.status = ? OR library_entries.status = ?) AND NOT (library_entries.media_type = ?))"
         );
         assert_eq!(
             sql[0].params,
