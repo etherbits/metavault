@@ -5,7 +5,7 @@ import { EzqService } from "./ezq.service";
 
 const ezqService = new EzqService(sql);
 
-export const ezqController = Router().post("/", async (req, res) => {
+export const ezqRouter = Router().post("/", async (req, res) => {
   const { query, extras } = req.body as {
     query: string;
     extras?: Extras;

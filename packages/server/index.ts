@@ -1,14 +1,12 @@
+import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
-import { sql } from "./db/index";
-import { ezqController } from "./ezq/ezq.controller";
-import { logger } from "./logger";
-import { loggerMiddleware } from "./middleware/logger";
-import cookieParser from "cookie-parser";
-import { logger } from "./logger";
-import { loggerMiddleware } from "./middleware/logger";
 import authRouter from "./auth/auth.controller";
+import { ezqRouter } from "./ezq/ezq.controller";
+import { healthRouter } from "./health/health.controller";
 import libraryRouter from "./library/library.controller";
+import { logger } from "./logger";
+import { loggerMiddleware } from "./middleware/logger";
 import userRouter from "./user/user.controller";
 
 const app = express();
@@ -25,15 +23,11 @@ app.use(
   })
 );
 
-app.use("/ezq", ezqController);
+app.use("/ezq", ezqRouter);
 app.use("/auth", authRouter);
 app.use("/library", libraryRouter);
 app.use("/users", userRouter);
-
-app.get("/health", (_, res) => {
-  console.log("API URL:", process.env.BUN_PUBLIC_API_URL);
-  res.json({ status: "ok", uptime: process.uptime() });
-});
+app.use("/health", healthRouter);
 
 app.listen(port, () => {
   logger.info({ port }, "Server started");
