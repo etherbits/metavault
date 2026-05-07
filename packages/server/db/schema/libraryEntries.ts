@@ -5,7 +5,7 @@ export async function createLibraryEntriesTable(sql: SQL) {
   await sql`
     CREATE TABLE IF NOT EXISTS library_entries (
       id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
-      title TEXT,
+      title TEXT NOT NULL,
       user_id TEXT NOT NULL,
       media_id TEXT,
       source_id TEXT,
@@ -51,7 +51,7 @@ export type EntryMediaType = z.infer<typeof EntryMediaTypeSchema>;
 
 export const LibraryEntrySchema = z.object({
   id: z.string(),
-  title: z.string().nullable(),
+  title: z.string(),
   user_id: z.string(),
   media_id: z.string().nullable(),
   source_id: z.string().nullable(),
