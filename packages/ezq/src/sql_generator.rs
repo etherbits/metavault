@@ -530,6 +530,7 @@ const SORTABLE_COLUMNS: &[&str] = &[
     "public_rating",
     "personal_rating",
     "created_at",
+    "updated_at",
 ];
 
 fn is_sort_leaf(leaf: &str) -> bool {
