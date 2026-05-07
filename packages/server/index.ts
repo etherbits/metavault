@@ -6,6 +6,7 @@ import { loggerMiddleware } from "./middleware/logger";
 import { run_query } from "@etherbits/ezq-node";
 import authRouter from "./auth/auth.controller";
 import libraryRouter from "./library/library.controller";
+import collectionRouter from "./collection/collection.controller";
 import userRouter from "./user/user.controller";
 
 const app = express();
@@ -24,6 +25,7 @@ app.use(
 
 app.use("/auth", authRouter);
 app.use("/library", libraryRouter);
+app.use("/collections", collectionRouter);
 app.use("/users", userRouter);
 
 // biome-ignore lint/correctness/noUnusedFunctionParameters: req unused but required by Express signature
