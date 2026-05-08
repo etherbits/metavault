@@ -1,6 +1,6 @@
 import type { SQL } from "bun";
-import type { ASTExpr, Extras, EzqSqlStep } from "../../ezq/out/node/ezq.js";
-import { generate_ast, generate_sql } from "../../ezq/out/node/ezq.js";
+import type { ASTExpr, Extras, EzqSqlStep } from "@etherbits/ezq-node";
+import { generate_ast, generate_sql } from "@etherbits/ezq-node";
 import {
   LibraryEntryRowsSchema,
   type LibraryEntryWithTags,

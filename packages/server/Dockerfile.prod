@@ -9,7 +9,7 @@ COPY tests/package.json ./tests/
 
 RUN apt-get update && apt-get install -y curl --no-install-recommends && rm -rf /var/lib/apt/lists/*
 
-RUN bun install --frozen-lockfile
+RUN bun install --frozen-lockfile && bun update @etherbits/ezq-node @etherbits/ezq-web
 
 COPY packages/server/ ./packages/server/
 

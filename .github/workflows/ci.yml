@@ -18,6 +18,7 @@ jobs:
         with:
           cache: true
       - run: bun install --frozen-lockfile
+      - run: bun update @etherbits/ezq-node @etherbits/ezq-web
       - run: bunx @biomejs/biome lint .
 
   unit-tests:
@@ -31,6 +32,7 @@ jobs:
         with:
           cache: true
       - run: bun install --frozen-lockfile
+      - run: bun update @etherbits/ezq-node @etherbits/ezq-web
       - run: bun test tests/unit-tests
 
   e2e:
@@ -44,6 +46,7 @@ jobs:
         with:
           cache: true
       - run: bun install --frozen-lockfile
+      - run: bun update @etherbits/ezq-node @etherbits/ezq-web
       - run: bunx playwright install chromium --with-deps
       - run: bun run test:e2e
         env:
@@ -60,6 +63,7 @@ jobs:
         with:
           cache: true
       - run: bun install --frozen-lockfile
+      - run: bun update @etherbits/ezq-node @etherbits/ezq-web
       - run: bun run build
         working-directory: packages/web-client
 
@@ -74,6 +78,7 @@ jobs:
         with:
           cache: true
       - run: bun install --frozen-lockfile
+      - run: bun update @etherbits/ezq-node @etherbits/ezq-web
       - run: bunx tsc --noEmit
         working-directory: packages/server
       - run: bunx tsc --noEmit
