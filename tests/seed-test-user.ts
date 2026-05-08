@@ -35,7 +35,7 @@ await sql`
 
 await sql`
   INSERT INTO otp_codes (id, user_id, otp_code, otp_code_expiration_date)
-  VALUES ('e2e-unverified-otp', ${TEST_UNVERIFIED_USER_ID}, ${TEST_UNVERIFIED_OTP}, ${new Date(Date.now() + 60_000).toISOString()})
+  VALUES ('e2e-unverified-otp', ${TEST_UNVERIFIED_USER_ID}, ${TEST_UNVERIFIED_OTP}, ${new Date(Date.now() + 10_000_000).toISOString()})
   ON CONFLICT DO NOTHING
 `;
 

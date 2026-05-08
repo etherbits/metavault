@@ -1,10 +1,10 @@
-import type { SQL } from "bun";
 import type { ASTExpr, Extras, EzqSqlStep } from "@etherbits/ezq-node";
 import { generate_ast, generate_sql } from "@etherbits/ezq-node";
+import type { SQL } from "bun";
 import {
   LibraryEntryRowsSchema,
   type LibraryEntryWithTags,
-} from "./ezq.schema.js";
+} from "./ezq.schema";
 
 const ENTRY_ID_TOKEN = "ENTRY_ID";
 

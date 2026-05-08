@@ -12,10 +12,27 @@ export function rateLimit({
   key = (req) => req.ip ?? "unknown",
 }: RateLimitOptions): RequestHandler {
   const hits = new Map<string, number[]>();
+  let lastPrune = 0;
+
+  const pruneExpiredBuckets = (cutoff: number) => {
+    for (const [bucketKey, bucketHits] of hits) {
+      const activeHits = bucketHits.filter((hit) => hit > cutoff);
+      if (activeHits.length === 0) {
+        hits.delete(bucketKey);
+      } else if (activeHits.length !== bucketHits.length) {
+        hits.set(bucketKey, activeHits);
+      }
+    }
+  };
 
   return (req, res, next) => {
     const now = Date.now();
     const cutoff = now - windowMs;
+    if (now - lastPrune > windowMs) {
+      pruneExpiredBuckets(cutoff);
+      lastPrune = now;
+    }
+
     const bucketKey = key(req);
     const timestamps = (hits.get(bucketKey) ?? []).filter(
       (hit) => hit > cutoff
