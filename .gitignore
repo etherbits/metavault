@@ -13,6 +13,9 @@ dist
 coverage
 *.lcov
 
+# test artifacts
+tests/e2e-test-results/
+
 # logs
 logs
 _.log
