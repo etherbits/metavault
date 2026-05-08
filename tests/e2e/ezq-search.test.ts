@@ -1,15 +1,14 @@
-import { expect, test } from "@playwright/test";
-import { TEST_USER_ID } from "../test-user";
+import { type APIRequestContext, expect, test } from "@playwright/test";
+import { signIn } from "../helpers/auth";
 
 async function seedEntry(
-  request: Parameters<Parameters<typeof test>[1]>[0]["request"],
+  request: APIRequestContext,
   tag: string,
   title: string
 ) {
   const response = await request.post("/ezq", {
     data: {
       query: `/create ${title.replace(/ /g, "_")} tg:${tag}`,
-      extras: { user_id: TEST_USER_ID },
     },
   });
   expect(response.ok()).toBeTruthy();
@@ -19,14 +18,13 @@ async function seedEntry(
 test("POST /ezq /search by tag returns matching entries with tags", async ({
   request,
 }) => {
-  const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const tag = `e2e-search-${suffix}`;
-  const seeded = await seedEntry(request, tag, `search test ${suffix}`);
+  await signIn(request);
+  const tag = "e2e-search";
+  const seeded = await seedEntry(request, tag, "search test entry");
 
   const response = await request.post("/ezq", {
     data: {
       query: `/search tg:${tag}`,
-      extras: { user_id: TEST_USER_ID },
     },
   });
   expect(response.ok()).toBeTruthy();
@@ -40,14 +38,13 @@ test("POST /ezq /search by tag returns matching entries with tags", async ({
 });
 
 test("POST /ezq /s returns all of the user's entries", async ({ request }) => {
-  const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const tag = `e2e-search-all-${suffix}`;
-  const seeded = await seedEntry(request, tag, `search all ${suffix}`);
+  await signIn(request);
+  const tag = "e2e-search-all";
+  const seeded = await seedEntry(request, tag, "search all entry");
 
   const response = await request.post("/ezq", {
     data: {
       query: "/s",
-      extras: { user_id: TEST_USER_ID },
     },
   });
   expect(response.ok()).toBeTruthy();

@@ -1,4 +1,4 @@
-import { sql, applySchema } from "../db";
+import { applySchema, sql } from "../db";
 
 await sql`PRAGMA foreign_keys = OFF`;
 await sql`DROP TABLE IF EXISTS library_entry_tags`;

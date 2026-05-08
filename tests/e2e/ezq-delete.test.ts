@@ -1,14 +1,13 @@
 import { expect, test } from "@playwright/test";
-import { TEST_USER_ID } from "../test-user";
+import { signIn } from "../helpers/auth";
 
 test("POST /ezq /delete removes matching entries", async ({ request }) => {
-  const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const tag = `e2e-delete-${suffix}`;
+  await signIn(request);
+  const tag = "e2e-delete";
 
   const createResponse = await request.post("/ezq", {
     data: {
-      query: `/create delete test ${suffix} tg:${tag}`,
-      extras: { user_id: TEST_USER_ID },
+      query: `/create delete_test_entry tg:${tag}`,
     },
   });
   expect(createResponse.ok()).toBeTruthy();
@@ -17,7 +16,6 @@ test("POST /ezq /delete removes matching entries", async ({ request }) => {
   const deleteResponse = await request.post("/ezq", {
     data: {
       query: `/delete id:${created.id}`,
-      extras: { user_id: TEST_USER_ID },
     },
   });
   expect(deleteResponse.ok()).toBeTruthy();
@@ -27,7 +25,6 @@ test("POST /ezq /delete removes matching entries", async ({ request }) => {
   const searchResponse = await request.post("/ezq", {
     data: {
       query: `/search tg:${tag}`,
-      extras: { user_id: TEST_USER_ID },
     },
   });
   expect(searchResponse.ok()).toBeTruthy();

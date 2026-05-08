@@ -1,16 +1,15 @@
 import { expect, test } from "@playwright/test";
-import { TEST_USER_ID } from "../test-user";
+import { signIn } from "../helpers/auth";
 
 test("POST /ezq /u <title> > status:<value> updates the matched entry", async ({
   request,
 }) => {
-  const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const titleToken = `attack-${suffix}`;
+  await signIn(request);
+  const titleToken = "update_status_entry";
 
   const createResponse = await request.post("/ezq", {
     data: {
       query: `/create ${titleToken}`,
-      extras: { user_id: TEST_USER_ID },
     },
   });
   expect(createResponse.ok()).toBeTruthy();
@@ -19,7 +18,6 @@ test("POST /ezq /u <title> > status:<value> updates the matched entry", async ({
   const updateResponse = await request.post("/ezq", {
     data: {
       query: `/u ${titleToken} > status:progress`,
-      extras: { user_id: TEST_USER_ID },
     },
   });
   expect(updateResponse.ok()).toBeTruthy();
@@ -33,14 +31,13 @@ test("POST /ezq /u <title> > status:<value> updates the matched entry", async ({
 test("POST /ezq /update applies scalar set and tag insert, returning updated row", async ({
   request,
 }) => {
-  const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const tag = `e2e-update-${suffix}`;
-  const extraTag = `e2e-update-extra-${suffix}`;
+  await signIn(request);
+  const tag = "e2e-update";
+  const extraTag = "e2e-update-extra";
 
   const createResponse = await request.post("/ezq", {
     data: {
-      query: `/create update test ${suffix} tg:${tag}`,
-      extras: { user_id: TEST_USER_ID },
+      query: `/create update_test_entry tg:${tag}`,
     },
   });
   expect(createResponse.ok()).toBeTruthy();
@@ -49,7 +46,6 @@ test("POST /ezq /update applies scalar set and tag insert, returning updated row
   const updateResponse = await request.post("/ezq", {
     data: {
       query: `/update id:${created.id} > status:finished tg:${extraTag}`,
-      extras: { user_id: TEST_USER_ID },
     },
   });
   expect(updateResponse.ok()).toBeTruthy();

@@ -1,20 +1,18 @@
 import { Router } from "express";
-import { UserService } from "./user.service";
-import { validateParamsMiddleware } from "../middleware/validation";
-import { userIdSchema } from "./user.validation";
+import { validatedRoute } from "../middleware/validation";
+import { sendServiceError } from "../utils/http";
+import { userService } from "./user.service";
 
-const userRouter = Router();
+const userRouter = Router().get(
+  "/profile",
+  ...validatedRoute({ auth: true }, async (req, res) => {
+    const result = await userService.getProfile(req.user.userId);
+    if (!result.ok) {
+      return sendServiceError(res, result.error);
+    }
 
-userRouter.get("/", UserService.getUsers);
-userRouter.get(
-  "/:id",
-  validateParamsMiddleware(userIdSchema),
-  UserService.getUserById
-);
-userRouter.delete(
-  "/:id",
-  validateParamsMiddleware(userIdSchema),
-  UserService.deleteUserById
+    return res.json(result.data);
+  })
 );
 
 export default userRouter;

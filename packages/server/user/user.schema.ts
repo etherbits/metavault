@@ -47,3 +47,4 @@ export type SignUpInput = z.infer<typeof signUpSchema>;
 export type SignInInput = z.infer<typeof signInSchema>;
 export type VerifyUserInput = z.infer<typeof verifyUserSchema>;
 export type ResendVerificationInput = z.infer<typeof resendVerificationSchema>;
+export type UserIdParams = z.infer<typeof userIdSchema>;
