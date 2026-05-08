@@ -459,10 +459,7 @@ mod tests {
         let ast = tk().tokenize("/u attack > status:progress").unwrap();
         assert_eq!(
             ast,
-            root(
-                "u",
-                update(leaf("attack"), leaf("status:progress")),
-            )
+            root("u", update(leaf("attack"), leaf("status:progress")),)
         );
     }
 
@@ -653,7 +650,9 @@ mod tests {
         let result = tk().expand_qualifier_value_list("a,b:c,d:e,f");
         assert_eq!(
             result,
-            vec!["a:c:e", "a:c:f", "a:d:e", "a:d:f", "b:c:e", "b:c:f", "b:d:e", "b:d:f",],
+            vec![
+                "a:c:e", "a:c:f", "a:d:e", "a:d:f", "b:c:e", "b:c:f", "b:d:e", "b:d:f",
+            ],
         );
     }
 

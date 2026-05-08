@@ -1,6 +1,6 @@
 use crate::lang::{
-    QualifierSegmentRule::{self, *},
     ACTION_KEYWORDS, QUALIFIER_SEMANTICS,
+    QualifierSegmentRule::{self, *},
 };
 use thiserror::Error;
 

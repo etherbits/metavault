@@ -455,10 +455,7 @@ impl SqlGenerator {
         }
     }
 
-    fn extract_sort(
-        &self,
-        expr: ASTExpr,
-    ) -> Result<(ASTExpr, Option<Sort>), SqlGenerateError> {
+    fn extract_sort(&self, expr: ASTExpr) -> Result<(ASTExpr, Option<Sort>), SqlGenerateError> {
         match expr {
             ASTExpr::Leaf(s) if is_sort_leaf(&s) => {
                 Ok((ASTExpr::Leaf(String::new()), Some(parse_sort_leaf(&s)?)))
@@ -490,9 +487,7 @@ impl SqlGenerator {
 
     fn assert_no_sort(&self, expr: &ASTExpr) -> Result<(), SqlGenerateError> {
         match expr {
-            ASTExpr::Leaf(s) if is_sort_leaf(s) => {
-                Err(SqlGenerateError::SortInInvalidPosition)
-            }
+            ASTExpr::Leaf(s) if is_sort_leaf(s) => Err(SqlGenerateError::SortInInvalidPosition),
             ASTExpr::Leaf(_) => Ok(()),
             ASTExpr::And(items) | ASTExpr::Or(items) => {
                 items.iter().try_for_each(|i| self.assert_no_sort(i))
@@ -756,9 +751,11 @@ mod tests {
         let ast = root("search", leaf("sort:personal_rating"));
         let sql = generator().generate(ast, Extras::default()).unwrap();
         assert_eq!(sql.len(), 1);
-        assert!(sql[0]
-            .sql
-            .ends_with(" FROM library_entries ORDER BY library_entries.personal_rating DESC"));
+        assert!(
+            sql[0]
+                .sql
+                .ends_with(" FROM library_entries ORDER BY library_entries.personal_rating DESC")
+        );
         assert_eq!(sql[0].params, Vec::<String>::new());
     }
 
@@ -766,17 +763,12 @@ mod tests {
     fn search_with_sort_and_filters_keeps_filters_and_appends_order() {
         let ast = root(
             "search",
-            and(vec![
-                leaf("status:finished"),
-                leaf("sort:title:ascending"),
-            ]),
+            and(vec![leaf("status:finished"), leaf("sort:title:ascending")]),
         );
         let sql = generator().generate(ast, Extras::default()).unwrap();
         assert_eq!(sql.len(), 1);
         assert!(sql[0].sql.contains("WHERE (library_entries.status = ?)"));
-        assert!(sql[0]
-            .sql
-            .ends_with(" ORDER BY library_entries.title ASC"));
+        assert!(sql[0].sql.ends_with(" ORDER BY library_entries.title ASC"));
         assert_eq!(sql[0].params, vec!["finished".to_string()]);
     }
 
@@ -791,12 +783,12 @@ mod tests {
                 },
             )
             .unwrap();
-        assert!(sql[0]
-            .sql
-            .contains("WHERE library_entries.user_id = ?"));
-        assert!(sql[0]
-            .sql
-            .ends_with(" ORDER BY library_entries.created_at DESC"));
+        assert!(sql[0].sql.contains("WHERE library_entries.user_id = ?"));
+        assert!(
+            sql[0]
+                .sql
+                .ends_with(" ORDER BY library_entries.created_at DESC")
+        );
         assert_eq!(sql[0].params, vec!["user-1".to_string()]);
     }
 
@@ -804,7 +796,10 @@ mod tests {
     fn search_rejects_multiple_sort_qualifiers() {
         let ast = root(
             "search",
-            and(vec![leaf("sort:title:ascending"), leaf("sort:status:descending")]),
+            and(vec![
+                leaf("sort:title:ascending"),
+                leaf("sort:status:descending"),
+            ]),
         );
         let err = generator().generate(ast, Extras::default()).unwrap_err();
         assert!(matches!(err, SqlGenerateError::MultipleSortsNotAllowed));
