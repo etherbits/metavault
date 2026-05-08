@@ -310,7 +310,6 @@ impl Tokenizer {
 
         let token_tree = self.generate_token_tree(input_query)?;
         let normalized_tree = self.normalize_expr(token_tree);
-        println!("{:#?}", normalized_tree);
 
         Ok(normalized_tree)
     }

@@ -48,7 +48,7 @@ const libraryRouter = Router()
     ...validatedRoute(
       { auth: true, params: libraryIdSchema },
       async (req, res) => {
-        const result = await libraryService.getEntriyById({
+        const result = await libraryService.getEntryById({
           userId: req.user.userId,
           id: req.params.id,
         });

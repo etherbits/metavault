@@ -56,7 +56,7 @@ export default defineConfig({
   },
   webServer: {
     command:
-      "bun packages/server/scripts/reset.ts && bun tests/seed-test-user.ts && bash scripts/build-ezq.sh && bun packages/server/index.ts",
+      "bun packages/server/scripts/reset.ts && bun tests/seed-test-user.ts && bun packages/server/index.ts",
     url: "http://localhost:3435/health",
     reuseExistingServer: false,
     cwd: "..",

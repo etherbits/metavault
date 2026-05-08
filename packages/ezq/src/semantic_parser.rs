@@ -169,16 +169,13 @@ impl SemanticParser {
     }
 
     pub fn parse(&self, token_tree: ASTExpr) -> Result<ASTExpr, ParseError> {
-        let ast = match token_tree {
+        match token_tree {
             ASTExpr::Root { action, expression } => Ok(ASTExpr::Root {
                 action: self.parse_action(&action),
                 expression: Box::new(self.parse_token_tree(*expression)?),
             }),
             _ => Err(ParseError::UnsupportedExpression),
-        };
-
-        println!("{:#?}", ast);
-        ast
+        }
     }
 }
 

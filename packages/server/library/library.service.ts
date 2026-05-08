@@ -61,7 +61,7 @@ class LibraryService {
     return ok(entries);
   }
 
-  async getEntriyById({
+  async getEntryById({
     userId,
     id,
   }: EntryInput): Promise<Result<LibraryEntry>> {
