@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from "react";
+import { useRef, useState, type CSSProperties } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { MediaStatus } from "./MediaCard";
@@ -12,6 +12,7 @@ interface StatusDropdownProps {
   onDelete?: () => void;
   onRemoveStatus?: () => void;
   submenuSide?: "left" | "right";
+  submenuDirection?: "down" | "up";
   className?: string;
   style?: CSSProperties;
 }
@@ -32,19 +33,54 @@ export function StatusDropdown({
   onDelete,
   onRemoveStatus,
   submenuSide = "left",
+  submenuDirection = "down",
   className,
   style,
 }: StatusDropdownProps) {
   const [showStatusMenu, setShowStatusMenu] = useState(false);
+  const [resolvedSubmenuDirection, setResolvedSubmenuDirection] = useState<
+    "down" | "up"
+  >(submenuDirection);
+  const panelRef = useRef<HTMLDivElement | null>(null);
   const baseItemClass =
     "flex min-h-8 w-40 items-center rounded-md px-2 py-[5.5px] text-left text-sm leading-5 transition-colors";
+
+  function toggleStatusMenu() {
+    if (!showStatusMenu) {
+      const panelRect = panelRef.current?.getBoundingClientRect();
+      if (panelRect) {
+        const submenuTopOffset = 48;
+        const estimatedSubmenuHeight = 192;
+        const viewportPadding = 8;
+        const canOpenDown =
+          panelRect.top + submenuTopOffset + estimatedSubmenuHeight <=
+          window.innerHeight - viewportPadding;
+        const canOpenUp =
+          panelRect.top + submenuTopOffset - estimatedSubmenuHeight >=
+          viewportPadding;
+
+        if (submenuDirection === "up" && canOpenUp) {
+          setResolvedSubmenuDirection("up");
+        } else if (submenuDirection === "down" && canOpenDown) {
+          setResolvedSubmenuDirection("down");
+        } else {
+          setResolvedSubmenuDirection(canOpenDown ? "down" : "up");
+        }
+      } else {
+        setResolvedSubmenuDirection(submenuDirection);
+      }
+    }
+
+    setShowStatusMenu((prev) => !prev);
+  }
 
   return (
     <div className={cn("relative", className)} style={style}>
       {showStatusMenu && (
         <div
           className={cn(
-            "absolute top-0 z-[121] flex w-44 flex-col gap-2 rounded-[8px] border border-[#3F3F46] bg-[#18181B] p-2 shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.1),0px_2px_4px_-2px_rgba(0,0,0,0.1)]",
+            "absolute z-[121] flex w-44 flex-col gap-2 rounded-[8px] border border-[#3F3F46] bg-[#18181B] p-2 shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.1),0px_2px_4px_-2px_rgba(0,0,0,0.1)]",
+            resolvedSubmenuDirection === "down" ? "top-12" : "bottom-12",
             submenuSide === "left" ? "right-full mr-3" : "left-full ml-3"
           )}
         >
@@ -99,7 +135,7 @@ export function StatusDropdown({
 
         <button
           type="button"
-          onClick={() => setShowStatusMenu((prev) => !prev)}
+          onClick={toggleStatusMenu}
           aria-expanded={showStatusMenu}
           aria-label="Change status"
           className={cn(
