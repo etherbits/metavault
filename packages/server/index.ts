@@ -1,11 +1,17 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import * as ezqNode from "@etherbits/ezq-node";
 import { logger } from "./logger";
 import { loggerMiddleware } from "./middleware/logger";
-import { run_query } from "@etherbits/ezq-node";
 import authRouter from "./auth/auth.controller";
 import libraryRouter from "./library/library.controller";
+
+type EzqRunQuery = (input: string) => unknown;
+
+const runQuery =
+  (ezqNode as { run_query?: EzqRunQuery; runQuery?: EzqRunQuery }).run_query ??
+  (ezqNode as { run_query?: EzqRunQuery; runQuery?: EzqRunQuery }).runQuery;
 
 const app = express();
 const port = Number(process.env.PORT ?? 3435);
@@ -32,7 +38,12 @@ app.get("/health", (req, res) => {
 
 // biome-ignore lint/correctness/noUnusedFunctionParameters: req unused but required by Express signature
 app.get("/", (req, res) => {
-  res.send(run_query("c attack tag:action,adventure:minor,dark tag:fantasy"));
+  if (!runQuery) {
+    res.status(500).send("EZQ parser function is not available");
+    return;
+  }
+
+  res.send(runQuery("c attack tag:action,adventure:minor,dark tag:fantasy"));
 });
 
 app.listen(port, () => {

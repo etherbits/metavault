@@ -115,9 +115,14 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: packages/ezq
-      - uses: jetli/wasm-pack-action@v0.4.0
+      - id: setup-wasm-pack
+        uses: jetli/wasm-pack-action@v0.4.0
+        continue-on-error: true
         with:
-          version: latest
+          version: "0.13.1"
+      - name: Fallback install wasm-pack via cargo
+        if: steps.setup-wasm-pack.outcome == 'failure'
+        run: cargo install wasm-pack --locked --version 0.13.1
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
