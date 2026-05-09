@@ -52,8 +52,9 @@ export interface UpdateLibraryEntryData {
   personal_rating?: number;
 }
 
-class LibraryModel {
-  async create(
+export class LibraryModel {
+  // CREATE
+  static async create(
     data: CreateLibraryEntryData & { id: string }
   ): Promise<LibraryEntry> {
     const result = await sql`
@@ -87,7 +88,8 @@ class LibraryModel {
     return result[0] as LibraryEntry;
   }
 
-  async getById(id: string): Promise<LibraryEntry | null> {
+  // GET BY ID
+  static async getById(id: string): Promise<LibraryEntry | null> {
     const result = await sql`
       SELECT * FROM library_entries WHERE id = ${id}
     `;
@@ -95,7 +97,8 @@ class LibraryModel {
     return (result[0] as LibraryEntry) || null;
   }
 
-  async getByUser(userId: string): Promise<LibraryEntry[]> {
+  // GET ALL USER ENTRIES
+  static async getByUser(userId: string): Promise<LibraryEntry[]> {
     const result = await sql`
       SELECT * FROM library_entries
       WHERE user_id = ${userId}
@@ -105,7 +108,8 @@ class LibraryModel {
     return result as LibraryEntry[];
   }
 
-  async update(
+  // UPDATE
+  static async update(
     id: string,
     userId: string,
     data: UpdateLibraryEntryData
@@ -130,7 +134,8 @@ class LibraryModel {
     return (result[0] as LibraryEntry) || null;
   }
 
-  async delete(id: string, userId: string): Promise<boolean> {
+  // DELETE
+  static async delete(id: string, userId: string): Promise<boolean> {
     const result = await sql`
       DELETE FROM library_entries
       WHERE id = ${id}
@@ -141,5 +146,3 @@ class LibraryModel {
     return result.length > 0;
   }
 }
-
-export const libraryModel = new LibraryModel();

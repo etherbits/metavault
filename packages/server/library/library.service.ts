@@ -1,45 +1,24 @@
-import { logger } from "../logger";
+import type { Request, Response } from "express";
+import { LibraryModel } from "./library.model";
 import { processAndSaveImage } from "../storage/image.service";
 import { deleteLibraryEntryDir } from "../storage/storage.service";
-import { err, ok, type Result } from "../utils/result";
-import type { LibraryEntry } from "./library.model";
-import { libraryModel } from "./library.model";
-import type {
-  CreateLibraryEntryInput,
-  UpdateLibraryEntryInput,
-} from "./library.schema";
+import { logger } from "../logger";
 
-type CreateEntryInput = {
-  userId: string;
-  body: CreateLibraryEntryInput;
-  imageBuffer?: Buffer;
-};
+async function createEntry(req: Request, res: Response) {
+  try {
+    const userId = (req as any).user.userId;
+    const body = req.body;
 
-type EntryInput = {
-  userId: string;
-  id: string;
-};
-
-type UpdateEntryInput = EntryInput & {
-  body: UpdateLibraryEntryInput;
-  imageBuffer?: Buffer;
-};
-
-class LibraryService {
-  async createEntry({
-    userId,
-    body,
-    imageBuffer,
-  }: CreateEntryInput): Promise<Result<LibraryEntry>> {
     const entryId = crypto.randomUUID();
 
     let imagePaths = null;
 
-    if (imageBuffer) {
-      imagePaths = await processAndSaveImage(imageBuffer, userId, entryId);
+    // If image uploaded
+    if (req.file) {
+      imagePaths = await processAndSaveImage(req.file.buffer, userId, entryId);
     }
 
-    const entry = await libraryModel.create({
+    const entry = await LibraryModel.create({
       id: entryId,
       user_id: userId,
       title: body.title,
@@ -53,68 +32,99 @@ class LibraryService {
     });
 
     logger.info(`Library entry created: ${entry.id}`);
-    return ok(entry);
+    res.status(201).json(entry);
+  } catch (error) {
+    logger.error("Create library entry error: " + (error as Error).message);
+    res.status(500).json({ message: "Internal server error" });
   }
+}
 
-  async getUserLibrary(userId: string): Promise<Result<LibraryEntry[]>> {
-    const entries = await libraryModel.getByUser(userId);
-    return ok(entries);
+async function getUserLibrary(req: Request, res: Response) {
+  try {
+    const userId = (req as any).user.userId;
+    const entries = await LibraryModel.getByUser(userId);
+    res.json(entries);
+  } catch (error) {
+    logger.error("Get user library error: " + (error as Error).message);
+    res.status(500).json({ message: "Internal server error" });
   }
+}
 
-  async getEntryById({
-    userId,
-    id,
-  }: EntryInput): Promise<Result<LibraryEntry>> {
-    const entry = await libraryModel.getById(id);
+async function getEntriyById(req: Request, res: Response) {
+  try {
+    const userId = (req as any).user.userId;
+    const id = req.params.id as string;
 
+    const entry = await LibraryModel.getById(id);
+
+    // security check
     if (!entry || entry.user_id !== userId) {
-      return err(404, "Entry not found");
+      return res.status(404).json({ message: "Entry not found" });
     }
 
-    return ok(entry);
+    res.json(entry);
+  } catch (error) {
+    logger.error("Get library entry error: " + (error as Error).message);
+    res.status(500).json({ message: "Internal server error" });
   }
+}
 
-  async updateEntry({
-    userId,
-    id,
-    body,
-    imageBuffer,
-  }: UpdateEntryInput): Promise<Result<LibraryEntry>> {
+async function updateEntry(req: Request, res: Response) {
+  try {
+    const userId = (req as any).user.userId;
+    const id = req.params.id as string;
+    const body = req.body;
+
     let imageSrc: string | undefined;
 
-    if (imageBuffer) {
-      const imagePaths = await processAndSaveImage(imageBuffer, userId, id);
+    if (req.file) {
+      const imagePaths = await processAndSaveImage(req.file.buffer, userId, id);
 
       imageSrc = imagePaths.original;
     }
 
-    const updated = await libraryModel.update(id, userId, {
+    const updated = await LibraryModel.update(id, userId, {
       ...body,
       ...(imageSrc ? { image_src: imageSrc } : {}),
     });
 
     if (!updated) {
-      return err(404, "Entry not found");
+      return res.status(404).json({ message: "Entry not found" });
     }
 
-    return ok(updated);
-  }
-
-  async deleteEntry({
-    userId,
-    id,
-  }: EntryInput): Promise<Result<{ message: string }>> {
-    const deleted = await libraryModel.delete(id, userId);
-
-    if (!deleted) {
-      return err(404, "Entry not found");
-    }
-
-    logger.info(`Deleting library entry dir for user ${userId}, entry ${id}`);
-    await deleteLibraryEntryDir(userId, id);
-
-    return ok({ message: "Entry deleted successfully" });
+    res.json(updated);
+  } catch (error) {
+    logger.error("Update library entry error: " + (error as Error).message);
+    res.status(500).json({ message: "Internal server error" });
   }
 }
 
-export const libraryService = new LibraryService();
+async function deleteEntry(req: Request, res: Response) {
+  try {
+    const userId = (req as any).user.userId;
+    const id = req.params.id as string;
+
+    const deleted = await LibraryModel.delete(id, userId);
+
+    if (!deleted) {
+      return res.status(404).json({ message: "Entry not found" });
+    }
+
+    // cleanup filesystem
+    logger.info(`Deleting library entry dir for user ${userId}, entry ${id}`);
+    await deleteLibraryEntryDir(userId, id);
+
+    res.json({ message: "Entry deleted successfully" });
+  } catch (error) {
+    logger.error("Delete library entry error: " + (error as Error).message);
+    res.status(500).json({ message: "Internal server error" });
+  }
+}
+
+export const LibraryService = {
+  createEntry,
+  getUserLibrary,
+  getEntriyById,
+  updateEntry,
+  deleteEntry,
+};

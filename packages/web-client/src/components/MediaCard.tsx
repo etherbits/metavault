@@ -13,6 +13,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusDropdown } from "./StatusDropdown";
+import BatmanPoster from "@/assets/download.jpeg";
 
 export type MediaType =
   | "Movie"
@@ -86,7 +87,6 @@ export function MediaCard({
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const [submenuSide, setSubmenuSide] = useState<"left" | "right">("left");
-  const [menuDirection, setMenuDirection] = useState<"down" | "up">("down");
   const menuRef = useRef<HTMLDivElement | null>(null);
   const menuButtonRef = useRef<HTMLDivElement | null>(null);
 
@@ -114,34 +114,13 @@ export function MediaCard({
         );
         nextLeft = Math.min(Math.max(viewportPadding, nextLeft), maxLeft);
 
-        const downTop = triggerRect.bottom + gap;
-        const upTop = triggerRect.top - gap - panelHeight;
-        const fitsDown =
-          downTop + panelHeight <= viewportHeight - viewportPadding;
-        const fitsUp = upTop >= viewportPadding;
+        let nextTop = triggerRect.bottom + gap;
 
-        let nextTop = downTop;
-        let nextMenuDirection: "down" | "up" = "down";
-
-        if (fitsDown) {
-          nextTop = downTop;
-          nextMenuDirection = "down";
-        } else if (fitsUp) {
-          nextTop = upTop;
-          nextMenuDirection = "up";
-        } else {
-          const spaceBelow =
-            viewportHeight - viewportPadding - triggerRect.bottom - gap;
-          const spaceAbove = triggerRect.top - viewportPadding - gap;
-          nextMenuDirection = spaceAbove > spaceBelow ? "up" : "down";
-
-          nextTop =
-            nextMenuDirection === "up"
-              ? Math.max(viewportPadding, upTop)
-              : Math.min(
-                  downTop,
-                  viewportHeight - panelHeight - viewportPadding
-                );
+        if (nextTop + panelHeight > viewportHeight - viewportPadding) {
+          nextTop = Math.max(
+            viewportPadding,
+            viewportHeight - panelHeight - viewportPadding
+          );
         }
 
         const canOpenSubmenuLeft =
@@ -160,7 +139,6 @@ export function MediaCard({
           setSubmenuSide(rightSpace > leftSpace ? "right" : "left");
         }
 
-        setMenuDirection(nextMenuDirection);
         setMenuPosition({ top: nextTop, left: nextLeft });
       }
     }
@@ -214,14 +192,12 @@ export function MediaCard({
       onClick={handleCardClick}
     >
       <div className="flex h-full flex-col sm:flex-row">
-        <div className="h-52 w-full shrink-0 overflow-hidden rounded-t-[4px] bg-black sm:h-[300px] sm:max-w-[200px] sm:basis-[46%] sm:rounded-l-[4px] sm:rounded-tr-none">
-          {item.posterUrl ? (
-            <img
-              src={item.posterUrl}
-              alt={item.title}
-              className="h-full w-full object-cover"
-            />
-          ) : null}
+        <div className="h-52 w-full shrink-0 overflow-hidden rounded-t-[4px] bg-black sm:h-auto sm:self-stretch sm:max-w-[200px] sm:basis-[46%] sm:rounded-l-[4px] sm:rounded-tr-none">
+          <img
+            src={item.posterUrl ?? BatmanPoster}
+            alt={item.title}
+            className="h-full w-full object-cover"
+          />
         </div>
 
         <CardContent className="flex w-full min-w-0 flex-1 flex-col gap-4 px-4 py-3">
@@ -311,7 +287,6 @@ export function MediaCard({
                     setMenuOpen(false);
                   }}
                   submenuSide={submenuSide}
-                  submenuDirection={menuDirection}
                   style={{
                     top: `${menuPosition.top}px`,
                     left: `${menuPosition.left}px`,

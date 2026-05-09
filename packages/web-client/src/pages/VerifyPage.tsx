@@ -138,7 +138,7 @@ export function VerifyPage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="min-h-9 w-full cursor-pointer rounded-lg border border-transparent bg-[#facc15] px-3 py-2 text-sm leading-5 font-medium text-[#09090b] transition-[transform,filter] duration-120 hover:-translate-y-px hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#facc1566]"
+              className="min-h-9 w-full cursor-pointer rounded-lg border border-transparent bg-[#facc15] px-3 py-2 text-sm leading-5 font-medium text-[#09090b] transition-[transform,filter,opacity] duration-120 hover:-translate-y-px hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-65 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#facc1566]"
             >
               {isSubmitting ? "Verifying..." : "Verify account"}
             </button>
@@ -146,7 +146,7 @@ export function VerifyPage() {
             <button
               type="button"
               disabled={isResending}
-              className="min-h-9 w-full cursor-pointer rounded-lg border border-[#3f3f46] bg-[rgba(255,255,255,0.05)] px-3 py-2 text-sm leading-5 font-medium text-[#fafafa] transition-[transform,filter] duration-120 hover:-translate-y-px hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#facc1566]"
+              className="min-h-9 w-full cursor-pointer rounded-lg border border-[#3f3f46] bg-[rgba(255,255,255,0.05)] px-3 py-2 text-sm leading-5 font-medium text-[#fafafa] transition-[transform,filter,opacity] duration-120 hover:-translate-y-px hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-65 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#facc1566]"
               onClick={async () => {
                 setErrorMessage("");
                 setSuccessMessage("");

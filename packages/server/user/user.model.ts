@@ -1,7 +1,7 @@
 import { sql } from "../db";
 
-class UserModel {
-  async createUser(data: CreateUserData): Promise<User> {
+export class UserModel {
+  static async createUser(data: CreateUserData): Promise<User> {
     const { username, email, password_hash, is_verified = 0 } = data;
     const id = crypto.randomUUID();
 
@@ -14,7 +14,7 @@ class UserModel {
     return result[0] as User;
   }
 
-  async getUserById(id: string): Promise<User | null> {
+  static async getUserById(id: string): Promise<User | null> {
     const result = await sql`
       SELECT * FROM users WHERE id = ${id}
     `;
@@ -22,7 +22,7 @@ class UserModel {
     return (result[0] as User) || null;
   }
 
-  async getUserByEmail(email: string): Promise<User | null> {
+  static async getUserByEmail(email: string): Promise<User | null> {
     const result = await sql`
       SELECT * FROM users WHERE email = ${email}
     `;
@@ -30,7 +30,7 @@ class UserModel {
     return (result[0] as User) || null;
   }
 
-  async getUserByUsername(username: string): Promise<User | null> {
+  static async getUserByUsername(username: string): Promise<User | null> {
     const result = await sql`
       SELECT * FROM users WHERE username = ${username}
     `;
@@ -38,7 +38,7 @@ class UserModel {
     return (result[0] as User) || null;
   }
 
-  async getUsers(): Promise<User[]> {
+  static async getUsers(): Promise<User[]> {
     const result = await sql`
       SELECT * FROM users ORDER BY created_at DESC
     `;
@@ -46,16 +46,15 @@ class UserModel {
     return result as User[];
   }
 
-  async deleteUser(id: string): Promise<boolean> {
+  static async deleteUser(id: string): Promise<boolean> {
     const result = await sql`
       DELETE FROM users WHERE id = ${id}
-      RETURNING id
     `;
 
     return result.length > 0;
   }
 
-  async verifyUser(id: string): Promise<User | null> {
+  static async verifyUser(id: string): Promise<User | null> {
     const result = await sql`
     UPDATE users
     SET is_verified = 1, updated_at = CURRENT_TIMESTAMP
@@ -66,8 +65,6 @@ class UserModel {
     return (result[0] as User) || null;
   }
 }
-
-export const userModel = new UserModel();
 
 export interface User {
   id: string;

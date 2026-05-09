@@ -8,7 +8,7 @@ export async function createContentNodesTable(sql: SQL) {
       link TEXT,
       order_index INTEGER,
       library_entry_id TEXT NOT NULL,
-      FOREIGN KEY (library_entry_id) REFERENCES library_entries(id) ON DELETE CASCADE
+      FOREIGN KEY (library_entry_id) REFERENCES library_entries(id)
     )
   `;
 }

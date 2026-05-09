@@ -1,129 +1,67 @@
 import { Router } from "express";
 import { upload } from "../middleware/upload";
-import { validatedRoute } from "../middleware/validation";
-import { sendServiceError } from "../utils/http";
+import { authMiddleware } from "../middleware/isAuth";
+import { LibraryService } from "./library.service";
+import {
+  validateMiddleware,
+  validateParamsMiddleware,
+} from "../middleware/validation";
 import {
   createLibraryEntrySchema,
-  libraryIdSchema,
   updateLibraryEntrySchema,
-} from "./library.schema";
-import { libraryService } from "./library.service";
+  libraryIdSchema,
+} from "./library.validation";
 
-const libraryRouter = Router()
-  .post(
-    "/",
-    ...validatedRoute(
-      {
-        auth: true,
-        body: createLibraryEntrySchema,
-        middleware: [upload.single("image")],
-      },
-      async (req, res) => {
-        const result = await libraryService.createEntry({
-          userId: req.user.userId,
-          body: req.body,
-          imageBuffer: req.file?.buffer,
-        });
-        if (!result.ok) {
-          return sendServiceError(res, result.error);
-        }
+const libraryRouter = Router();
 
-        return res.status(201).json(result.data);
-      }
-    )
-  )
-  .get(
-    "/",
-    ...validatedRoute({ auth: true }, async (req, res) => {
-      const result = await libraryService.getUserLibrary(req.user.userId);
-      if (!result.ok) {
-        return sendServiceError(res, result.error);
-      }
-
-      return res.json(result.data);
-    })
-  )
-  .get(
-    "/:id",
-    ...validatedRoute(
-      { auth: true, params: libraryIdSchema },
-      async (req, res) => {
-        const result = await libraryService.getEntryById({
-          userId: req.user.userId,
-          id: req.params.id,
-        });
-        if (!result.ok) {
-          return sendServiceError(res, result.error);
-        }
-
-        return res.json(result.data);
-      }
-    )
-  )
-  .patch(
-    "/:id",
-    ...validatedRoute(
-      {
-        auth: true,
-        params: libraryIdSchema,
-        body: updateLibraryEntrySchema,
-        middleware: [upload.single("image")],
-      },
-      async (req, res) => {
-        const result = await libraryService.updateEntry({
-          userId: req.user.userId,
-          id: req.params.id,
-          body: req.body,
-          imageBuffer: req.file?.buffer,
-        });
-        if (!result.ok) {
-          return sendServiceError(res, result.error);
-        }
-
-        return res.json(result.data);
-      }
-    )
-  )
-  .put(
-    "/:id",
-    ...validatedRoute(
-      {
-        auth: true,
-        params: libraryIdSchema,
-        body: updateLibraryEntrySchema,
-        middleware: [upload.single("image")],
-      },
-      async (req, res) => {
-        const result = await libraryService.updateEntry({
-          userId: req.user.userId,
-          id: req.params.id,
-          body: req.body,
-          imageBuffer: req.file?.buffer,
-        });
-        if (!result.ok) {
-          return sendServiceError(res, result.error);
-        }
-
-        return res.json(result.data);
-      }
-    )
-  )
-  .delete(
-    "/:id",
-    ...validatedRoute(
-      { auth: true, params: libraryIdSchema },
-      async (req, res) => {
-        const result = await libraryService.deleteEntry({
-          userId: req.user.userId,
-          id: req.params.id,
-        });
-        if (!result.ok) {
-          return sendServiceError(res, result.error);
-        }
-
-        return res.json(result.data);
-      }
-    )
-  );
+libraryRouter.post(
+  "/",
+  authMiddleware,
+  upload.single("image"),
+  validateMiddleware(createLibraryEntrySchema),
+  LibraryService.createEntry
+);
+libraryRouter.get("/", authMiddleware, LibraryService.getUserLibrary);
+libraryRouter.get(
+  "/:id",
+  authMiddleware,
+  validateParamsMiddleware(libraryIdSchema),
+  LibraryService.getEntriyById
+);
+libraryRouter.patch(
+  "/:id",
+  authMiddleware,
+  upload.single("image"),
+  validateMiddleware(updateLibraryEntrySchema),
+  validateParamsMiddleware(libraryIdSchema),
+  LibraryService.updateEntry
+);
+libraryRouter.delete(
+  "/:id",
+  authMiddleware,
+  validateParamsMiddleware(libraryIdSchema),
+  LibraryService.deleteEntry
+);
+libraryRouter.get("/", authMiddleware, LibraryService.getUserLibrary);
+libraryRouter.get(
+  "/:id",
+  authMiddleware,
+  validateParamsMiddleware(libraryIdSchema),
+  LibraryService.getEntriyById
+);
+libraryRouter.put(
+  "/:id",
+  authMiddleware,
+  upload.single("image"),
+  validateMiddleware(updateLibraryEntrySchema),
+  validateParamsMiddleware(libraryIdSchema),
+  LibraryService.updateEntry
+);
+libraryRouter.delete(
+  "/:id",
+  authMiddleware,
+  validateParamsMiddleware(libraryIdSchema),
+  LibraryService.deleteEntry
+);
 
 export default libraryRouter;

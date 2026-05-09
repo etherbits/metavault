@@ -1,18 +1,29 @@
-import "dotenv/config";
-import crypto from "node:crypto";
+import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { emailService } from "../email/email.service";
-import { parsedEnv } from "../env";
+import "dotenv/config";
+import type { Request, Response } from "express";
+import { UserModel } from "../user/user.model";
+import { EmailService } from "../email/email.service";
+import { sql } from "../db";
 import { logger } from "../logger";
-import { userModel } from "../user/user.model";
-import type {
-  ResendVerificationInput,
-  SignInInput,
-  SignUpInput,
-  VerifyUserInput,
-} from "../user/user.schema";
-import { err, ok, type Result } from "../utils/result";
-import { authModel } from "./auth.model";
+import crypto from "crypto";
+
+const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
+const OTP_EXPIRY_MINUTES = 3;
+
+function isEmailDeliveryError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const message = error.message.toLowerCase();
+  return (
+    message.includes("invalid login") ||
+    message.includes("badcredentials") ||
+    message.includes("eauth") ||
+    message.includes("econnrefused")
+  );
+}
 
 function generateOTP(): string {
   const otp = crypto.randomInt(0, 1000000);
@@ -30,130 +41,241 @@ function verifyPassword(password: string, hash: string): Promise<boolean> {
 }
 
 function generateJWT(userId: string): string {
-  return jwt.sign({ userId }, parsedEnv.JWT_SECRET, { expiresIn: "1h" });
+  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: "1h" });
 }
 
-export class AuthService {
-  async signUp(input: SignUpInput): Promise<Result<{ message: string }>> {
-    const { email, username, password } = input;
+async function createOTP(userId: string, otpCode: string) {
+  const expiryDate = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
 
-    const existingUser = await userModel.getUserByEmail(email);
+  await sql`
+    INSERT INTO otp_codes (id, user_id, otp_code, otp_code_expiration_date)
+    VALUES (${crypto.randomUUID()}, ${userId}, ${otpCode}, ${expiryDate.toISOString()})
+  `;
+}
+
+async function getValidOTP(userId: string, otpCode: string) {
+  const result = await sql`
+    SELECT * FROM otp_codes
+    WHERE user_id = ${userId}
+    AND otp_code = ${otpCode}
+    AND otp_code_expiration_date > ${new Date().toISOString()}
+    ORDER BY created_at DESC
+    LIMIT 1
+  `;
+
+  return result[0] || null;
+}
+
+async function deleteOTP(userId: string) {
+  await sql`
+    DELETE FROM otp_codes WHERE user_id = ${userId}
+  `;
+}
+
+async function signUp(req: Request, res: Response) {
+  try {
+    const { email, username, password } = req.body;
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const normalizedUsername = String(username).trim();
+
+    // Check if user already exists
+    const existingUser = await UserModel.getUserByEmail(normalizedEmail);
     if (existingUser) {
-      return err(400, "User already exists");
+      if (existingUser.is_verified) {
+        return res.status(400).json({ message: "User already exists" });
+      }
+
+      await deleteOTP(existingUser.id);
+      const otpCode = generateOTP();
+      await createOTP(existingUser.id, otpCode);
+      await EmailService.sendOtpCode(normalizedEmail, otpCode);
+
+      logger.info(`Unverified user sign-up retry: ${normalizedEmail}`);
+      return res.json({
+        message:
+          "Account already exists but is not verified. A new verification code has been sent.",
+      });
     }
 
+    const existingUsername =
+      await UserModel.getUserByUsername(normalizedUsername);
+    if (existingUsername) {
+      return res.status(400).json({ message: "Username already exists" });
+    }
+
+    // Hash password
     const passwordHash = await hashPassword(password);
 
-    const user = await userModel.createUser({
-      email,
-      username,
+    // Create user
+    const user = await UserModel.createUser({
+      email: normalizedEmail,
+      username: normalizedUsername,
       password_hash: passwordHash,
     });
 
+    // Generate and store OTP
     const otpCode = generateOTP();
-    await authModel.createOTP(user.id, otpCode);
+    await createOTP(user.id, otpCode);
 
-    await emailService.sendOtpCode(email, otpCode);
+    // Send verification email
+    await EmailService.sendOtpCode(normalizedEmail, otpCode);
 
-    logger.info(`User signed up: ${email}`);
-    return ok({
+    logger.info(`User signed up: ${normalizedEmail}`);
+    res.json({
       message:
         "User created successfully. Please check your email for verification code.",
     });
-  }
-
-  async signIn(input: SignInInput): Promise<
-    Result<{
-      token: string;
-      message: string;
-      user: {
-        id: string;
-        email: string;
-        username: string;
-      };
-    }>
-  > {
-    const { username, password } = input;
-
-    const user = await userModel.getUserByUsername(username);
-    if (!user) {
-      return err(401, "Invalid credentials");
+  } catch (error) {
+    logger.error("Sign up error: " + (error as Error).message);
+    if (
+      error instanceof Error &&
+      error.message.includes("UNIQUE constraint failed: users.username")
+    ) {
+      return res.status(400).json({ message: "Username already exists" });
     }
 
+    if (
+      error instanceof Error &&
+      error.message.includes("UNIQUE constraint failed: users.email")
+    ) {
+      return res.status(400).json({ message: "User already exists" });
+    }
+
+    if (isEmailDeliveryError(error)) {
+      return res.status(502).json({
+        message:
+          "We could not send a verification email. Please check SMTP settings and try again.",
+      });
+    }
+
+    res.status(500).json({ message: "Internal server error" });
+  }
+}
+
+async function signIn(req: Request, res: Response) {
+  try {
+    const { username, password } = req.body;
+    const login = String(username ?? "").trim();
+
+    const user = login.includes("@")
+      ? await UserModel.getUserByEmail(login)
+      : await UserModel.getUserByUsername(login);
+    if (!user) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    // Check password
     const isValidPassword = await verifyPassword(password, user.password_hash);
     if (!isValidPassword) {
-      return err(401, "Invalid credentials");
+      return res.status(401).json({ message: "Invalid credentials" });
     }
 
+    // Check if verified
     if (!user.is_verified) {
-      return err(403, "Please verify your email first");
+      return res
+        .status(403)
+        .json({ message: "Please verify your email first" });
     }
 
+    // Generate JWT
     const token = generateJWT(user.id);
 
+    // Set cookie
+    res.cookie("access_token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 1000 * 60 * 60,
+    });
+
     logger.info(`User signed in: ${user.email}`);
-    return ok({
+    res.json({
       message: "Sign in successful",
-      token,
       user: {
         id: user.id,
         email: user.email,
         username: user.username,
       },
     });
-  }
-
-  async verifyUser(
-    input: VerifyUserInput
-  ): Promise<Result<{ message: string }>> {
-    const { email, otpCode } = input;
-
-    const user = await userModel.getUserByEmail(email);
-    if (!user) {
-      return err(404, "User not found");
-    }
-
-    if (user.is_verified) {
-      return err(400, "User already verified");
-    }
-
-    const otp = await authModel.getValidOTP(user.id, otpCode);
-    if (!otp) {
-      return err(400, "Invalid or expired OTP code");
-    }
-
-    await userModel.verifyUser(user.id);
-
-    await authModel.deleteOTP(user.id);
-
-    await emailService.sendWelcomeEmail(email);
-
-    logger.info(`User verified: ${email}`);
-    return ok({ message: "Account verified successfully" });
-  }
-
-  async resendVerificationCode(
-    input: ResendVerificationInput
-  ): Promise<Result<{ message: string }>> {
-    const { email } = input;
-
-    const user = await userModel.getUserByEmail(email);
-    if (!user) {
-      return err(404, "User not found");
-    }
-    if (user.is_verified) {
-      return err(400, "User already verified");
-    }
-
-    await authModel.deleteOTP(user.id);
-    const otpCode = generateOTP();
-    await authModel.createOTP(user.id, otpCode);
-
-    await emailService.sendOtpCode(email, otpCode);
-
-    logger.info(`Verification code resent: ${email}`);
-    return ok({ message: "Verification code sent to your email" });
+  } catch (error) {
+    logger.error("Sign in error: " + (error as Error).message);
+    res.status(500).json({ message: "Internal server error" });
   }
 }
 
-export const authService = new AuthService();
+async function verifyUser(req: Request, res: Response) {
+  try {
+    const { email, otpCode } = req.body;
+
+    // Find user
+    const user = await UserModel.getUserByEmail(email);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (user.is_verified) {
+      return res.status(400).json({ message: "User already verified" });
+    }
+
+    // Find valid OTP
+    const otp = await getValidOTP(user.id, otpCode);
+    if (!otp) {
+      return res.status(400).json({ message: "Invalid or expired OTP code" });
+    }
+
+    // Verify user
+    await UserModel.verifyUser(user.id);
+
+    // Delete OTP
+    await deleteOTP(user.id);
+
+    // Send welcome email
+    await EmailService.sendWelcomeEmail(email);
+
+    logger.info(`User verified: ${email}`);
+    res.json({ message: "Account verified successfully" });
+  } catch (error) {
+    logger.error("Verify user error: " + (error as Error).message);
+    res.status(500).json({ message: "Internal server error" });
+  }
+}
+
+async function resendVerificationCode(req: Request, res: Response) {
+  try {
+    const { email } = req.body;
+
+    const user = await UserModel.getUserByEmail(email);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    if (user.is_verified) {
+      return res.status(400).json({ message: "User already verified" });
+    }
+
+    await deleteOTP(user.id);
+    const otpCode = generateOTP();
+    await createOTP(user.id, otpCode);
+
+    await EmailService.sendOtpCode(email, otpCode);
+
+    logger.info(`Verification code resent: ${email}`);
+    res.json({ message: "Verification code sent to your email" });
+  } catch (error) {
+    logger.error("Resend verification error: " + (error as Error).message);
+    if (isEmailDeliveryError(error)) {
+      return res.status(502).json({
+        message:
+          "We could not send a verification email. Please check SMTP settings and try again.",
+      });
+    }
+
+    res.status(500).json({ message: "Internal server error" });
+  }
+}
+
+export const AuthService = {
+  signUp,
+  signIn,
+  verifyUser,
+  resendVerificationCode,
+};

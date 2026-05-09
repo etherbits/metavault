@@ -1,27 +1,24 @@
 import nodemailer from "nodemailer";
 import "dotenv/config";
-import { parsedEnv } from "../env";
 
-const transporter =
-  parsedEnv.NODE_ENV === "test"
-    ? nodemailer.createTransport({ jsonTransport: true })
-    : nodemailer.createTransport({
-        host: parsedEnv.EMAIL_HOST,
-        port: 587,
-        secure: false,
-        auth: {
-          user: parsedEnv.EMAIL_USER,
-          pass: parsedEnv.EMAIL_PASS,
-        },
-      });
+const emailPort = Number(process.env.EMAIL_PORT ?? "587");
+const emailUser = process.env.EMAIL_USER;
+const emailPass = process.env.EMAIL_PASS;
 
-class EmailService {
-  async sendOtpCode(to: string, otpCode: string) {
-    return transporter.sendMail({
-      from: parsedEnv.EMAIL_FROM,
-      to,
-      subject: "Verify your account",
-      html: `
+const transporter = nodemailer.createTransport({
+  host: process.env.EMAIL_HOST,
+  port: Number.isNaN(emailPort) ? 587 : emailPort,
+  secure: false,
+  auth:
+    emailUser && emailPass ? { user: emailUser, pass: emailPass } : undefined,
+});
+
+async function sendOtpCode(to: string, otpCode: string) {
+  return transporter.sendMail({
+    from: "Metavault",
+    to,
+    subject: "Verify your account",
+    html: `
       <div style="font-family: Arial, sans-serif; line-height: 1.5; max-width: 600px; margin: 0 auto;">
         <h2>Email Verification</h2>
         <p>Your OTP code is:</p>
@@ -32,22 +29,24 @@ class EmailService {
         <p>If you didn't request this code, please ignore this email.</p>
       </div>
     `.trim(),
-    });
-  }
+  });
+}
 
-  async sendWelcomeEmail(to: string) {
-    return transporter.sendMail({
-      from: parsedEnv.EMAIL_FROM,
-      to,
-      subject: "Welcome",
-      html: `
+async function sendWelcomeEmail(to: string) {
+  return transporter.sendMail({
+    from: "Metavault",
+    to,
+    subject: "Welcome",
+    html: `
       <div style="font-family: Arial, sans-serif; line-height: 1.5;">
         <h2>Welcome!</h2>
         <p>Thanks for joining us. We are glad you are here.</p>
       </div>
     `.trim(),
-    });
-  }
+  });
 }
 
-export const emailService = new EmailService();
+export const EmailService = {
+  sendOtpCode,
+  sendWelcomeEmail,
+};

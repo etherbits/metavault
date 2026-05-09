@@ -1,15 +1,10 @@
-import path from "node:path";
-import { parsedEnv } from "../env";
+import path from "path";
 
-export const MEDIA_ROOT = path.resolve(process.cwd(), parsedEnv.MEDIA_ROOT);
+export const MEDIA_ROOT = path.join(process.cwd(), "media");
 export const MEDIA_BASE_URL = "/media";
 
 export function getUserLibraryEntryDir(userId: string, entryId: string) {
   return path.join(MEDIA_ROOT, "users", userId, "library", entryId);
-}
-
-export function getUserMediaDir(userId: string) {
-  return path.join(MEDIA_ROOT, "users", userId);
 }
 
 export function getImagePublicPath(

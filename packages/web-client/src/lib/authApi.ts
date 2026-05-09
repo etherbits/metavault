@@ -15,6 +15,18 @@ type ApiSuccessResponse = {
   };
 };
 
+async function fetchWithRetry(
+  url: string,
+  init: RequestInit
+): Promise<Response> {
+  try {
+    return await fetch(url, init);
+  } catch {
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    return fetch(url, init);
+  }
+}
+
 async function request(
   path: string,
   options: RequestOptions
@@ -23,7 +35,7 @@ async function request(
   let response: Response;
 
   try {
-    response = await fetch(`${API_BASE_URL}${normalizedPath}`, {
+    response = await fetchWithRetry(`${API_BASE_URL}${normalizedPath}`, {
       method: options.method,
       headers: {
         "Content-Type": "application/json",
@@ -73,3 +85,4 @@ export function resendVerificationCode(payload: { email: string }) {
 }
 
 export const AUTH_STORAGE_KEY = "metavault.authenticated";
+export const AUTH_USER_STORAGE_KEY = "metavault.user";

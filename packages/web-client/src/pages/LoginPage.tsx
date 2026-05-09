@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Eye, EyeOff, Lock, User } from "lucide-react";
 import { useNavigate } from "react-router";
-import { AUTH_STORAGE_KEY, signIn } from "@/lib/authApi";
+import { AUTH_STORAGE_KEY, AUTH_USER_STORAGE_KEY, signIn } from "@/lib/authApi";
+import MetaLogo from "@/assets/Meta.svg";
 
 export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -19,26 +20,43 @@ export function LoginPage() {
       />
 
       <section
-        className="relative z-10 grid min-h-[calc(100vh-64px)] place-items-center gap-12 max-[420px]:gap-[30px]"
+        className="relative z-10 mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-[352px] flex-col items-center justify-center gap-10"
         aria-label="Log in to account"
       >
-        <div
-          className="font-heading text-[74px] leading-none font-extrabold tracking-[-0.06em] text-[#facc15] max-[420px]:text-[62px]"
-          aria-hidden="true"
-        >
-          M
-        </div>
+        <img
+          src={MetaLogo}
+          alt="MetaVault"
+          className="h-[42px] w-12 object-contain"
+        />
 
         <form
-          className="flex w-full max-w-[320px] flex-col gap-6 rounded-lg bg-[#27272a] p-6 text-[#e4e4e7] shadow-[0_18px_32px_rgba(0,0,0,0.24)] max-[420px]:gap-5 max-[420px]:p-5"
+          className="flex w-full flex-col gap-7 rounded-xl bg-[#27272a] p-6 text-[#e4e4e7] shadow-[0_18px_32px_rgba(0,0,0,0.24)]"
+          autoComplete="off"
           onSubmit={async (event) => {
             event.preventDefault();
             setErrorMessage("");
             setIsSubmitting(true);
 
             try {
-              await signIn({ username: username.trim(), password });
+              const response = await signIn({
+                username: username.trim(),
+                password,
+              });
+              const typedUsername = username.trim();
+              const resolvedUsername =
+                response.user?.username?.trim() || typedUsername;
+              const resolvedEmail = response.user?.email?.trim() || "";
               localStorage.setItem(AUTH_STORAGE_KEY, "true");
+              localStorage.setItem(
+                AUTH_USER_STORAGE_KEY,
+                JSON.stringify({
+                  name: resolvedUsername,
+                  username: resolvedUsername,
+                  email: resolvedEmail,
+                })
+              );
+              localStorage.setItem("metavault.username", resolvedUsername);
+              localStorage.setItem("metavault.email", resolvedEmail);
               navigate("/app");
             } catch (error) {
               setErrorMessage(
@@ -50,7 +68,7 @@ export function LoginPage() {
           }}
         >
           <header>
-            <h1 className="m-0 text-xl leading-tight font-semibold">Log In</h1>
+            <h1 className="m-0 text-[20px] leading-6 font-semibold">Log in</h1>
             <p className="mt-3 text-base leading-6 text-[#d4d4d8]">
               Fill in the details below to log into your account
             </p>
@@ -58,10 +76,10 @@ export function LoginPage() {
 
           <label className="flex flex-col gap-1">
             <span className="text-sm leading-5 font-medium text-[#fafafa]">
-              Username
+              Username or email
             </span>
 
-            <span className="flex min-h-9 items-center gap-2 rounded-lg border border-[#3f3f46] bg-[rgba(255,255,255,0.05)] px-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+            <span className="flex h-9 min-h-9 items-center gap-2 rounded-lg border border-[#3f3f46] bg-[rgba(255,255,255,0.05)] px-3 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
               <span
                 className="grid h-5 w-5 flex-none place-items-center text-[#a1a1aa]"
                 aria-hidden="true"
@@ -72,8 +90,9 @@ export function LoginPage() {
               <input
                 className="w-full border-0 bg-transparent text-sm leading-5 text-[#e4e4e7] outline-none placeholder:text-[#a1a1aa]"
                 type="text"
-                placeholder="User01"
-                autoComplete="username"
+                placeholder="User01 or you@example.com"
+                autoComplete="off"
+                name="login-username"
                 value={username}
                 onChange={(event) => setUsername(event.target.value)}
                 required
@@ -86,7 +105,7 @@ export function LoginPage() {
               Password
             </span>
 
-            <span className="flex min-h-9 items-center gap-2 rounded-lg border border-[#3f3f46] bg-[rgba(255,255,255,0.05)] px-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+            <span className="flex h-9 min-h-9 items-center gap-2 rounded-lg border border-[#3f3f46] bg-[rgba(255,255,255,0.05)] px-3 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
               <span
                 className="grid h-5 w-5 flex-none place-items-center text-[#a1a1aa]"
                 aria-hidden="true"
@@ -98,7 +117,8 @@ export function LoginPage() {
                 className="w-full border-0 bg-transparent text-sm leading-5 text-[#e4e4e7] outline-none placeholder:text-[#a1a1aa]"
                 type={showPassword ? "text" : "password"}
                 placeholder="********"
-                autoComplete="current-password"
+                autoComplete="new-password"
+                name="login-password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 required
@@ -115,7 +135,7 @@ export function LoginPage() {
             </span>
           </label>
 
-          <div className="flex flex-col gap-4 pt-2">
+          <div className="flex flex-col gap-4">
             {errorMessage ? (
               <p className="rounded-md border border-[#ef4444]/45 bg-[#450a0a] px-3 py-2 text-sm leading-5 text-[#fecaca]">
                 {errorMessage}
@@ -125,7 +145,7 @@ export function LoginPage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="min-h-9 w-full cursor-pointer rounded-lg border border-transparent bg-[#facc15] px-3 py-2 text-sm leading-5 font-medium text-[#09090b] transition-[transform,filter] duration-120 hover:-translate-y-px hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#facc1566]"
+              className="min-h-9 w-full cursor-pointer rounded-lg border border-transparent bg-[#facc15] px-3 py-2 text-sm leading-5 font-medium text-[#09090b] transition-[transform,filter,opacity] duration-120 hover:-translate-y-px hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-65 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#facc1566]"
             >
               {isSubmitting ? "Logging in..." : "Log In"}
             </button>
