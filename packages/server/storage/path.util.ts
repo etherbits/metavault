@@ -1,4 +1,4 @@
-import path from "path";
+import path from "node:path";
 
 export const MEDIA_ROOT = path.join(process.cwd(), "media");
 export const MEDIA_BASE_URL = "/media";

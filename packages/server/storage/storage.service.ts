@@ -1,4 +1,4 @@
-import fs from "fs/promises";
+import fs from "node:fs/promises";
 import { getUserLibraryEntryDir } from "./path.util";
 import { logger } from "../logger";
 

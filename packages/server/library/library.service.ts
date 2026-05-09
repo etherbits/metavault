@@ -6,7 +6,10 @@ import { logger } from "../logger";
 
 async function createEntry(req: Request, res: Response) {
   try {
-    const userId = (req as any).user.userId;
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
     const body = req.body;
 
     const entryId = crypto.randomUUID();
@@ -34,25 +37,31 @@ async function createEntry(req: Request, res: Response) {
     logger.info(`Library entry created: ${entry.id}`);
     res.status(201).json(entry);
   } catch (error) {
-    logger.error("Create library entry error: " + (error as Error).message);
+    logger.error(`Create library entry error: ${(error as Error).message}`);
     res.status(500).json({ message: "Internal server error" });
   }
 }
 
 async function getUserLibrary(req: Request, res: Response) {
   try {
-    const userId = (req as any).user.userId;
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
     const entries = await LibraryModel.getByUser(userId);
     res.json(entries);
   } catch (error) {
-    logger.error("Get user library error: " + (error as Error).message);
+    logger.error(`Get user library error: ${(error as Error).message}`);
     res.status(500).json({ message: "Internal server error" });
   }
 }
 
 async function getEntriyById(req: Request, res: Response) {
   try {
-    const userId = (req as any).user.userId;
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
     const id = req.params.id as string;
 
     const entry = await LibraryModel.getById(id);
@@ -64,14 +73,17 @@ async function getEntriyById(req: Request, res: Response) {
 
     res.json(entry);
   } catch (error) {
-    logger.error("Get library entry error: " + (error as Error).message);
+    logger.error(`Get library entry error: ${(error as Error).message}`);
     res.status(500).json({ message: "Internal server error" });
   }
 }
 
 async function updateEntry(req: Request, res: Response) {
   try {
-    const userId = (req as any).user.userId;
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
     const id = req.params.id as string;
     const body = req.body;
 
@@ -94,14 +106,17 @@ async function updateEntry(req: Request, res: Response) {
 
     res.json(updated);
   } catch (error) {
-    logger.error("Update library entry error: " + (error as Error).message);
+    logger.error(`Update library entry error: ${(error as Error).message}`);
     res.status(500).json({ message: "Internal server error" });
   }
 }
 
 async function deleteEntry(req: Request, res: Response) {
   try {
-    const userId = (req as any).user.userId;
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
     const id = req.params.id as string;
 
     const deleted = await LibraryModel.delete(id, userId);
@@ -116,7 +131,7 @@ async function deleteEntry(req: Request, res: Response) {
 
     res.json({ message: "Entry deleted successfully" });
   } catch (error) {
-    logger.error("Delete library entry error: " + (error as Error).message);
+    logger.error(`Delete library entry error: ${(error as Error).message}`);
     res.status(500).json({ message: "Internal server error" });
   }
 }

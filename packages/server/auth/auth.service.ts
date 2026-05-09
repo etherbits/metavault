@@ -1,4 +1,3 @@
-import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import "dotenv/config";
 import type { Request, Response } from "express";
@@ -6,7 +5,7 @@ import { UserModel } from "../user/user.model";
 import { EmailService } from "../email/email.service";
 import { sql } from "../db";
 import { logger } from "../logger";
-import crypto from "crypto";
+import crypto from "node:crypto";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 const OTP_EXPIRY_MINUTES = 3;
@@ -126,7 +125,7 @@ async function signUp(req: Request, res: Response) {
         "User created successfully. Please check your email for verification code.",
     });
   } catch (error) {
-    logger.error("Sign up error: " + (error as Error).message);
+    logger.error(`Sign up error: ${(error as Error).message}`);
     if (
       error instanceof Error &&
       error.message.includes("UNIQUE constraint failed: users.username")
@@ -198,7 +197,7 @@ async function signIn(req: Request, res: Response) {
       },
     });
   } catch (error) {
-    logger.error("Sign in error: " + (error as Error).message);
+    logger.error(`Sign in error: ${(error as Error).message}`);
     res.status(500).json({ message: "Internal server error" });
   }
 }
@@ -235,7 +234,7 @@ async function verifyUser(req: Request, res: Response) {
     logger.info(`User verified: ${email}`);
     res.json({ message: "Account verified successfully" });
   } catch (error) {
-    logger.error("Verify user error: " + (error as Error).message);
+    logger.error(`Verify user error: ${(error as Error).message}`);
     res.status(500).json({ message: "Internal server error" });
   }
 }
@@ -261,7 +260,7 @@ async function resendVerificationCode(req: Request, res: Response) {
     logger.info(`Verification code resent: ${email}`);
     res.json({ message: "Verification code sent to your email" });
   } catch (error) {
-    logger.error("Resend verification error: " + (error as Error).message);
+    logger.error(`Resend verification error: ${(error as Error).message}`);
     if (isEmailDeliveryError(error)) {
       return res.status(502).json({
         message:
