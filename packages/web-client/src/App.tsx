@@ -1006,13 +1006,13 @@ export function App() {
 
                     <section className="flex min-w-0 flex-1 flex-col gap-6 pt-2 xl:pt-10">
                       <div className="flex w-full flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                        <h2 className="text-[32px] font-semibold leading-[36px] tracking-[-1px] text-[#FAFAFA]">
+                        <h2 className="text-[20px] font-semibold leading-6 text-[#FAFAFA]">
                           Content Nodes
                         </h2>
 
                         <button
                           type="button"
-                          className="inline-flex h-9 w-fit items-center gap-2 rounded-[8px] border border-[#3F3F46] bg-white/5 px-3 text-sm font-medium text-[#FAFAFA] opacity-60 shadow-sm"
+                          className="inline-flex h-9 w-fit items-center gap-2 rounded-[8px] border border-[#3F3F46] bg-white/5 px-3 text-sm font-medium text-[#FAFAFA] shadow-sm"
                         >
                           <Plus size={16} />
                           Add New
@@ -1033,21 +1033,21 @@ export function App() {
                                 size={20}
                                 className="shrink-0 text-[#A1A1AA]"
                               />
-                              <span className="truncate text-[34px] font-semibold leading-[27px] text-[#D4D4D8] [font-size:clamp(16px,1.2vw,30px)]">
+                              <span className="truncate text-[18px] font-semibold leading-[27px] text-[#D4D4D8]">
                                 {nodeTitle}
                               </span>
                             </div>
 
                             <button
                               type="button"
-                              className="inline-flex h-10 w-10 items-center justify-center rounded-[8px] border border-[#3F3F46] bg-white/5 text-[#FAFAFA] opacity-60 shadow-sm"
+                              className="inline-flex h-10 w-10 items-center justify-center rounded-[8px] border border-[#3F3F46] bg-white/5 text-[#FAFAFA] shadow-sm"
                             >
                               <Link2 size={16} />
                             </button>
 
                             <button
                               type="button"
-                              className="inline-flex h-10 w-10 items-center justify-center rounded-[8px] border border-[#3F3F46] bg-white/5 text-[#FAFAFA] opacity-60 shadow-sm"
+                              className="inline-flex h-10 w-10 items-center justify-center rounded-[8px] border border-[#3F3F46] bg-white/5 text-[#FAFAFA] shadow-sm"
                             >
                               <Pencil size={16} />
                             </button>
@@ -1078,7 +1078,7 @@ export function App() {
 
                           <button
                             type="button"
-                            className="inline-flex h-10 w-10 items-center justify-center rounded-[8px] border border-[#3F3F46] bg-white/5 text-[#FAFAFA] opacity-60 shadow-sm"
+                            className="inline-flex h-10 w-10 items-center justify-center rounded-[8px] border border-[#3F3F46] bg-white/5 text-[#FAFAFA] shadow-sm"
                           >
                             <Save size={16} />
                           </button>

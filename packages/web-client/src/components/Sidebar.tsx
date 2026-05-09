@@ -71,7 +71,7 @@ function SidebarText({
 function SidebarBrand({ isOpen }: { isOpen: boolean }) {
   return (
     <div className="flex h-11 min-w-0 items-center gap-2 p-2">
-      <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden">
+      <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-[6px] bg-[#27272A]">
         <MetaIcon className="h-6 w-[22px]" />
       </div>
 
@@ -261,9 +261,11 @@ function SidebarUser({
         <SidebarText isOpen={isOpen} className="min-w-0 flex-1">
           <div className="flex min-w-0 flex-col leading-tight">
             <span className="truncate text-sm text-[#FAFAFA]">{user.name}</span>
-            <span className="truncate text-xs text-[#A1A1AA]">
-              {user.email}
-            </span>
+            {user.email ? (
+              <span className="truncate text-xs text-[#A1A1AA]">
+                {user.email}
+              </span>
+            ) : null}
           </div>
         </SidebarText>
       </button>
