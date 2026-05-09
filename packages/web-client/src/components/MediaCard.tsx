@@ -86,6 +86,7 @@ export function MediaCard({
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const [submenuSide, setSubmenuSide] = useState<"left" | "right">("left");
+  const [menuDirection, setMenuDirection] = useState<"down" | "up">("down");
   const menuRef = useRef<HTMLDivElement | null>(null);
   const menuButtonRef = useRef<HTMLDivElement | null>(null);
 
@@ -99,6 +100,7 @@ export function MediaCard({
         const gap = 12;
         const viewportPadding = 8;
         const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
 
         let nextLeft = triggerRect.left - panelWidth - gap;
 
@@ -112,7 +114,35 @@ export function MediaCard({
         );
         nextLeft = Math.min(Math.max(viewportPadding, nextLeft), maxLeft);
 
-        const nextTop = Math.max(8, triggerRect.bottom - panelHeight);
+        const downTop = triggerRect.bottom + gap;
+        const upTop = triggerRect.top - gap - panelHeight;
+        const fitsDown =
+          downTop + panelHeight <= viewportHeight - viewportPadding;
+        const fitsUp = upTop >= viewportPadding;
+
+        let nextTop = downTop;
+        let nextMenuDirection: "down" | "up" = "down";
+
+        if (fitsDown) {
+          nextTop = downTop;
+          nextMenuDirection = "down";
+        } else if (fitsUp) {
+          nextTop = upTop;
+          nextMenuDirection = "up";
+        } else {
+          const spaceBelow =
+            viewportHeight - viewportPadding - triggerRect.bottom - gap;
+          const spaceAbove = triggerRect.top - viewportPadding - gap;
+          nextMenuDirection = spaceAbove > spaceBelow ? "up" : "down";
+
+          nextTop =
+            nextMenuDirection === "up"
+              ? Math.max(viewportPadding, upTop)
+              : Math.min(
+                  downTop,
+                  viewportHeight - panelHeight - viewportPadding
+                );
+        }
 
         const canOpenSubmenuLeft =
           nextLeft - gap - submenuWidth >= viewportPadding;
@@ -130,6 +160,7 @@ export function MediaCard({
           setSubmenuSide(rightSpace > leftSpace ? "right" : "left");
         }
 
+        setMenuDirection(nextMenuDirection);
         setMenuPosition({ top: nextTop, left: nextLeft });
       }
     }
@@ -280,6 +311,7 @@ export function MediaCard({
                     setMenuOpen(false);
                   }}
                   submenuSide={submenuSide}
+                  submenuDirection={menuDirection}
                   style={{
                     top: `${menuPosition.top}px`,
                     left: `${menuPosition.left}px`,
