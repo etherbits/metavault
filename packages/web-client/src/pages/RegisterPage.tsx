@@ -2,7 +2,7 @@ import { useState, type InputHTMLAttributes, type ReactNode } from "react";
 import { Eye, EyeOff, Lock, Mail, User } from "lucide-react";
 import { useNavigate } from "react-router";
 import { signUp } from "@/lib/authApi";
-import MetaLogo from "@/assets/Meta.svg";
+import { MetaIcon } from "@/components/MetaIcon";
 
 type FieldProps = {
   label: string;
@@ -28,18 +28,18 @@ export function RegisterPage() {
       />
 
       <section
-        className="relative z-10 mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-[352px] flex-col items-center justify-center gap-10"
+        className="relative z-10 grid min-h-[calc(100vh-64px)] place-items-center gap-12 max-[420px]:gap-[30px]"
         aria-label="Create account"
       >
-        <img
-          src={MetaLogo}
-          alt="MetaVault"
-          className="h-[42px] w-12 object-contain"
-        />
+        <div
+          className="flex h-[42px] w-12 items-center justify-center"
+          aria-hidden="true"
+        >
+          <MetaIcon className="h-[42px] w-12" />
+        </div>
 
         <form
-          className="flex w-full flex-col gap-7 rounded-xl bg-[#27272a] p-6 text-[#e4e4e7] shadow-[0_18px_32px_rgba(0,0,0,0.24)]"
-          autoComplete="off"
+          className="flex w-full max-w-[320px] flex-col gap-8 rounded-lg bg-[#27272a] p-6 text-[#e4e4e7] shadow-[0_18px_32px_rgba(0,0,0,0.24)] max-[420px]:gap-8"
           onSubmit={async (event) => {
             event.preventDefault();
             setErrorMessage("");
@@ -73,7 +73,7 @@ export function RegisterPage() {
           }}
         >
           <header>
-            <h1 className="m-0 text-[20px] leading-6 font-semibold">
+            <h1 className="m-0 text-xl leading-tight font-semibold">
               Register
             </h1>
             <p className="mt-3 text-base leading-6 text-[#d4d4d8]">
@@ -149,7 +149,7 @@ export function RegisterPage() {
             }
           />
 
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 pt-2">
             {errorMessage ? (
               <p className="rounded-md border border-[#ef4444]/45 bg-[#450a0a] px-3 py-2 text-sm leading-5 text-[#fecaca]">
                 {errorMessage}
@@ -159,7 +159,7 @@ export function RegisterPage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="min-h-9 w-full cursor-pointer rounded-lg border border-transparent bg-[#facc15] px-3 py-2 text-sm leading-5 font-medium text-[#09090b] transition-[transform,filter,opacity] duration-120 hover:-translate-y-px hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-65 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#facc1566]"
+              className="min-h-9 w-full cursor-pointer rounded-lg border border-transparent bg-[#facc15] px-3 py-2 text-sm leading-5 font-medium text-[#09090b] transition-[transform,filter] duration-120 hover:-translate-y-px hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#facc1566]"
             >
               {isSubmitting ? "Creating account..." : "Create account"}
             </button>
@@ -192,7 +192,7 @@ function Field({
         {label}
       </span>
 
-      <span className="flex h-9 min-h-9 items-center gap-2 rounded-lg border border-[#3f3f46] bg-[rgba(255,255,255,0.05)] px-3 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+      <span className="flex min-h-9 items-center gap-2 rounded-lg border border-[#3f3f46] bg-[rgba(255,255,255,0.05)] px-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
         <span
           className="grid h-5 w-5 flex-none place-items-center text-[#a1a1aa]"
           aria-hidden="true"

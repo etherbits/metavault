@@ -8,8 +8,8 @@ import {
   Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import MetaLogo from "@/assets/Meta.png";
 import { Button } from "@/components/ui/button";
+import { MetaIcon } from "@/components/MetaIcon";
 
 type SidebarPage = "home" | "query" | "integrations" | "settings";
 
@@ -40,9 +40,12 @@ const navItems: SidebarNavItemConfig[] = [
 ];
 
 function getInitials(name: string): string {
-  const trimmed = name.trim();
-  if (!trimmed) return "?";
-  return trimmed[0]?.toUpperCase() ?? "?";
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+
+  if (parts.length === 0) return "";
+  if (parts.length === 1) return parts[0][0]?.toUpperCase() ?? "";
+
+  return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase();
 }
 
 function SidebarText({
@@ -72,12 +75,8 @@ function SidebarText({
 function SidebarBrand({ isOpen }: { isOpen: boolean }) {
   return (
     <div className="flex h-11 min-w-0 items-center gap-2 p-2">
-      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[#27272A]">
-        <img
-          src={MetaLogo}
-          alt="MetaVault"
-          className="h-4 w-4 object-contain"
-        />
+      <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden">
+        <MetaIcon className="h-6 w-[22px]" />
       </div>
 
       <SidebarText
