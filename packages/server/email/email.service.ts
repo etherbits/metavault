@@ -18,7 +18,7 @@ const transporter =
 class EmailService {
   async sendOtpCode(to: string, otpCode: string) {
     return transporter.sendMail({
-      from: "Metavault",
+      from: parsedEnv.EMAIL_FROM,
       to,
       subject: "Verify your account",
       html: `
@@ -37,7 +37,7 @@ class EmailService {
 
   async sendWelcomeEmail(to: string) {
     return transporter.sendMail({
-      from: "Metavault",
+      from: parsedEnv.EMAIL_FROM,
       to,
       subject: "Welcome",
       html: `

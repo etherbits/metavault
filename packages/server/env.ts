@@ -17,6 +17,7 @@ const envSchema = z
     EMAIL_HOST: z.string().optional(),
     EMAIL_USER: z.string().optional(),
     EMAIL_PASS: z.string().optional(),
+    EMAIL_FROM: z.string().optional(),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV === "test") return;
