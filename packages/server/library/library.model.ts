@@ -52,10 +52,9 @@ export interface UpdateLibraryEntryData {
   personal_rating?: number;
 }
 
-export class LibraryModel {
-  // CREATE
-  static async create(
-    data: CreateLibraryEntryData & { id: string },
+class LibraryModel {
+  async create(
+    data: CreateLibraryEntryData & { id: string }
   ): Promise<LibraryEntry> {
     const result = await sql`
       INSERT INTO library_entries (
@@ -88,8 +87,7 @@ export class LibraryModel {
     return result[0] as LibraryEntry;
   }
 
-  // GET BY ID
-  static async getById(id: string): Promise<LibraryEntry | null> {
+  async getById(id: string): Promise<LibraryEntry | null> {
     const result = await sql`
       SELECT * FROM library_entries WHERE id = ${id}
     `;
@@ -97,8 +95,7 @@ export class LibraryModel {
     return (result[0] as LibraryEntry) || null;
   }
 
-  // GET ALL USER ENTRIES
-  static async getByUser(userId: string): Promise<LibraryEntry[]> {
+  async getByUser(userId: string): Promise<LibraryEntry[]> {
     const result = await sql`
       SELECT * FROM library_entries
       WHERE user_id = ${userId}
@@ -108,11 +105,10 @@ export class LibraryModel {
     return result as LibraryEntry[];
   }
 
-  // UPDATE
-  static async update(
+  async update(
     id: string,
     userId: string,
-    data: UpdateLibraryEntryData,
+    data: UpdateLibraryEntryData
   ): Promise<LibraryEntry | null> {
     const result = await sql`
       UPDATE library_entries
@@ -134,8 +130,7 @@ export class LibraryModel {
     return (result[0] as LibraryEntry) || null;
   }
 
-  // DELETE
-  static async delete(id: string, userId: string): Promise<boolean> {
+  async delete(id: string, userId: string): Promise<boolean> {
     const result = await sql`
       DELETE FROM library_entries
       WHERE id = ${id}
@@ -146,3 +141,5 @@ export class LibraryModel {
     return result.length > 0;
   }
 }
+
+export const libraryModel = new LibraryModel();

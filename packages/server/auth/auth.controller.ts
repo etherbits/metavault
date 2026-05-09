@@ -1,34 +1,84 @@
 import { Router } from "express";
-import { validateMiddleware } from "../middleware/validation";
+import { parsedEnv } from "../env";
+import { rateLimit } from "../middleware/rateLimit";
+import { validatedRoute } from "../middleware/validation";
 import {
   resendVerificationSchema,
   signInSchema,
   signUpSchema,
   verifyUserSchema,
-} from "../user/user.validation";
-import { AuthService } from "./auth.service";
+} from "../user/user.schema";
+import { sendServiceError } from "../utils/http";
+import { authService } from "./auth.service";
 
-const authRouter = Router();
+const authCookieOptions = {
+  httpOnly: true,
+  secure: parsedEnv.NODE_ENV === "production",
+  sameSite: "lax" as const,
+  maxAge: 1000 * 60 * 60,
+};
 
-authRouter.post(
-  "/sign-up",
-  validateMiddleware(signUpSchema),
-  AuthService.signUp,
-);
-authRouter.post(
-  "/sign-in",
-  validateMiddleware(signInSchema),
-  AuthService.signIn,
-);
-authRouter.post(
-  "/verify-user",
-  validateMiddleware(verifyUserSchema),
-  AuthService.verifyUser,
-);
-authRouter.post(
-  "/resend-verification-code",
-  validateMiddleware(resendVerificationSchema),
-  AuthService.resendVerificationCode,
-);
+const authRouter = Router()
+  .use(
+    rateLimit({
+      windowMs: parsedEnv.RATE_LIMIT_WINDOW_MS,
+      max: parsedEnv.AUTH_RATE_LIMIT_MAX,
+    })
+  )
+  .post(
+    "/sign-up",
+    ...validatedRoute({ body: signUpSchema }, async (req, res) => {
+      const result = await authService.signUp(req.body);
+      if (!result.ok) {
+        return sendServiceError(res, result.error);
+      }
+
+      return res.json(result.data);
+    })
+  )
+  .post(
+    "/sign-in",
+    ...validatedRoute({ body: signInSchema }, async (req, res) => {
+      const result = await authService.signIn(req.body);
+      if (!result.ok) {
+        return sendServiceError(res, result.error);
+      }
+
+      res.cookie("access_token", result.data.token, authCookieOptions);
+      return res.json({
+        message: result.data.message,
+        user: result.data.user,
+      });
+    })
+  )
+  .post(
+    "/verify-user",
+    ...validatedRoute({ body: verifyUserSchema }, async (req, res) => {
+      const result = await authService.verifyUser(req.body);
+      if (!result.ok) {
+        return sendServiceError(res, result.error);
+      }
+
+      return res.json(result.data);
+    })
+  )
+  .post(
+    "/resend-verification-code",
+    ...validatedRoute({ body: resendVerificationSchema }, async (req, res) => {
+      const result = await authService.resendVerificationCode(req.body);
+      if (!result.ok) {
+        return sendServiceError(res, result.error);
+      }
+
+      return res.json(result.data);
+    })
+  )
+  .post(
+    "/logout",
+    ...validatedRoute({ auth: true }, async (_req, res) => {
+      res.clearCookie("access_token", authCookieOptions);
+      return res.json({ message: "Logged out successfully" });
+    })
+  );
 
 export default authRouter;

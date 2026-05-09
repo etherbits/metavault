@@ -1,117 +1,317 @@
-use regex::Regex;
 use thiserror::Error;
 
-pub struct Tokenizer {}
+use crate::{fuzzy_matcher::FuzzyMatcher, lang::ACTION_KEYWORDS};
+
+pub struct Tokenizer {
+    matcher: FuzzyMatcher,
+}
 
 impl Tokenizer {
     pub fn new() -> Self {
-        Tokenizer {}
-    }
-
-    fn tokenize_to_sections(
-        &self,
-        trimmed_query: &str,
-    ) -> Result<TokenizedSections, TokenizerError> {
-        let Some(action_end_idx) = trimmed_query.find(" ") else {
-            return Ok(TokenizedSections {
-                action_section: trimmed_query.to_string(),
-                target_section: String::new(),
-                qualification_section: String::new(),
-            });
-        };
-
-        let metadata_re = Regex::new(" [a-zA-Z]+:").unwrap();
-
-        let first_metadata = metadata_re.find(trimmed_query);
-        let target_end_idx = match first_metadata {
-            Some(m) => m.start(),
-            None => trimmed_query.len(),
-        };
-
-        let action_section = trimmed_query[..action_end_idx].trim().to_string();
-        let target_section = if action_end_idx < target_end_idx {
-            trimmed_query[(action_end_idx + 1)..target_end_idx]
-                .trim()
-                .to_string()
-        } else {
-            "".to_string()
-        };
-        let qualification_section = trimmed_query[target_end_idx..].trim().to_string();
-
-        Ok(TokenizedSections {
-            action_section,
-            target_section,
-            qualification_section: qualification_section,
-        })
-    }
-
-    fn tokenize_target(&self, target: &String) -> Vec<String> {
-        if target.trim().is_empty() {
-            return vec![];
-        }
-        let target_re = Regex::new(r#""[^"]*""#).unwrap();
-        let targets: Vec<String> = target_re
-            .find_iter(&target)
-            .map(|m| m.as_str().trim().replace("\"", "").to_string())
-            .collect();
-
-        if targets.is_empty() {
-            vec![target.clone()]
-        } else {
-            targets
+        Tokenizer {
+            matcher: FuzzyMatcher::new(),
         }
     }
 
-    fn tokenize_metadata(&self, metadata: &String) -> Vec<String> {
-        let metadata_re = Regex::new(r#"[^ ^:]+(?::[^ ^:]+)+"#).unwrap();
-
-        let tokenized_metadata = metadata_re
-            .find_iter(&metadata)
-            .map(|m| m.as_str().to_string())
-            .collect();
-
-        self.refine_tokenized_metadata(tokenized_metadata)
+    fn resolve_action(&self, action: &str) -> String {
+        let stripped = action.strip_prefix('/').unwrap_or(action);
+        self.matcher.fuzzy_match(stripped, ACTION_KEYWORDS)
     }
 
-    fn refine_tokenized_metadata(&self, tokenized_metadata: Vec<String>) -> Vec<String> {
-        tokenized_metadata
+    fn expand_qualifier_value_list(&self, qualifier: &str) -> Vec<String> {
+        let Some((qualifier_type_section, qualifier_value_section)) = qualifier.split_once(':')
+        else {
+            return qualifier.split(",").map(|s| s.trim().to_string()).collect();
+        };
+
+        let qualifier_types: Vec<&str> = qualifier_type_section
+            .split(",")
+            .map(|s| s.trim())
+            .collect();
+
+        let expanded_inner_qualifiers = self.expand_qualifier_value_list(qualifier_value_section);
+
+        qualifier_types
             .into_iter()
-            .flat_map(|m| {
-                let Some((meta_key, meta_value)) = m.split_once(':') else {
-                    return vec![m];
-                };
-
-                let metas = meta_value
-                    .split(",")
-                    .map(|s| s.trim().to_string())
-                    .collect();
-                let refined_metas = self.refine_tokenized_metadata(metas);
-                refined_metas
-                    .into_iter()
-                    .map(|rm| (meta_key.to_owned() + ":" + &rm).to_string())
-                    .collect()
+            .flat_map(|qualifier_type| {
+                expanded_inner_qualifiers
+                    .iter()
+                    .map(|qualifier_value| {
+                        (qualifier_type.to_string() + ":" + qualifier_value).to_string()
+                    })
+                    .collect::<Vec<String>>()
             })
             .collect()
     }
 
-    fn finalize_tokenization(
-        &self,
-        tokenized_sections: &TokenizedSections,
-    ) -> Result<TokenizedQuery, TokenizerError> {
-        Ok(TokenizedQuery {
-            action: tokenized_sections.action_section.clone(),
-            targets: self.tokenize_target(&tokenized_sections.target_section),
-            qualifications: self.tokenize_metadata(&tokenized_sections.qualification_section),
+    fn split_at_indices(&self, s: &str, indices: Vec<usize>) -> Vec<String> {
+        let mut result = Vec::new();
+        let mut last = 0;
+        for &i in indices.iter() {
+            result.push(s[last..i].to_string());
+            last = i + 1;
+        }
+        result.push(s[last..].to_string());
+        result
+    }
+
+    fn strip_global_paren(&self, query: &str) -> (String, bool) {
+        if !query.starts_with('(') && !query.starts_with("!(") {
+            return (query.to_string(), false);
+        }
+        let mut open_count = 0;
+
+        for (i, ch) in query.char_indices() {
+            if ch == '(' {
+                open_count += 1;
+            } else if ch == ')' {
+                if i == query.len() - 1 && open_count == 1 {
+                    return (
+                        query
+                            .replacen("(", "", 1)
+                            .strip_suffix(")")
+                            .unwrap()
+                            .to_string(),
+                        true,
+                    );
+                } else if open_count == 1 {
+                    return (query.to_string(), false);
+                }
+
+                open_count -= 1;
+            }
+        }
+
+        (query.to_string(), false)
+    }
+
+    fn get_action_term(&self, query: &str) -> Option<String> {
+        let mut escape = false;
+        let mut start_idx = None;
+        let mut end_idx = None;
+
+        for (i, ch) in query.char_indices() {
+            match ch {
+                '/' => start_idx = Some(i),
+                ' ' | '|' | ':' | '(' | ')' => {
+                    if start_idx.is_none() {
+                        continue;
+                    };
+                    end_idx = Some(i);
+                    break;
+                }
+                '\\' => escape = !escape,
+                _ => escape = false,
+            }
+        }
+
+        if start_idx.is_none() {
+            return None;
+        }
+
+        let start_idx = start_idx.unwrap();
+        let end_idx = match end_idx {
+            Some(idx) => idx,
+            None => query.len(),
+        };
+
+        if start_idx > query.len()
+            || end_idx > query.len()
+            || start_idx >= end_idx
+            || end_idx.abs_diff(start_idx) < 2
+        {
+            return None;
+        }
+
+        return Some(query[start_idx..end_idx].to_string());
+    }
+
+    fn split_top_level_update_separator(&self, s: &str) -> Option<(String, String)> {
+        let mut open_count = 0;
+
+        for (i, ch) in s.char_indices() {
+            if ch == '(' {
+                open_count += 1;
+                continue;
+            }
+
+            if ch == ')' {
+                open_count -= 1;
+                continue;
+            }
+
+            if open_count == 0
+                && ch == '>'
+                && i > 0
+                && s[..i].ends_with(' ')
+                && s[i + ch.len_utf8()..].starts_with(' ')
+            {
+                let left = s[..i].trim().to_string();
+                let right = s[i + ch.len_utf8()..].trim().to_string();
+                return Some((left, right));
+            }
+        }
+
+        None
+    }
+
+    fn generate_token_tree(&self, query: &str) -> Result<ASTExpr, TokenizerError> {
+        let action = match self.get_action_term(query) {
+            Some(action) => action,
+            None => "/search".to_string(),
+        };
+
+        let query = &query.replace(&action, "").replace("/", "");
+
+        let expression = if self.resolve_action(&action) == "update" {
+            let Some((selection, values)) = self.split_top_level_update_separator(query) else {
+                return Err(TokenizerError::MalformedUpdateExpression);
+            };
+
+            if selection.is_empty() || values.is_empty() {
+                return Err(TokenizerError::MalformedUpdateExpression);
+            }
+
+            ASTExpr::Update {
+                selection: Box::new(self.tokenize_expression(&selection)),
+                values: Box::new(self.tokenize_expression(&values)),
+            }
+        } else {
+            self.tokenize_expression(query)
+        };
+
+        Ok(ASTExpr::Root {
+            action: action.strip_prefix("/").unwrap().to_string(),
+            expression: Box::new(expression),
         })
     }
 
-    pub fn tokenize(&self, mut input_query: &str) -> Result<TokenizedQuery, TokenizerError> {
+    fn tokenize_expression(&self, query: &str) -> ASTExpr {
+        let (query_without_global_paren, had_global_paren) = self.strip_global_paren(query.trim());
+        let query = query_without_global_paren.as_str();
+
+        if query.is_empty() {
+            return ASTExpr::And(vec![]);
+        }
+
+        if query.starts_with("!") && had_global_paren {
+            return ASTExpr::Not(Box::new(
+                self.tokenize_expression(query.strip_prefix("!").unwrap()),
+            ));
+        }
+
+        if !query.contains("|") && !query.contains(" ") {
+            if query.starts_with("!") {
+                return ASTExpr::Not(Box::new(
+                    self.tokenize_expression(query.strip_prefix("!").unwrap()),
+                ));
+            }
+
+            let qualifiers: Vec<ASTExpr> = self
+                .expand_qualifier_value_list(query)
+                .iter()
+                .map(|q| ASTExpr::Leaf(q.to_string()))
+                .collect();
+
+            if qualifiers.len() > 1 {
+                return ASTExpr::And(qualifiers);
+            } else {
+                return qualifiers[0].clone();
+            }
+        }
+
+        let mut curr_or_indicies = vec![];
+        let mut curr_and_indicies = vec![];
+
+        let mut open_count = 0;
+
+        for (i, ch) in query.char_indices() {
+            if ch == '(' {
+                open_count += 1;
+            } else if ch == ')' {
+                open_count -= 1;
+            }
+
+            if open_count > 0 {
+                continue;
+            }
+
+            if ch == '|' {
+                curr_or_indicies.push(i);
+            } else if ch == ' ' {
+                curr_and_indicies.push(i);
+            }
+        }
+
+        if curr_or_indicies.len() > 0 {
+            return ASTExpr::Or(
+                self.split_at_indices(query, curr_or_indicies)
+                    .iter()
+                    .filter(|term| term.trim().len() > 0)
+                    .map(|term| self.tokenize_expression(term))
+                    .collect::<Vec<ASTExpr>>(),
+            );
+        } else {
+            return ASTExpr::And(
+                self.split_at_indices(query, curr_and_indicies)
+                    .iter()
+                    .filter(|term| term.trim().len() > 0)
+                    .map(|term| self.tokenize_expression(term))
+                    .collect::<Vec<ASTExpr>>(),
+            );
+        }
+    }
+
+    /// Normalizes a [`TokenExpr`] by flattening nested logical expressions.
+    ///
+    /// Applies the following rules recursively:
+    /// - `And(And(a, b), c)` → `And(a, b, c)` (nested `And` inside `And` is flattened)
+    /// - `Or(Or(a, b), c)` → `Or(a, b, c)` (nested `Or` inside `Or` is flattened)
+    fn normalize_expr(&self, expr: ASTExpr) -> ASTExpr {
+        match expr {
+            ASTExpr::And(children) => {
+                let mut flat = Vec::new();
+                for child in children {
+                    match self.normalize_expr(child) {
+                        ASTExpr::And(inner) => flat.extend(inner),
+                        other => flat.push(other),
+                    }
+                }
+                ASTExpr::And(flat)
+            }
+            ASTExpr::Or(children) => {
+                let mut flat = Vec::new();
+                for child in children {
+                    match self.normalize_expr(child) {
+                        ASTExpr::Or(inner) => flat.extend(inner),
+                        other => flat.push(other),
+                    }
+                }
+                ASTExpr::Or(flat)
+            }
+            ASTExpr::Not(inner) => ASTExpr::Not(Box::new(self.normalize_expr(*inner))),
+            ASTExpr::Update { selection, values } => ASTExpr::Update {
+                selection: Box::new(self.normalize_expr(*selection)),
+                values: Box::new(self.normalize_expr(*values)),
+            },
+            ASTExpr::Root { action, expression } => ASTExpr::Root {
+                action,
+                expression: Box::new(self.normalize_expr(*expression)),
+            },
+            leaf => leaf,
+        }
+    }
+
+    pub fn tokenize(&self, mut input_query: &str) -> Result<ASTExpr, TokenizerError> {
         input_query = input_query.trim();
         if input_query.is_empty() {
             return Err(TokenizerError::EmptyInput);
         }
-        let tokenized_sections = self.tokenize_to_sections(input_query).unwrap();
-        self.finalize_tokenization(&tokenized_sections)
+
+        let token_tree = self.generate_token_tree(input_query)?;
+        let normalized_tree = self.normalize_expr(token_tree);
+
+        Ok(normalized_tree)
     }
 }
 
@@ -119,96 +319,70 @@ impl Tokenizer {
 pub enum TokenizerError {
     #[error("the input query was empty")]
     EmptyInput,
+    #[error("`update` requires `<match query> > <write query>`")]
+    MalformedUpdateExpression,
 }
 
-struct TokenizedSections {
-    action_section: String,
-    target_section: String,
-    qualification_section: String,
-}
-
-#[derive(Debug)]
-pub struct TokenizedQuery {
-    pub action: String,
-    pub targets: Vec<String>,
-    pub qualifications: Vec<String>,
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, tsify_next::Tsify)]
+#[tsify(into_wasm_abi, from_wasm_abi)]
+pub enum ASTExpr {
+    Root {
+        action: String,
+        expression: Box<ASTExpr>,
+    },
+    Update {
+        selection: Box<ASTExpr>,
+        values: Box<ASTExpr>,
+    },
+    And(Vec<ASTExpr>),
+    Or(Vec<ASTExpr>),
+    Not(Box<ASTExpr>),
+    Leaf(String),
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
-    fn multi_title_multi_meta() {
-        let input_query =
-            r#"s "AOT" "Attack On Titan" type:tv-series tg:action,monster release:>2020"#;
-        let tokenized_query = Tokenizer::new().tokenize(input_query).unwrap();
-
-        assert_eq!(tokenized_query.action, "s");
-        assert_eq!(
-            tokenized_query.targets,
-            vec!["AOT".to_string(), "Attack On Titan".to_string()]
-        );
-        assert_eq!(
-            tokenized_query.qualifications,
-            vec!["type:tv-series", "tg:action", "tg:monster", "release:>2020"]
-        );
+    fn tk() -> Tokenizer {
+        Tokenizer::new()
     }
 
-    #[test]
-    fn multi_title() {
-        let input_query = r#"s "AOT" "Attack On Titan""#;
-        let tokenized_query = Tokenizer::new().tokenize(input_query).unwrap();
-
-        assert_eq!(tokenized_query.action, "s");
-        assert_eq!(
-            tokenized_query.targets,
-            vec!["AOT".to_string(), "Attack On Titan".to_string()]
-        );
-        assert_eq!(tokenized_query.qualifications.is_empty(), true);
+    fn root(action: &str, expr: ASTExpr) -> ASTExpr {
+        ASTExpr::Root {
+            action: action.to_string(),
+            expression: Box::new(expr),
+        }
     }
 
-    #[test]
-    fn single_title_single_tag() {
-        let input_query = r#"s Attack On Titan tag:action"#;
-        let tokenized_query = Tokenizer::new().tokenize(input_query).unwrap();
-
-        assert_eq!(tokenized_query.action, "s");
-        assert_eq!(tokenized_query.targets, vec!["Attack On Titan".to_string()]);
-        assert_eq!(
-            tokenized_query.qualifications,
-            vec!["tag:action".to_string()]
-        );
+    fn leaf(s: &str) -> ASTExpr {
+        ASTExpr::Leaf(s.to_string())
     }
 
-    #[test]
-    fn action_metadata() {
-        let input_query = r#"s tag:action"#;
-        let tokenized_query = Tokenizer::new().tokenize(input_query).unwrap();
-
-        assert_eq!(tokenized_query.action, "s");
-        assert_eq!(tokenized_query.targets.is_empty(), true);
-        assert_eq!(
-            tokenized_query.qualifications,
-            vec!["tag:action".to_string()]
-        );
+    fn and(items: Vec<ASTExpr>) -> ASTExpr {
+        ASTExpr::And(items)
     }
 
-    #[test]
-    fn single_title() {
-        let input_query = r#"s Attack On Titan"#;
-        let tokenized_query = Tokenizer::new().tokenize(input_query).unwrap();
-
-        assert_eq!(tokenized_query.action, "s");
-        assert_eq!(tokenized_query.targets, vec!["Attack On Titan".to_string()]);
-        assert_eq!(tokenized_query.qualifications.is_empty(), true);
+    fn or(items: Vec<ASTExpr>) -> ASTExpr {
+        ASTExpr::Or(items)
     }
 
-    #[test]
-    fn empty_input() {
-        let input_query = r#"  "#;
-        let result = Tokenizer::new().tokenize(input_query);
+    fn not(item: ASTExpr) -> ASTExpr {
+        ASTExpr::Not(Box::new(item))
+    }
 
+    fn update(selection: ASTExpr, values: ASTExpr) -> ASTExpr {
+        ASTExpr::Update {
+            selection: Box::new(selection),
+            values: Box::new(values),
+        }
+    }
+
+    // === tokenize: input validation ===
+
+    #[test]
+    fn empty_input_returns_error() {
+        let result = tk().tokenize("   ");
         assert!(result.is_err());
         assert_eq!(
             result.err().unwrap().to_string(),
@@ -216,31 +390,312 @@ mod tests {
         );
     }
 
-    #[test]
-    fn only_action() {
-        let input_query = r#"s"#;
-        let tokenized_query = Tokenizer::new().tokenize(input_query).unwrap();
+    // === tokenize: action handling ===
 
-        assert_eq!(tokenized_query.action, "s");
-        assert_eq!(tokenized_query.targets.is_empty(), true);
-        assert_eq!(tokenized_query.qualifications.is_empty(), true);
+    #[test]
+    fn defaults_to_search_when_no_action_term() {
+        let ast = tk().tokenize("hello").unwrap();
+        assert_eq!(ast, root("search", leaf("hello")));
     }
 
     #[test]
-    fn nested_meta() {
-        let input_query = r#"s attack tag:action,adventure:minor,dark tag:fantasy"#;
-        let tokenized_query = Tokenizer::new().tokenize(input_query).unwrap();
+    fn explicit_action_overrides_default() {
+        let ast = tk().tokenize("/create hello").unwrap();
+        assert_eq!(ast, root("create", leaf("hello")));
+    }
 
-        assert_eq!(tokenized_query.action, "s");
-        assert_eq!(tokenized_query.targets, vec!["attack"]);
+    #[test]
+    fn action_can_appear_anywhere_in_input() {
+        let ast = tk()
+            .tokenize("hello /update world > status:finished")
+            .unwrap();
         assert_eq!(
-            tokenized_query.qualifications,
+            ast,
+            root(
+                "update",
+                update(
+                    and(vec![leaf("hello"), leaf("world")]),
+                    leaf("status:finished")
+                )
+            )
+        );
+    }
+
+    #[test]
+    fn update_requires_top_level_separator() {
+        let err = tk().tokenize("/update id:42 status:finished").unwrap_err();
+        assert!(matches!(err, TokenizerError::MalformedUpdateExpression));
+    }
+
+    #[test]
+    fn update_requires_spaces_around_separator() {
+        let err = tk().tokenize("/update id:42>status:finished").unwrap_err();
+        assert!(matches!(err, TokenizerError::MalformedUpdateExpression));
+    }
+
+    #[test]
+    fn update_splits_match_and_write_sides() {
+        let ast = tk()
+            .tokenize("/update (status:planning|status:on_hold) id:42 > status:finished tag:action")
+            .unwrap();
+        assert_eq!(
+            ast,
+            root(
+                "update",
+                update(
+                    and(vec![
+                        or(vec![leaf("status:planning"), leaf("status:on_hold")]),
+                        leaf("id:42"),
+                    ]),
+                    and(vec![leaf("status:finished"), leaf("tag:action")]),
+                )
+            )
+        );
+    }
+
+    #[test]
+    fn update_abbreviation_still_triggers_split() {
+        let ast = tk().tokenize("/u attack > status:progress").unwrap();
+        assert_eq!(
+            ast,
+            root("u", update(leaf("attack"), leaf("status:progress")),)
+        );
+    }
+
+    #[test]
+    fn update_does_not_split_on_inequality_operator() {
+        let ast = tk()
+            .tokenize("/update created_at:>=01-06-2024 > status:finished")
+            .unwrap();
+        assert_eq!(
+            ast,
+            root(
+                "update",
+                update(leaf("created_at:>=01-06-2024"), leaf("status:finished"))
+            )
+        );
+    }
+
+    #[test]
+    fn single_char_action_after_slash_too_short_to_be_action() {
+        // get_action_term requires the slice (incl. '/') to be >= 2 chars,
+        // so "/" alone falls back to the default "/search" and the bare "/"
+        // is stripped from the expression, leaving an empty conjunction.
+        let ast = tk().tokenize("/").unwrap();
+        assert_eq!(ast, root("search", and(vec![])));
+    }
+
+    #[test]
+    fn action_only_input_yields_empty_conjunction() {
+        let ast = tk().tokenize("/s").unwrap();
+        assert_eq!(ast, root("s", and(vec![])));
+
+        let ast = tk().tokenize("/search").unwrap();
+        assert_eq!(ast, root("search", and(vec![])));
+    }
+
+    // === tokenize: leaf-level expressions ===
+
+    #[test]
+    fn single_qualifier_is_leaf() {
+        let ast = tk().tokenize("tag:action").unwrap();
+        assert_eq!(ast, root("search", leaf("tag:action")));
+    }
+
+    // === tokenize: AND / OR / NOT ===
+
+    #[test]
+    fn space_separated_terms_become_and() {
+        let ast = tk().tokenize("hello world").unwrap();
+        assert_eq!(ast, root("search", and(vec![leaf("hello"), leaf("world")])));
+    }
+
+    #[test]
+    fn pipe_separated_terms_become_or() {
+        let ast = tk().tokenize("a|b").unwrap();
+        assert_eq!(ast, root("search", or(vec![leaf("a"), leaf("b")])));
+    }
+
+    #[test]
+    fn or_takes_precedence_over_and_at_top_level() {
+        let ast = tk().tokenize("a b|c").unwrap();
+        assert_eq!(
+            ast,
+            root(
+                "search",
+                or(vec![and(vec![leaf("a"), leaf("b")]), leaf("c")])
+            ),
+        );
+    }
+
+    #[test]
+    fn negation_with_bang_on_single_term() {
+        let ast = tk().tokenize("!tag:action").unwrap();
+        assert_eq!(ast, root("search", not(leaf("tag:action"))));
+    }
+
+    #[test]
+    fn negation_with_bang_on_paren_group() {
+        let ast = tk().tokenize("!(a b)").unwrap();
+        assert_eq!(ast, root("search", not(and(vec![leaf("a"), leaf("b")]))),);
+    }
+
+    // === tokenize: parentheses & precedence ===
+
+    #[test]
+    fn parens_group_or_inside_and() {
+        let ast = tk().tokenize("a (b|c)").unwrap();
+        assert_eq!(
+            ast,
+            root(
+                "search",
+                and(vec![leaf("a"), or(vec![leaf("b"), leaf("c")])])
+            ),
+        );
+    }
+
+    #[test]
+    fn parens_protect_inner_pipe_from_top_level_or() {
+        // Without the parens this would be Or([Leaf("a b"), Leaf("c")]).
+        let ast = tk().tokenize("a (b|c) d").unwrap();
+        assert_eq!(
+            ast,
+            root(
+                "search",
+                and(vec![leaf("a"), or(vec![leaf("b"), leaf("c")]), leaf("d"),]),
+            ),
+        );
+    }
+
+    // === tokenize: normalization (flattening) ===
+
+    #[test]
+    fn nested_and_is_flattened() {
+        let ast = tk().tokenize("(a b) c").unwrap();
+        assert_eq!(
+            ast,
+            root("search", and(vec![leaf("a"), leaf("b"), leaf("c")])),
+        );
+    }
+
+    #[test]
+    fn nested_or_is_flattened() {
+        let ast = tk().tokenize("(a|b)|c").unwrap();
+        assert_eq!(
+            ast,
+            root("search", or(vec![leaf("a"), leaf("b"), leaf("c")])),
+        );
+    }
+
+    // === tokenize: qualifier value list expansion ===
+
+    #[test]
+    fn comma_in_qualifier_type_expands_to_and() {
+        let ast = tk().tokenize("tag,status:in_progress").unwrap();
+        assert_eq!(
+            ast,
+            root(
+                "search",
+                and(vec![leaf("tag:in_progress"), leaf("status:in_progress")]),
+            ),
+        );
+    }
+
+    #[test]
+    fn comma_in_qualifier_value_expands_to_and() {
+        let ast = tk().tokenize("tag:action,adventure").unwrap();
+        assert_eq!(
+            ast,
+            root(
+                "search",
+                and(vec![leaf("tag:action"), leaf("tag:adventure")]),
+            ),
+        );
+    }
+
+    #[test]
+    fn nested_qualifier_expansion_produces_cartesian_product() {
+        let ast = tk().tokenize("tag:action,adventure:minor,dark").unwrap();
+        assert_eq!(
+            ast,
+            root(
+                "search",
+                and(vec![
+                    leaf("tag:action:minor"),
+                    leaf("tag:action:dark"),
+                    leaf("tag:adventure:minor"),
+                    leaf("tag:adventure:dark"),
+                ]),
+            ),
+        );
+    }
+
+    // === tokenize: expand_qualifier_value_list (direct) ===
+
+    #[test]
+    fn expand_qualifier_no_colon_splits_on_comma() {
+        let result = tk().expand_qualifier_value_list("a, b ,c");
+        assert_eq!(result, vec!["a", "b", "c"]);
+    }
+
+    #[test]
+    fn expand_qualifier_single_pair() {
+        let result = tk().expand_qualifier_value_list("tag:action");
+        assert_eq!(result, vec!["tag:action"]);
+    }
+
+    #[test]
+    fn expand_qualifier_value_list_recurses_through_colons() {
+        let result = tk().expand_qualifier_value_list("a,b:c,d:e,f");
+        assert_eq!(
+            result,
             vec![
-                "tag:action",
-                "tag:adventure:minor",
-                "tag:dark",
-                "tag:fantasy"
-            ]
+                "a:c:e", "a:c:f", "a:d:e", "a:d:f", "b:c:e", "b:c:f", "b:d:e", "b:d:f",
+            ],
+        );
+    }
+
+    // === normalize_expr (direct) ===
+
+    #[test]
+    fn normalize_flattens_deeply_nested_and() {
+        let nested = ASTExpr::And(vec![
+            ASTExpr::And(vec![leaf("a"), ASTExpr::And(vec![leaf("b"), leaf("c")])]),
+            leaf("d"),
+        ]);
+        assert_eq!(
+            tk().normalize_expr(nested),
+            and(vec![leaf("a"), leaf("b"), leaf("c"), leaf("d")]),
+        );
+    }
+
+    #[test]
+    fn normalize_does_not_collapse_or_inside_and() {
+        let nested = ASTExpr::And(vec![leaf("a"), ASTExpr::Or(vec![leaf("b"), leaf("c")])]);
+        assert_eq!(tk().normalize_expr(nested.clone()), nested,);
+    }
+
+    #[test]
+    fn normalize_recurses_under_not() {
+        let nested = ASTExpr::Not(Box::new(ASTExpr::And(vec![
+            ASTExpr::And(vec![leaf("a"), leaf("b")]),
+            leaf("c"),
+        ])));
+        assert_eq!(
+            tk().normalize_expr(nested),
+            not(and(vec![leaf("a"), leaf("b"), leaf("c")])),
+        );
+    }
+
+    #[test]
+    fn normalize_descends_through_root() {
+        let nested = root(
+            "search",
+            ASTExpr::And(vec![ASTExpr::And(vec![leaf("a"), leaf("b")]), leaf("c")]),
+        );
+        assert_eq!(
+            tk().normalize_expr(nested),
+            root("search", and(vec![leaf("a"), leaf("b"), leaf("c")])),
         );
     }
 }

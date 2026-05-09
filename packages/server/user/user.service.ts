@@ -1,53 +1,55 @@
-import type { Request, Response } from "express";
-import { UserModel } from "./user.model";
-import { deleteUserMediaDir } from "../storage/storage.service";
 import { logger } from "../logger";
+import { deleteUserMediaDir } from "../storage/storage.service";
+import { err, ok, type Result } from "../utils/result";
+import type { User } from "./user.model";
+import { userModel } from "./user.model";
 
-async function getUsers(req: Request, res: Response) {
-  try {
-    const users = await UserModel.getUsers();
-    res.json(users);
-  } catch (error) {
-    logger.error("Get users error: " + (error as Error).message);
-    res.status(500).json({ message: "Internal server error" });
-  }
+export type PublicUser = Omit<User, "password_hash">;
+
+function toPublicUser({
+  password_hash: _passwordHash,
+  ...user
+}: User): PublicUser {
+  return user;
 }
 
-async function getUserById(req: Request, res: Response) {
-  try {
-    const id = req.params.id as string;
-    const user = await UserModel.getUserById(id);
+class UserService {
+  async getUsers(): Promise<Result<User[]>> {
+    const users = await userModel.getUsers();
+    return ok(users);
+  }
+
+  async getUserById(id: string): Promise<Result<User>> {
+    const user = await userModel.getUserById(id);
 
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return err(404, "User not found");
     }
 
-    res.json(user);
-  } catch (error) {
-    logger.error("Get user by id error: " + (error as Error).message);
-    res.status(500).json({ message: "Internal server error" });
+    return ok(user);
   }
-}
 
-async function deleteUserById(req: Request, res: Response) {
-  try {
-    const id = req.params.id as string;
-    const deleted = await UserModel.deleteUser(id);
+  async getProfile(id: string): Promise<Result<PublicUser>> {
+    const user = await userModel.getUserById(id);
+
+    if (!user) {
+      return err(404, "User not found");
+    }
+
+    return ok(toPublicUser(user));
+  }
+
+  async deleteUserById(id: string): Promise<Result<{ message: string }>> {
+    const deleted = await userModel.deleteUser(id);
 
     if (!deleted) {
-      return res.status(404).json({ message: "User not found" });
+      return err(404, "User not found");
     }
 
     await deleteUserMediaDir(id);
-    res.json({ message: "User deleted successfully" });
-  } catch (error) {
-    logger.error("Delete user error: " + (error as Error).message);
-    res.status(500).json({ message: "Internal server error" });
+    logger.info(`User deleted: ${id}`);
+    return ok({ message: "User deleted successfully" });
   }
 }
 
-export const UserService = {
-  getUsers,
-  getUserById,
-  deleteUserById,
-};
+export const userService = new UserService();
