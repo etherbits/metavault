@@ -56,7 +56,7 @@ export function Pagination({
   const pages = getPages();
 
   return (
-    <div className="flex h-[30px] items-start gap-2">
+    <div className="flex h-[30px] items-center gap-2">
       <button
         type="button"
         onClick={() => onPageChange(Math.max(1, currentPage - 1))}
