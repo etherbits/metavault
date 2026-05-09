@@ -87,6 +87,7 @@ export function MediaCard({
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const [submenuSide, setSubmenuSide] = useState<"left" | "right">("left");
+  const [submenuVertical, setSubmenuVertical] = useState<"up" | "down">("down");
   const menuRef = useRef<HTMLDivElement | null>(null);
   const menuButtonRef = useRef<HTMLDivElement | null>(null);
 
@@ -100,6 +101,7 @@ export function MediaCard({
         const gap = 12;
         const viewportPadding = 8;
         const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
 
         let nextLeft = triggerRect.left - panelWidth - gap;
 
@@ -113,7 +115,18 @@ export function MediaCard({
         );
         nextLeft = Math.min(Math.max(viewportPadding, nextLeft), maxLeft);
 
-        const nextTop = Math.max(8, triggerRect.bottom - panelHeight);
+        let nextTop = triggerRect.bottom + gap;
+        let nextSubmenuVertical: "up" | "down" = "down";
+
+        if (nextTop + panelHeight > viewportHeight - viewportPadding) {
+          nextTop = triggerRect.top - panelHeight - gap;
+          nextSubmenuVertical = "up";
+        }
+
+        nextTop = Math.max(
+          viewportPadding,
+          Math.min(nextTop, viewportHeight - panelHeight - viewportPadding)
+        );
 
         const canOpenSubmenuLeft =
           nextLeft - gap - submenuWidth >= viewportPadding;
@@ -130,6 +143,8 @@ export function MediaCard({
           const rightSpace = viewportWidth - (nextLeft + panelWidth);
           setSubmenuSide(rightSpace > leftSpace ? "right" : "left");
         }
+
+        setSubmenuVertical(nextSubmenuVertical);
 
         setMenuPosition({ top: nextTop, left: nextLeft });
       }
@@ -279,6 +294,7 @@ export function MediaCard({
                     setMenuOpen(false);
                   }}
                   submenuSide={submenuSide}
+                  submenuVertical={submenuVertical}
                   style={{
                     top: `${menuPosition.top}px`,
                     left: `${menuPosition.left}px`,

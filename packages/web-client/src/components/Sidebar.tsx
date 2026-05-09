@@ -40,12 +40,8 @@ const navItems: SidebarNavItemConfig[] = [
 ];
 
 function getInitials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-
-  if (parts.length === 0) return "";
-  if (parts.length === 1) return parts[0][0]?.toUpperCase() ?? "";
-
-  return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase();
+  const first = name.trim()[0];
+  return first ? first.toUpperCase() : "U";
 }
 
 function SidebarText({
@@ -322,10 +318,7 @@ export function Sidebar({
   isOpen,
   onToggle,
   onSignOut,
-  user = {
-    name: "Nika Qvrivishvili",
-    email: "nikaqvrivishvili@gmail.com",
-  },
+  user = { name: "User", email: "" },
 }: SidebarProps) {
   return (
     <aside

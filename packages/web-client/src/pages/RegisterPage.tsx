@@ -1,7 +1,7 @@
 import { useState, type InputHTMLAttributes, type ReactNode } from "react";
 import { Eye, EyeOff, Lock, Mail, User } from "lucide-react";
 import { useNavigate } from "react-router";
-import { signUp } from "@/lib/authApi";
+import { AUTH_USER_STORAGE_KEY, signUp } from "@/lib/authApi";
 import { MetaIcon } from "@/components/MetaIcon";
 
 type FieldProps = {
@@ -51,15 +51,26 @@ export function RegisterPage() {
 
             setIsSubmitting(true);
             try {
+              const normalizedEmail = email.trim();
+              const normalizedUsername = username.trim();
+
               await signUp({
-                email: email.trim(),
-                username: username.trim(),
+                email: normalizedEmail,
+                username: normalizedUsername,
                 password,
                 confirmPassword,
               });
 
+              localStorage.setItem(
+                AUTH_USER_STORAGE_KEY,
+                JSON.stringify({
+                  username: normalizedUsername,
+                  email: normalizedEmail,
+                })
+              );
+
               navigate("/verify", {
-                state: { email: email.trim() },
+                state: { email: normalizedEmail },
               });
             } catch (error) {
               setErrorMessage(
