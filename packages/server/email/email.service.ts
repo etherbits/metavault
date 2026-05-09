@@ -14,6 +14,10 @@ const transporter = nodemailer.createTransport({
 });
 
 async function sendOtpCode(to: string, otpCode: string) {
+  if (process.env.NODE_ENV === "test") {
+    return;
+  }
+
   return transporter.sendMail({
     from: "Metavault",
     to,
@@ -33,6 +37,10 @@ async function sendOtpCode(to: string, otpCode: string) {
 }
 
 async function sendWelcomeEmail(to: string) {
+  if (process.env.NODE_ENV === "test") {
+    return;
+  }
+
   return transporter.sendMail({
     from: "Metavault",
     to,

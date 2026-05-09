@@ -1,5 +1,18 @@
 import { z } from "zod";
 
+const optionalNumber = z.preprocess((value) => {
+  if (value === "" || value === null || typeof value === "undefined") {
+    return undefined;
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isNaN(parsed) ? value : parsed;
+  }
+
+  return value;
+}, z.number().min(0).max(10).optional());
+
 const baseLibraryEntrySchema = z.object({
   title: z.string().min(1).optional(),
 
@@ -14,8 +27,8 @@ const baseLibraryEntrySchema = z.object({
     .enum(["planning", "in_progress", "completed", "dropped", "paused"])
     .optional(),
 
-  public_rating: z.number().min(0).max(10).optional(),
-  personal_rating: z.number().min(0).max(10).optional(),
+  public_rating: optionalNumber,
+  personal_rating: optionalNumber,
 });
 
 export const createLibraryEntrySchema = baseLibraryEntrySchema;

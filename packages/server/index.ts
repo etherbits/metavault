@@ -5,7 +5,9 @@ import * as ezqNode from "@etherbits/ezq-node";
 import { logger } from "./logger";
 import { loggerMiddleware } from "./middleware/logger";
 import authRouter from "./auth/auth.controller";
+import { ezqRouter } from "./ezq/ezq.controller";
 import libraryRouter from "./library/library.controller";
+import userRouter from "./user/user.controller";
 
 type EzqRunQuery = (input: string) => unknown;
 
@@ -28,7 +30,9 @@ app.use(
 );
 
 app.use("/auth", authRouter);
+app.use("/ezq", ezqRouter);
 app.use("/library", libraryRouter);
+app.use("/users", userRouter);
 
 // biome-ignore lint/correctness/noUnusedFunctionParameters: req unused but required by Express signature
 app.get("/health", (req, res) => {

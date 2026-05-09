@@ -6,6 +6,7 @@ import {
   signUpSchema,
   verifyUserSchema,
 } from "../user/user.validation";
+import { authMiddleware } from "../middleware/isAuth";
 import { AuthService } from "./auth.service";
 
 const authRouter = Router();
@@ -30,5 +31,14 @@ authRouter.post(
   validateMiddleware(resendVerificationSchema),
   AuthService.resendVerificationCode
 );
+authRouter.post("/logout", authMiddleware, (_req, res) => {
+  res.clearCookie("access_token", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 1000 * 60 * 60,
+  });
+  res.json({ message: "Logged out successfully" });
+});
 
 export default authRouter;
