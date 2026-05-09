@@ -24,7 +24,14 @@ const baseLibraryEntrySchema = z.object({
     .optional(),
 
   status: z
-    .enum(["planning", "in_progress", "completed", "dropped", "paused"])
+    .enum([
+      "planning",
+      "in_progress",
+      "completed",
+      "finished",
+      "dropped",
+      "paused",
+    ])
     .optional(),
 
   public_rating: optionalNumber,
