@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Eye, EyeOff, Lock, User } from "lucide-react";
 import { useNavigate } from "react-router";
-import { AUTH_STORAGE_KEY, signIn } from "@/lib/authApi";
+import { AUTH_STORAGE_KEY, AUTH_USER_STORAGE_KEY, signIn } from "@/lib/authApi";
+import { MetaIcon } from "@/components/MetaIcon";
 
 export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -23,10 +24,10 @@ export function LoginPage() {
         aria-label="Log in to account"
       >
         <div
-          className="font-heading text-[74px] leading-none font-extrabold tracking-[-0.06em] text-[#facc15] max-[420px]:text-[62px]"
+          className="flex h-[42px] w-12 items-center justify-center"
           aria-hidden="true"
         >
-          M
+          <MetaIcon className="h-[42px] w-12" />
         </div>
 
         <form
@@ -37,8 +38,17 @@ export function LoginPage() {
             setIsSubmitting(true);
 
             try {
-              await signIn({ username: username.trim(), password });
+              const response = await signIn({
+                username: username.trim(),
+                password,
+              });
               localStorage.setItem(AUTH_STORAGE_KEY, "true");
+              if (response.user) {
+                localStorage.setItem(
+                  AUTH_USER_STORAGE_KEY,
+                  JSON.stringify(response.user)
+                );
+              }
               navigate("/app");
             } catch (error) {
               setErrorMessage(

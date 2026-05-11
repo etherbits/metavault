@@ -12,6 +12,7 @@ interface StatusDropdownProps {
   onDelete?: () => void;
   onRemoveStatus?: () => void;
   submenuSide?: "left" | "right";
+  submenuVertical?: "up" | "down";
   className?: string;
   style?: CSSProperties;
 }
@@ -32,6 +33,7 @@ export function StatusDropdown({
   onDelete,
   onRemoveStatus,
   submenuSide = "left",
+  submenuVertical = "down",
   className,
   style,
 }: StatusDropdownProps) {
@@ -44,7 +46,8 @@ export function StatusDropdown({
       {showStatusMenu && (
         <div
           className={cn(
-            "absolute top-0 z-[121] flex w-44 flex-col gap-2 rounded-[8px] border border-[#3F3F46] bg-[#18181B] p-2 shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.1),0px_2px_4px_-2px_rgba(0,0,0,0.1)]",
+            "absolute z-[121] flex w-44 flex-col gap-2 rounded-[8px] border border-[#3F3F46] bg-[#18181B] p-2 shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.1),0px_2px_4px_-2px_rgba(0,0,0,0.1)]",
+            submenuVertical === "down" ? "top-0" : "bottom-0",
             submenuSide === "left" ? "right-full mr-3" : "left-full ml-3"
           )}
         >

@@ -39,7 +39,7 @@ import { NotePanel } from "@/components/NotePanel";
 import { Pagination } from "@/components/Pagination";
 import { QueryInput } from "@/components/QueryInput";
 import { Sidebar } from "@/components/Sidebar";
-import { AUTH_STORAGE_KEY } from "@/lib/authApi";
+import { AUTH_STORAGE_KEY, AUTH_USER_STORAGE_KEY } from "@/lib/authApi";
 import "./index.css";
 
 type Page = "home" | "query" | "integrations" | "settings";
@@ -357,6 +357,31 @@ export function App() {
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [assistantDraft, setAssistantDraft] = useState("");
   const [detailViewItemId, setDetailViewItemId] = useState<string | null>(null);
+  const [sidebarUser] = useState(() => {
+    const fallbackUser = {
+      name: "User",
+      email: "",
+    };
+
+    try {
+      const stored = localStorage.getItem(AUTH_USER_STORAGE_KEY);
+      if (!stored) return fallbackUser;
+      const parsed = JSON.parse(stored) as {
+        username?: unknown;
+        email?: unknown;
+      };
+      const name =
+        typeof parsed.username === "string" ? parsed.username.trim() : "";
+      const email = typeof parsed.email === "string" ? parsed.email.trim() : "";
+
+      return {
+        name: name || fallbackUser.name,
+        email,
+      };
+    } catch {
+      return fallbackUser;
+    }
+  });
   const queryTimerRef = useRef<number | null>(null);
   const isCreateQuery = query.trim().toLowerCase().startsWith("create ");
   const isUpdateQuery = query.trim().toLowerCase().startsWith("update ");
@@ -739,6 +764,7 @@ export function App() {
     setSelectMode(false);
     setSelectedIds([]);
     localStorage.removeItem(AUTH_STORAGE_KEY);
+    localStorage.removeItem(AUTH_USER_STORAGE_KEY);
     navigate("/login");
   };
 
@@ -807,6 +833,7 @@ export function App() {
         isOpen={sidebarOpen}
         onToggle={handleToggleSidebar}
         onSignOut={handleSignOut}
+        user={sidebarUser}
       />
 
       {sidebarOpen && (
@@ -832,7 +859,7 @@ export function App() {
           </header>
         )}
 
-        <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-8 sm:py-8 lg:px-16 lg:py-12">
+        <main className="flex-1 overflow-x-hidden overflow-y-auto px-4 py-6 sm:px-8 sm:py-8 lg:px-16 lg:py-12">
           {activePage === "home" && (
             <div className="mx-auto flex w-full max-w-[1488px] flex-col gap-12">
               <div className="flex items-center gap-3">
@@ -893,7 +920,7 @@ export function App() {
                         <img
                           src={detailViewItem.posterUrl ?? HeroPoster}
                           alt={detailViewItem.title}
-                          className="h-full min-h-[460px] w-full object-cover"
+                          className="h-full min-h-[360px] w-full object-cover sm:min-h-[460px]"
                         />
 
                         <div className="absolute left-3 top-3 inline-flex h-[35px] items-center gap-3 rounded-[4px] border border-[#60A5FA] bg-[#27272A]/60 px-3 backdrop-blur-[4px]">
@@ -979,13 +1006,13 @@ export function App() {
 
                     <section className="flex min-w-0 flex-1 flex-col gap-6 pt-2 xl:pt-10">
                       <div className="flex w-full flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                        <h2 className="text-[32px] font-semibold leading-[36px] tracking-[-1px] text-[#FAFAFA]">
+                        <h2 className="text-[20px] font-semibold leading-6 text-[#FAFAFA]">
                           Content Nodes
                         </h2>
 
                         <button
                           type="button"
-                          className="inline-flex h-9 w-fit items-center gap-2 rounded-[8px] border border-[#3F3F46] bg-white/5 px-3 text-sm font-medium text-[#FAFAFA] opacity-60 shadow-sm"
+                          className="inline-flex h-9 w-fit items-center gap-2 rounded-[8px] border border-[#3F3F46] bg-white/5 px-3 text-sm font-medium text-[#FAFAFA] shadow-sm"
                         >
                           <Plus size={16} />
                           Add New
@@ -999,38 +1026,40 @@ export function App() {
                         ].map((nodeTitle) => (
                           <div
                             key={nodeTitle}
-                            className="flex items-center gap-2"
+                            className="flex flex-wrap items-center gap-2 sm:flex-nowrap"
                           >
-                            <div className="flex h-[41px] min-w-0 flex-1 items-center gap-1.5 rounded-[8px] bg-[#27272A] px-3 text-left">
+                            <div className="flex h-[41px] min-w-0 w-full items-center gap-1.5 rounded-[8px] bg-[#27272A] px-3 text-left sm:flex-1">
                               <GripVertical
                                 size={20}
                                 className="shrink-0 text-[#A1A1AA]"
                               />
-                              <span className="truncate text-[34px] font-semibold leading-[27px] text-[#D4D4D8] [font-size:clamp(16px,1.2vw,30px)]">
+                              <span className="truncate text-[18px] font-semibold leading-[27px] text-[#D4D4D8]">
                                 {nodeTitle}
                               </span>
                             </div>
 
-                            <button
-                              type="button"
-                              className="inline-flex h-10 w-10 items-center justify-center rounded-[8px] border border-[#3F3F46] bg-white/5 text-[#FAFAFA] opacity-60 shadow-sm"
-                            >
-                              <Link2 size={16} />
-                            </button>
+                            <div className="ml-auto flex items-center gap-2 sm:ml-0">
+                              <button
+                                type="button"
+                                className="inline-flex h-10 w-10 items-center justify-center rounded-[8px] border border-[#3F3F46] bg-white/5 text-[#FAFAFA] shadow-sm"
+                              >
+                                <Link2 size={16} />
+                              </button>
 
-                            <button
-                              type="button"
-                              className="inline-flex h-10 w-10 items-center justify-center rounded-[8px] border border-[#3F3F46] bg-white/5 text-[#FAFAFA] opacity-60 shadow-sm"
-                            >
-                              <Pencil size={16} />
-                            </button>
+                              <button
+                                type="button"
+                                className="inline-flex h-10 w-10 items-center justify-center rounded-[8px] border border-[#3F3F46] bg-white/5 text-[#FAFAFA] shadow-sm"
+                              >
+                                <Pencil size={16} />
+                              </button>
 
-                            <button
-                              type="button"
-                              className="inline-flex h-10 w-10 items-center justify-center rounded-[8px] bg-[#7F1D1D]/40 text-[#F87171]"
-                            >
-                              <Trash2 size={16} />
-                            </button>
+                              <button
+                                type="button"
+                                className="inline-flex h-10 w-10 items-center justify-center rounded-[8px] bg-[#7F1D1D]/40 text-[#F87171]"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
                           </div>
                         ))}
 
@@ -1051,7 +1080,7 @@ export function App() {
 
                           <button
                             type="button"
-                            className="inline-flex h-10 w-10 items-center justify-center rounded-[8px] border border-[#3F3F46] bg-white/5 text-[#FAFAFA] opacity-60 shadow-sm"
+                            className="inline-flex h-10 w-10 items-center justify-center rounded-[8px] border border-[#3F3F46] bg-white/5 text-[#FAFAFA] shadow-sm"
                           >
                             <Save size={16} />
                           </button>
@@ -1137,12 +1166,12 @@ export function App() {
                         </p>
                       )
                     ) : (
-                      <div className="flex w-full items-center justify-between gap-4">
+                      <div className="flex w-full flex-wrap items-center justify-between gap-3 sm:flex-nowrap">
                         <p className="text-[14px] leading-5 text-[#A1A1AA]">
                           Retrieved {queryResults.length} results
                         </p>
 
-                        <div className="flex justify-start sm:justify-end">
+                        <div className="flex items-center justify-start sm:justify-end">
                           <Pagination
                             currentPage={currentPage}
                             totalPages={totalPages}
@@ -1379,7 +1408,7 @@ export function App() {
 
       {activePage === "query" && assistantOpen && (
         <>
-          <div className="fixed inset-0 z-40 bg-[#18181B]/[0.86] backdrop-blur-[8px]" />
+          <div className="fixed inset-0 z-40 bg-[#18181B]/[0.82]" />
 
           <section className="fixed bottom-12 right-4 z-50 flex h-[500px] w-[calc(100vw-2rem)] max-w-[500px] flex-col gap-5 rounded-[8px] bg-[#18181B] px-5 pb-5 pt-3 shadow-[0px_20px_25px_-5px_rgba(0,0,0,0.1),0px_8px_10px_-6px_rgba(0,0,0,0.1)] sm:right-8 lg:right-[104px]">
             <div className="flex h-8 items-center gap-3">
@@ -1446,7 +1475,7 @@ export function App() {
         <button
           type="button"
           onClick={() => setAssistantOpen((prev) => !prev)}
-          className="fixed bottom-12 right-12 z-[60] flex h-10 w-10 items-center justify-center rounded-[8px] bg-[#FACC15] text-[#09090B] shadow-[0px_20px_25px_-5px_rgba(0,0,0,0.1),0px_8px_10px_-6px_rgba(0,0,0,0.1)]"
+          className="fixed bottom-6 right-4 z-[60] flex h-10 w-10 items-center justify-center rounded-[8px] bg-[#FACC15] text-[#09090B] shadow-[0px_20px_25px_-5px_rgba(0,0,0,0.1),0px_8px_10px_-6px_rgba(0,0,0,0.1)] sm:bottom-12 sm:right-12"
           aria-label={
             assistantOpen ? "Close assistant chat" : "Open assistant chat"
           }
