@@ -15,6 +15,7 @@ const envSchema = z
     RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
     MEDIA_ROOT: z.string().default("media"),
     EMAIL_HOST: z.string().optional(),
+    EMAIL_PORT: z.coerce.number().int().positive().default(587),
     EMAIL_USER: z.string().optional(),
     EMAIL_PASS: z.string().optional(),
     EMAIL_FROM: z.string().optional(),

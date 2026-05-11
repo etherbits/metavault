@@ -7,7 +7,7 @@ const transporter =
     ? nodemailer.createTransport({ jsonTransport: true })
     : nodemailer.createTransport({
         host: parsedEnv.EMAIL_HOST,
-        port: 587,
+        port: parsedEnv.EMAIL_PORT,
         secure: false,
         auth: {
           user: parsedEnv.EMAIL_USER,
