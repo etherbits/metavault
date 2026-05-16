@@ -104,7 +104,7 @@ const SAMPLE_ITEMS: MediaItem[] = [
 const HOME_SECTIONS = [
   {
     title: "Recently added",
-    query: "all",
+    query: "",
     defaultOpen: true,
   },
   {
