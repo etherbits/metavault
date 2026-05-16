@@ -70,7 +70,12 @@ function SidebarText({
 
 function SidebarBrand({ isOpen }: { isOpen: boolean }) {
   return (
-    <div className="flex h-11 min-w-0 items-center gap-2 p-2">
+    <div
+      className={cn(
+        "flex h-11 min-w-0 items-center",
+        isOpen ? "gap-2 p-2" : "justify-center p-0"
+      )}
+    >
       <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-[6px] bg-[#27272A]">
         <MetaIcon className="h-6 w-[22px]" />
       </div>

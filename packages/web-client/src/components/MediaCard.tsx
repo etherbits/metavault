@@ -9,6 +9,7 @@ import {
   Gamepad2,
   Tv,
   FileText,
+  Flag,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -199,7 +200,7 @@ export function MediaCard({
       onClick={handleCardClick}
     >
       <div className="flex h-full flex-col sm:flex-row">
-        <div className="h-52 w-full shrink-0 overflow-hidden rounded-t-[4px] bg-black sm:h-auto sm:max-w-[200px] sm:basis-[46%] sm:self-stretch sm:rounded-l-[4px] sm:rounded-tr-none">
+        <div className="h-52 w-full shrink-0 overflow-hidden rounded-t-[4px] bg-black shadow-[4px_0px_16px_rgba(164,37,36,0.18)] sm:h-auto sm:w-[200px] sm:rounded-l-[4px] sm:rounded-tr-none">
           <img
             src={posterSrc}
             alt={item.title}
@@ -207,7 +208,7 @@ export function MediaCard({
           />
         </div>
 
-        <CardContent className="flex w-full min-w-0 flex-1 flex-col gap-4 px-4 py-3">
+        <CardContent className="flex h-full w-full min-w-0 flex-1 flex-col gap-4 px-4 py-3">
           <h3 className="truncate text-lg font-medium leading-7 text-[#F4F4F5] sm:text-[20px]">
             {item.title}
           </h3>
@@ -221,7 +222,7 @@ export function MediaCard({
 
               {item.status && (
                 <span className="inline-flex h-5 shrink-0 items-center gap-1 whitespace-nowrap rounded-[8px] border border-[#60A5FA] px-2 text-[12px] font-semibold leading-4 text-[#60A5FA]">
-                  <FileText size={12} />
+                  <Flag size={12} />
                   {item.status}
                 </span>
               )}

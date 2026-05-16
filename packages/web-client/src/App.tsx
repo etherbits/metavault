@@ -1218,21 +1218,21 @@ export function App() {
 
                 <button
                   type="button"
-                  className="flex h-9 items-center gap-2 rounded-[8px] bg-[#FACC15]/50 px-3 text-sm font-medium text-[#09090B]"
+                  className="flex h-9 min-h-[36px] items-center gap-2 rounded-[8px] bg-[#FACC15]/50 px-3 text-sm font-medium text-[#09090B]"
                 >
                   <Save size={16} />
                   Save
                 </button>
               </div>
 
-              <div className="mx-auto flex w-full max-w-[548px] flex-col gap-12">
+              <div className="mx-auto flex w-full max-w-[548px] flex-col gap-12 lg:translate-x-[119px]">
                 <section className="flex flex-col gap-8">
-                  <h2 className="text-[30px] font-semibold leading-[30px] tracking-[-1px] text-[#D4D4D8]">
+                  <h2 className="text-[20px] font-semibold leading-6 text-[#E5E5E5]">
                     Query settings
                   </h2>
 
                   <div className="flex flex-col gap-6">
-                    <div className="flex items-center justify-between gap-6">
+                    <div className="flex min-h-[52px] items-center justify-between gap-6">
                       <div className="flex flex-col gap-3">
                         <p className="text-sm leading-5 text-[#D4D4D4]">
                           Alias Mappings
@@ -1245,16 +1245,19 @@ export function App() {
                       <button
                         type="button"
                         onClick={handleAddAlias}
-                        className="flex h-9 items-center gap-2 rounded-[8px] border border-[#3F3F46] bg-white/5 px-3 text-sm font-medium text-[#FAFAFA] shadow-[0px_1px_2px_rgba(0,0,0,0.05)]"
+                        className="flex h-9 min-h-[36px] w-[108px] items-center justify-center gap-2 rounded-[8px] border border-[#3F3F46] bg-white/5 px-3 text-sm font-medium text-[#FAFAFA] shadow-[0px_1px_2px_rgba(0,0,0,0.05)]"
                       >
                         <Plus size={16} />
-                        Add New
+                        <span className="whitespace-nowrap">Add New</span>
                       </button>
                     </div>
 
                     <div className="flex flex-col gap-4">
                       {aliasMappings.map((entry) => (
-                        <div key={entry.id} className="flex items-center gap-3">
+                        <div
+                          key={entry.id}
+                          className="flex min-h-[36px] items-center gap-3"
+                        >
                           <input
                             value={entry.alias}
                             onChange={(event) =>
@@ -1264,7 +1267,7 @@ export function App() {
                                 event.target.value
                               )
                             }
-                            className="h-9 w-[180px] rounded-[8px] border border-[#3F3F46] bg-white/5 px-3 text-sm leading-5 text-[#FAFAFA] outline-none"
+                            className="h-9 min-h-[36px] w-[180px] shrink-0 rounded-[8px] border border-[#3F3F46] bg-white/5 px-3 text-sm leading-5 text-[#FAFAFA] shadow-[0px_1px_2px_rgba(0,0,0,0.05)] outline-none"
                           />
 
                           <ArrowRight size={24} className="text-[#A1A1AA]" />
@@ -1278,13 +1281,13 @@ export function App() {
                                 event.target.value
                               )
                             }
-                            className="h-9 flex-1 rounded-[8px] border border-[#3F3F46] bg-white/5 px-3 text-sm leading-5 text-[#FAFAFA] outline-none"
+                            className="h-9 min-h-[36px] w-[272px] shrink-0 rounded-[8px] border border-[#3F3F46] bg-white/5 px-3 text-sm leading-5 text-[#FAFAFA] shadow-[0px_1px_2px_rgba(0,0,0,0.05)] outline-none"
                           />
 
                           <button
                             type="button"
                             onClick={() => handleDeleteAlias(entry.id)}
-                            className="flex h-9 w-9 items-center justify-center rounded-[8px] bg-[#7F1D1D]/40 text-[#F87171]"
+                            className="flex h-9 min-h-[36px] w-9 min-w-[36px] items-center justify-center rounded-[8px] bg-[#7F1D1D]/40 text-[#F87171]"
                           >
                             <Trash2 size={16} />
                           </button>
@@ -1295,13 +1298,13 @@ export function App() {
                 </section>
 
                 <section className="flex flex-col gap-8">
-                  <h3 className="text-[30px] font-semibold leading-[30px] tracking-[-1px] text-[#D4D4D8]">
+                  <h3 className="text-[20px] font-semibold leading-6 text-[#E5E5E5]">
                     Account Settings
                   </h3>
 
                   <button
                     type="button"
-                    className="flex h-9 w-fit items-center gap-2 rounded-[8px] bg-[#7F1D1D]/40 px-3 text-sm font-medium text-[#F87171]"
+                    className="flex h-9 min-h-[36px] w-fit items-center gap-2 rounded-[8px] bg-[#7F1D1D]/40 px-3 text-sm font-medium text-[#F87171]"
                   >
                     <Trash2 size={16} />
                     Permanently delete account
