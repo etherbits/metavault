@@ -32,6 +32,7 @@ export function LoginPage() {
 
         <form
           className="flex w-full max-w-[320px] flex-col gap-6 rounded-lg bg-[#27272a] p-6 text-[#e4e4e7] shadow-[0_18px_32px_rgba(0,0,0,0.24)] max-[420px]:gap-5 max-[420px]:p-5"
+          autoComplete="off"
           onSubmit={async (event) => {
             event.preventDefault();
             setErrorMessage("");
@@ -82,8 +83,9 @@ export function LoginPage() {
               <input
                 className="w-full border-0 bg-transparent text-sm leading-5 text-[#e4e4e7] outline-none placeholder:text-[#a1a1aa]"
                 type="text"
+                name="login-username"
                 placeholder="User01"
-                autoComplete="username"
+                autoComplete="off"
                 value={username}
                 onChange={(event) => setUsername(event.target.value)}
                 required
@@ -107,8 +109,9 @@ export function LoginPage() {
               <input
                 className="w-full border-0 bg-transparent text-sm leading-5 text-[#e4e4e7] outline-none placeholder:text-[#a1a1aa]"
                 type={showPassword ? "text" : "password"}
+                name="login-password"
                 placeholder="********"
-                autoComplete="current-password"
+                autoComplete="new-password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 required
