@@ -30,6 +30,13 @@ export const libraryIdSchema = z.object({
   id: z.string().min(1),
 });
 
+export const exportLibraryEntriesSchema = z.object({
+  ids: z.union([z.string().min(1), z.array(z.string().min(1)).min(1)]),
+});
+
 export type CreateLibraryEntryInput = z.infer<typeof createLibraryEntrySchema>;
 export type UpdateLibraryEntryInput = z.infer<typeof updateLibraryEntrySchema>;
 export type LibraryIdParams = z.infer<typeof libraryIdSchema>;
+export type ExportLibraryEntriesInput = z.infer<
+  typeof exportLibraryEntriesSchema
+>;

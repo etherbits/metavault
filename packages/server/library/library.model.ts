@@ -105,6 +105,17 @@ class LibraryModel {
     return result as LibraryEntry[];
   }
 
+  async getByIds(userId: string, ids: string[]): Promise<LibraryEntry[]> {
+    const result = await sql`
+      SELECT * FROM library_entries
+      WHERE user_id = ${userId}
+      AND id = ANY(${ids})
+      ORDER BY created_at DESC
+    `;
+
+    return result as LibraryEntry[];
+  }
+
   async update(
     id: string,
     userId: string,
