@@ -2,7 +2,7 @@
 
 SRC="src"
 OUT="output"
-THEME="200"
+THEME="0"
 WATCH=""
 
 [[ "$1" == "-w" ]] && WATCH="--watch"
