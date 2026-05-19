@@ -104,7 +104,7 @@ const SAMPLE_ITEMS: MediaItem[] = [
 const HOME_SECTIONS = [
   {
     title: "Recently added",
-    query: "all",
+    query: "",
     defaultOpen: true,
   },
   {
@@ -873,7 +873,7 @@ export function App() {
           </header>
         )}
 
-        <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-8 sm:py-8 lg:px-16 lg:py-12">
+        <main className="flex-1 overflow-x-hidden overflow-y-auto px-4 py-6 sm:px-8 sm:py-8 lg:px-16 lg:py-12">
           {activePage === "home" && (
             <div className="mx-auto flex w-full max-w-[1488px] flex-col gap-12">
               <div className="flex items-center gap-3">
@@ -934,7 +934,7 @@ export function App() {
                         <img
                           src={detailViewItem.posterUrl ?? BatmanPoster}
                           alt={detailViewItem.title}
-                          className="h-full min-h-[460px] w-full object-cover"
+                          className="h-full min-h-[360px] w-full object-cover sm:min-h-[460px]"
                         />
 
                         <div className="absolute left-3 top-3 inline-flex h-[35px] items-center gap-3 rounded-[4px] border border-[#60A5FA] bg-[#27272A]/60 px-3 backdrop-blur-[4px]">
@@ -1020,13 +1020,13 @@ export function App() {
 
                     <section className="flex min-w-0 flex-1 flex-col gap-6 pt-2 xl:pt-10">
                       <div className="flex w-full flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                        <h2 className="text-[32px] font-semibold leading-[36px] tracking-[-1px] text-[#FAFAFA]">
+                        <h2 className="text-[20px] font-semibold leading-6 text-[#FAFAFA]">
                           Content Nodes
                         </h2>
 
                         <button
                           type="button"
-                          className="inline-flex h-9 w-fit items-center gap-2 rounded-[8px] border border-[#3F3F46] bg-white/5 px-3 text-sm font-medium text-[#FAFAFA] opacity-60 shadow-sm"
+                          className="inline-flex h-9 w-fit items-center gap-2 rounded-[8px] border border-[#3F3F46] bg-white/5 px-3 text-sm font-medium text-[#FAFAFA] shadow-sm"
                         >
                           <Plus size={16} />
                           Add New
@@ -1040,38 +1040,40 @@ export function App() {
                         ].map((nodeTitle) => (
                           <div
                             key={nodeTitle}
-                            className="flex items-center gap-2"
+                            className="flex flex-wrap items-center gap-2 sm:flex-nowrap"
                           >
-                            <div className="flex h-[41px] min-w-0 flex-1 items-center gap-1.5 rounded-[8px] bg-[#27272A] px-3 text-left">
+                            <div className="flex h-[41px] min-w-0 w-full items-center gap-1.5 rounded-[8px] bg-[#27272A] px-3 text-left sm:flex-1">
                               <GripVertical
                                 size={20}
                                 className="shrink-0 text-[#A1A1AA]"
                               />
-                              <span className="truncate text-[34px] font-semibold leading-[27px] text-[#D4D4D8] [font-size:clamp(16px,1.2vw,30px)]">
+                              <span className="truncate text-[18px] font-semibold leading-[27px] text-[#D4D4D8]">
                                 {nodeTitle}
                               </span>
                             </div>
 
-                            <button
-                              type="button"
-                              className="inline-flex h-10 w-10 items-center justify-center rounded-[8px] border border-[#3F3F46] bg-white/5 text-[#FAFAFA] opacity-60 shadow-sm"
-                            >
-                              <Link2 size={16} />
-                            </button>
+                            <div className="ml-auto flex items-center gap-2 sm:ml-0">
+                              <button
+                                type="button"
+                                className="inline-flex h-10 w-10 items-center justify-center rounded-[8px] border border-[#3F3F46] bg-white/5 text-[#FAFAFA] shadow-sm"
+                              >
+                                <Link2 size={16} />
+                              </button>
 
-                            <button
-                              type="button"
-                              className="inline-flex h-10 w-10 items-center justify-center rounded-[8px] border border-[#3F3F46] bg-white/5 text-[#FAFAFA] opacity-60 shadow-sm"
-                            >
-                              <Pencil size={16} />
-                            </button>
+                              <button
+                                type="button"
+                                className="inline-flex h-10 w-10 items-center justify-center rounded-[8px] border border-[#3F3F46] bg-white/5 text-[#FAFAFA] shadow-sm"
+                              >
+                                <Pencil size={16} />
+                              </button>
 
-                            <button
-                              type="button"
-                              className="inline-flex h-10 w-10 items-center justify-center rounded-[8px] bg-[#7F1D1D]/40 text-[#F87171]"
-                            >
-                              <Trash2 size={16} />
-                            </button>
+                              <button
+                                type="button"
+                                className="inline-flex h-10 w-10 items-center justify-center rounded-[8px] bg-[#7F1D1D]/40 text-[#F87171]"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
                           </div>
                         ))}
 
@@ -1092,7 +1094,7 @@ export function App() {
 
                           <button
                             type="button"
-                            className="inline-flex h-10 w-10 items-center justify-center rounded-[8px] border border-[#3F3F46] bg-white/5 text-[#FAFAFA] opacity-60 shadow-sm"
+                            className="inline-flex h-10 w-10 items-center justify-center rounded-[8px] border border-[#3F3F46] bg-white/5 text-[#FAFAFA] shadow-sm"
                           >
                             <Save size={16} />
                           </button>
@@ -1178,12 +1180,12 @@ export function App() {
                         </p>
                       )
                     ) : (
-                      <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                      <div className="flex w-full flex-wrap items-center justify-between gap-3 sm:flex-nowrap">
                         <p className="text-[14px] leading-5 text-[#A1A1AA]">
                           Retrieved {queryResults.length} results
                         </p>
 
-                        <div className="flex w-full justify-start sm:w-auto sm:justify-end">
+                        <div className="flex items-center justify-start sm:justify-end">
                           <Pagination
                             currentPage={currentPage}
                             totalPages={totalPages}
@@ -1230,21 +1232,21 @@ export function App() {
 
                 <button
                   type="button"
-                  className="flex h-9 items-center gap-2 rounded-[8px] bg-[#FACC15]/50 px-3 text-sm font-medium text-[#09090B]"
+                  className="flex h-9 min-h-[36px] items-center gap-2 rounded-[8px] bg-[#FACC15]/50 px-3 text-sm font-medium text-[#09090B]"
                 >
                   <Save size={16} />
                   Save
                 </button>
               </div>
 
-              <div className="mx-auto flex w-full max-w-[548px] flex-col gap-12">
+              <div className="mx-auto flex w-full max-w-[548px] flex-col gap-12 lg:translate-x-[119px]">
                 <section className="flex flex-col gap-8">
-                  <h2 className="text-[30px] font-semibold leading-[30px] tracking-[-1px] text-[#D4D4D8]">
+                  <h2 className="text-[20px] font-semibold leading-6 text-[#E5E5E5]">
                     Query settings
                   </h2>
 
                   <div className="flex flex-col gap-6">
-                    <div className="flex items-center justify-between gap-6">
+                    <div className="flex min-h-[52px] items-center justify-between gap-6">
                       <div className="flex flex-col gap-3">
                         <p className="text-sm leading-5 text-[#D4D4D4]">
                           Alias Mappings
@@ -1257,16 +1259,19 @@ export function App() {
                       <button
                         type="button"
                         onClick={handleAddAlias}
-                        className="flex h-9 items-center gap-2 rounded-[8px] border border-[#3F3F46] bg-white/5 px-3 text-sm font-medium text-[#FAFAFA] shadow-[0px_1px_2px_rgba(0,0,0,0.05)]"
+                        className="flex h-9 min-h-[36px] w-[108px] items-center justify-center gap-2 rounded-[8px] border border-[#3F3F46] bg-white/5 px-3 text-sm font-medium text-[#FAFAFA] shadow-[0px_1px_2px_rgba(0,0,0,0.05)]"
                       >
                         <Plus size={16} />
-                        Add New
+                        <span className="whitespace-nowrap">Add New</span>
                       </button>
                     </div>
 
                     <div className="flex flex-col gap-4">
                       {aliasMappings.map((entry) => (
-                        <div key={entry.id} className="flex items-center gap-3">
+                        <div
+                          key={entry.id}
+                          className="flex min-h-[36px] items-center gap-3"
+                        >
                           <input
                             value={entry.alias}
                             onChange={(event) =>
@@ -1276,7 +1281,7 @@ export function App() {
                                 event.target.value
                               )
                             }
-                            className="h-9 w-[180px] rounded-[8px] border border-[#3F3F46] bg-white/5 px-3 text-sm leading-5 text-[#FAFAFA] outline-none"
+                            className="h-9 min-h-[36px] w-[180px] shrink-0 rounded-[8px] border border-[#3F3F46] bg-white/5 px-3 text-sm leading-5 text-[#FAFAFA] shadow-[0px_1px_2px_rgba(0,0,0,0.05)] outline-none"
                           />
 
                           <ArrowRight size={24} className="text-[#A1A1AA]" />
@@ -1290,13 +1295,13 @@ export function App() {
                                 event.target.value
                               )
                             }
-                            className="h-9 flex-1 rounded-[8px] border border-[#3F3F46] bg-white/5 px-3 text-sm leading-5 text-[#FAFAFA] outline-none"
+                            className="h-9 min-h-[36px] w-[272px] shrink-0 rounded-[8px] border border-[#3F3F46] bg-white/5 px-3 text-sm leading-5 text-[#FAFAFA] shadow-[0px_1px_2px_rgba(0,0,0,0.05)] outline-none"
                           />
 
                           <button
                             type="button"
                             onClick={() => handleDeleteAlias(entry.id)}
-                            className="flex h-9 w-9 items-center justify-center rounded-[8px] bg-[#7F1D1D]/40 text-[#F87171]"
+                            className="flex h-9 min-h-[36px] w-9 min-w-[36px] items-center justify-center rounded-[8px] bg-[#7F1D1D]/40 text-[#F87171]"
                           >
                             <Trash2 size={16} />
                           </button>
@@ -1307,13 +1312,13 @@ export function App() {
                 </section>
 
                 <section className="flex flex-col gap-8">
-                  <h3 className="text-[30px] font-semibold leading-[30px] tracking-[-1px] text-[#D4D4D8]">
+                  <h3 className="text-[20px] font-semibold leading-6 text-[#E5E5E5]">
                     Account Settings
                   </h3>
 
                   <button
                     type="button"
-                    className="flex h-9 w-fit items-center gap-2 rounded-[8px] bg-[#7F1D1D]/40 px-3 text-sm font-medium text-[#F87171]"
+                    className="flex h-9 min-h-[36px] w-fit items-center gap-2 rounded-[8px] bg-[#7F1D1D]/40 px-3 text-sm font-medium text-[#F87171]"
                   >
                     <Trash2 size={16} />
                     Permanently delete account
@@ -1420,12 +1425,7 @@ export function App() {
 
       {activePage === "query" && assistantOpen && (
         <>
-          <button
-            type="button"
-            aria-label="Close assistant chat"
-            onClick={() => setAssistantOpen(false)}
-            className="fixed inset-0 z-40 bg-[#18181B]/[0.86] backdrop-blur-[8px]"
-          />
+          <div className="fixed inset-0 z-40 bg-[#18181B]/[0.82]" />
 
           <section className="fixed bottom-12 right-4 z-50 flex h-[500px] w-[calc(100vw-2rem)] max-w-[500px] flex-col gap-5 rounded-[8px] bg-[#18181B] px-5 pb-5 pt-3 shadow-[0px_20px_25px_-5px_rgba(0,0,0,0.1),0px_8px_10px_-6px_rgba(0,0,0,0.1)] sm:right-12">
             <div className="flex h-8 items-center gap-3">
@@ -1492,9 +1492,7 @@ export function App() {
         <button
           type="button"
           onClick={() => setAssistantOpen((prev) => !prev)}
-          className={`fixed z-[60] flex h-10 w-10 items-center justify-center rounded-[8px] bg-[#FACC15] text-[#09090B] shadow-[0px_20px_25px_-5px_rgba(0,0,0,0.1),0px_8px_10px_-6px_rgba(0,0,0,0.1)] ${
-            assistantOpen ? "bottom-10 right-2" : "bottom-12 right-12"
-          }`}
+          className="fixed bottom-6 right-4 z-[60] flex h-10 w-10 items-center justify-center rounded-[8px] bg-[#FACC15] text-[#09090B] shadow-[0px_20px_25px_-5px_rgba(0,0,0,0.1),0px_8px_10px_-6px_rgba(0,0,0,0.1)] sm:bottom-12 sm:right-12"
           aria-label={
             assistantOpen ? "Close assistant chat" : "Open assistant chat"
           }

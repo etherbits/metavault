@@ -9,11 +9,11 @@ import {
   Gamepad2,
   Tv,
   FileText,
+  Flag,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusDropdown } from "./StatusDropdown";
-import BatmanPoster from "@/assets/download.jpeg";
 
 export type MediaType =
   | "Movie"
@@ -84,9 +84,11 @@ export function MediaCard({
   onAddToCollection,
   onViewDetails,
 }: MediaCardProps) {
+  const posterSrc = item.posterUrl || "/images.jpeg";
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const [submenuSide, setSubmenuSide] = useState<"left" | "right">("left");
+  const [submenuVertical, setSubmenuVertical] = useState<"up" | "down">("down");
   const menuRef = useRef<HTMLDivElement | null>(null);
   const menuButtonRef = useRef<HTMLDivElement | null>(null);
 
@@ -115,13 +117,17 @@ export function MediaCard({
         nextLeft = Math.min(Math.max(viewportPadding, nextLeft), maxLeft);
 
         let nextTop = triggerRect.bottom + gap;
+        let nextSubmenuVertical: "up" | "down" = "down";
 
         if (nextTop + panelHeight > viewportHeight - viewportPadding) {
-          nextTop = Math.max(
-            viewportPadding,
-            viewportHeight - panelHeight - viewportPadding
-          );
+          nextTop = triggerRect.top - panelHeight - gap;
+          nextSubmenuVertical = "up";
         }
+
+        nextTop = Math.max(
+          viewportPadding,
+          Math.min(nextTop, viewportHeight - panelHeight - viewportPadding)
+        );
 
         const canOpenSubmenuLeft =
           nextLeft - gap - submenuWidth >= viewportPadding;
@@ -138,6 +144,8 @@ export function MediaCard({
           const rightSpace = viewportWidth - (nextLeft + panelWidth);
           setSubmenuSide(rightSpace > leftSpace ? "right" : "left");
         }
+
+        setSubmenuVertical(nextSubmenuVertical);
 
         setMenuPosition({ top: nextTop, left: nextLeft });
       }
@@ -192,15 +200,15 @@ export function MediaCard({
       onClick={handleCardClick}
     >
       <div className="flex h-full flex-col sm:flex-row">
-        <div className="h-52 w-full shrink-0 overflow-hidden rounded-t-[4px] bg-black sm:h-auto sm:self-stretch sm:max-w-[200px] sm:basis-[46%] sm:rounded-l-[4px] sm:rounded-tr-none">
+        <div className="h-52 w-full shrink-0 overflow-hidden rounded-t-[4px] bg-black shadow-[4px_0px_16px_rgba(164,37,36,0.18)] sm:h-auto sm:w-[200px] sm:rounded-l-[4px] sm:rounded-tr-none">
           <img
-            src={item.posterUrl ?? BatmanPoster}
+            src={posterSrc}
             alt={item.title}
             className="h-full w-full object-cover"
           />
         </div>
 
-        <CardContent className="flex w-full min-w-0 flex-1 flex-col gap-4 px-4 py-3">
+        <CardContent className="flex h-full w-full min-w-0 flex-1 flex-col gap-4 px-4 py-3">
           <h3 className="truncate text-lg font-medium leading-7 text-[#F4F4F5] sm:text-[20px]">
             {item.title}
           </h3>
@@ -214,7 +222,7 @@ export function MediaCard({
 
               {item.status && (
                 <span className="inline-flex h-5 shrink-0 items-center gap-1 whitespace-nowrap rounded-[8px] border border-[#60A5FA] px-2 text-[12px] font-semibold leading-4 text-[#60A5FA]">
-                  <FileText size={12} />
+                  <Flag size={12} />
                   {item.status}
                 </span>
               )}
@@ -287,6 +295,7 @@ export function MediaCard({
                     setMenuOpen(false);
                   }}
                   submenuSide={submenuSide}
+                  submenuVertical={submenuVertical}
                   style={{
                     top: `${menuPosition.top}px`,
                     left: `${menuPosition.left}px`,

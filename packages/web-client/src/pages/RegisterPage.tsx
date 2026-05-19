@@ -1,8 +1,8 @@
 import { useState, type InputHTMLAttributes, type ReactNode } from "react";
 import { Eye, EyeOff, Lock, Mail, User } from "lucide-react";
 import { useNavigate } from "react-router";
-import { signUp } from "@/lib/authApi";
-import MetaLogo from "@/assets/Meta.svg";
+import { AUTH_USER_STORAGE_KEY, signUp } from "@/lib/authApi";
+import { MetaIcon } from "@/components/MetaIcon";
 
 type FieldProps = {
   label: string;
@@ -26,14 +26,15 @@ export function RegisterPage() {
         className="relative z-10 mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-[320px] flex-col items-center justify-center gap-12"
         aria-label="Create account"
       >
-        <img
-          src={MetaLogo}
-          alt="MetaVault"
-          className="h-[42px] w-12 object-contain"
-        />
+        <div
+          className="flex h-[42px] w-12 items-center justify-center"
+          aria-hidden="true"
+        >
+          <MetaIcon className="h-[42px] w-12" />
+        </div>
 
         <form
-          className="flex w-full flex-col gap-8 rounded-[8px] bg-[#27272A] p-6 text-[#e4e4e7]"
+          className="flex w-full max-w-[320px] flex-col gap-8 rounded-lg bg-[#27272a] p-6 text-[#e4e4e7] shadow-[0_18px_32px_rgba(0,0,0,0.24)] max-[420px]:gap-8"
           autoComplete="off"
           onSubmit={async (event) => {
             event.preventDefault();
@@ -46,15 +47,26 @@ export function RegisterPage() {
 
             setIsSubmitting(true);
             try {
+              const normalizedEmail = email.trim();
+              const normalizedUsername = username.trim();
+
               await signUp({
-                email: email.trim(),
-                username: username.trim(),
+                email: normalizedEmail,
+                username: normalizedUsername,
                 password,
                 confirmPassword,
               });
 
+              localStorage.setItem(
+                AUTH_USER_STORAGE_KEY,
+                JSON.stringify({
+                  username: normalizedUsername,
+                  email: normalizedEmail,
+                })
+              );
+
               navigate("/verify", {
-                state: { email: email.trim() },
+                state: { email: normalizedEmail },
               });
             } catch (error) {
               setErrorMessage(

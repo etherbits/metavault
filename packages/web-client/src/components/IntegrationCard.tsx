@@ -57,13 +57,15 @@ export function IntegrationCard({
             aria-checked={enabled}
             aria-label={`${enabled ? "Disable" : "Enable"} ${name}`}
             onClick={handleToggle}
-            className={`relative h-[18px] w-[33px] shrink-0 rounded-full shadow-sm transition-colors ${
+            className={`relative inline-flex h-[18px] w-[33px] shrink-0 items-center rounded-[12px] border-0 p-0 shadow-[0px_1px_2px_rgba(0,0,0,0.05)] transition-colors focus-visible:outline-none ${
               enabled ? "bg-[#FACC15]" : "bg-[#3F3F46]"
             }`}
           >
             <span
-              className={`absolute top-[1px] h-4 w-4 rounded-full transition-all ${
-                enabled ? "left-[16px] bg-[#09090B]" : "left-[1px] bg-white"
+              className={`absolute left-[1px] top-[1px] h-4 w-4 rounded-full transition-transform ${
+                enabled
+                  ? "translate-x-[15px] bg-[#09090B]"
+                  : "translate-x-0 bg-white"
               }`}
             />
           </button>
