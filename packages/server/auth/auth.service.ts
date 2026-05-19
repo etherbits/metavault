@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken";
 import { emailService } from "../email/email.service";
 import { parsedEnv } from "../env";
 import { logger } from "../logger";
-import { userModel, type User } from "../user/user.model";
+import { userModel } from "../user/user.model";
 import type {
   ResendVerificationInput,
   SignInInput,
@@ -42,39 +42,13 @@ export class AuthService {
       return err(400, "User already exists");
     }
 
-    const existingUsername = await userModel.getUserByUsername(username);
-    if (existingUsername) {
-      return err(400, "Username already taken");
-    }
-
     const passwordHash = await hashPassword(password);
 
-    let user: User;
-    try {
-      user = await userModel.createUser({
-        email,
-        username,
-        password_hash: passwordHash,
-      });
-    } catch (error) {
-      const maybeSqliteError = error as { code?: string; message?: string };
-      if (
-        maybeSqliteError.code === "SQLITE_CONSTRAINT_UNIQUE" ||
-        maybeSqliteError.message?.includes("UNIQUE constraint failed")
-      ) {
-        if (maybeSqliteError.message?.includes("users.username")) {
-          return err(400, "Username already taken");
-        }
-
-        if (maybeSqliteError.message?.includes("users.email")) {
-          return err(400, "User already exists");
-        }
-
-        return err(400, "User already exists");
-      }
-
-      throw error;
-    }
+    const user = await userModel.createUser({
+      email,
+      username,
+      password_hash: passwordHash,
+    });
 
     const otpCode = generateOTP();
     await authModel.createOTP(user.id, otpCode);
