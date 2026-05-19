@@ -1,0 +1,2 @@
+title,media_id,source_id,media_type,status,image_src,released_at,public_rating,personal_rating,major_tags,minor_tags
+Postman CSV Import,postman-csv,,movie,planning,https://example.com/poster.webp,2026-01-01,7.5,8,"postman,import","manual-test"
