@@ -164,6 +164,10 @@ function hasBalancedCsvQuotes(line: string): boolean {
 }
 
 function normalizeIds(ids: ExportLibraryEntriesInput["ids"]): string[] {
+  if (!ids) {
+    return [];
+  }
+
   return Array.from(new Set(Array.isArray(ids) ? ids : [ids]));
 }
 
@@ -377,7 +381,10 @@ class LibraryService {
     const normalizedIds = normalizeIds(ids);
     const requestedIds = new Set(normalizedIds);
     const userEntries = await libraryModel.getByUser(userId);
-    const entries = userEntries.filter((entry) => requestedIds.has(entry.id));
+    const entries =
+      normalizedIds.length === 0
+        ? userEntries
+        : userEntries.filter((entry) => requestedIds.has(entry.id));
 
     if (entries.length === 0) {
       return err(404, "Unable to export any entry");
@@ -430,7 +437,10 @@ class LibraryService {
     const normalizedIds = normalizeIds(ids);
     const requestedIds = new Set(normalizedIds);
     const userEntries = await libraryModel.getByUser(userId);
-    const entries = userEntries.filter((entry) => requestedIds.has(entry.id));
+    const entries =
+      normalizedIds.length === 0
+        ? userEntries
+        : userEntries.filter((entry) => requestedIds.has(entry.id));
     const warnings: ImportWarning[] = [];
     const files: Record<string, Uint8Array> = {
       [BUNDLE_CSV_FILE]: strToU8(csvResult.data.csv),

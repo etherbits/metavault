@@ -335,6 +335,14 @@ test("library CSV export returns rows and rejects zero matches", async ({
   expect(csv).not.toContain(title);
   expect(csv.split("\n")).toHaveLength(2);
 
+  const exportAllResponse = await request.post("/library/export/csv", {
+    data: {},
+  });
+  expect(exportAllResponse.status()).toBe(200);
+  expect(await exportAllResponse.text()).toContain(
+    title.replace(/\r?\n/g, " ")
+  );
+
   const emptyExportResponse = await request.post("/library/export/csv", {
     data: {
       ids: ["missing-export-id-1", "missing-export-id-2"],
@@ -521,6 +529,14 @@ test("library bundle export reports missing local images and rejects zero matche
       }),
     ],
   });
+
+  const exportAllResponse = await request.post("/library/export/bundle", {
+    data: { ids: [] },
+  });
+  expect(exportAllResponse.status()).toBe(200);
+  expect(
+    unzipSync(await exportAllResponse.body())["library.csv"]
+  ).toBeDefined();
 
   const emptyExportResponse = await request.post("/library/export/bundle", {
     data: { ids: ["missing-bundle-export-id"] },

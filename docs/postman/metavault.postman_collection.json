@@ -1,0 +1,581 @@
+{
+  "info": {
+    "_postman_id": "4c3b31a3-d4ef-4635-a709-f0ee06acb23d",
+    "name": "MetaVault API",
+    "description": "Local API checks for auth, EZQ, and library import/export. Start with Auth / Sign In Seeded User so Postman stores the access_token cookie for protected requests. For sign-up verification, copy the OTP from server logs or the database into the otpCode environment variable.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.test('response is not a server error', function () {",
+          "  pm.expect(pm.response.code).to.be.below(500);",
+          "});"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/health"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "POST /auth/sign-up",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const suffix = Math.floor(Date.now() / 1000);",
+                  "pm.environment.set('signupEmail', `postman+${suffix}@test.local`);",
+                  "pm.environment.set('signupUsername', `pm_${suffix}`);",
+                  "pm.environment.unset('otpCode');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{signupEmail}}\",\n  \"username\": \"{{signupUsername}}\",\n  \"password\": \"{{password}}\",\n  \"confirmPassword\": \"{{password}}\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/sign-up"
+          }
+        },
+        {
+          "name": "POST /auth/verify-user",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{signupEmail}}\",\n  \"otpCode\": \"{{otpCode}}\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/verify-user"
+          }
+        },
+        {
+          "name": "POST /auth/resend-verification-code",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{signupEmail}}\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/resend-verification-code"
+          }
+        },
+        {
+          "name": "POST /auth/sign-in Seeded User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('signed in', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "if (body.user && body.user.id) {",
+                  "  pm.environment.set('userId', body.user.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/sign-in"
+          }
+        },
+        {
+          "name": "POST /auth/sign-in New User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{signupUsername}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/sign-in"
+          }
+        },
+        {
+          "name": "POST /auth/logout",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/logout"
+          }
+        }
+      ]
+    },
+    {
+      "name": "EZQ",
+      "item": [
+        {
+          "name": "POST /ezq Create First Entry",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created entry', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const rows = pm.response.json().rows || [];",
+                  "if (rows[0] && rows[0].id) {",
+                  "  pm.environment.set('entryId', rows[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"/create postman_first_entry tg:postman\"\n}"
+            },
+            "url": "{{baseUrl}}/ezq"
+          }
+        },
+        {
+          "name": "POST /ezq Create Second Entry",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const rows = pm.response.json().rows || [];",
+                  "if (rows[0] && rows[0].id) {",
+                  "  pm.environment.set('secondEntryId', rows[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"/create postman_second_entry tg:postman tg:export\"\n}"
+            },
+            "url": "{{baseUrl}}/ezq"
+          }
+        },
+        {
+          "name": "POST /ezq Search All",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"/s\"\n}"
+            },
+            "url": "{{baseUrl}}/ezq"
+          }
+        },
+        {
+          "name": "POST /ezq Search By Tag",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"/search tg:postman\"\n}"
+            },
+            "url": "{{baseUrl}}/ezq"
+          }
+        },
+        {
+          "name": "POST /ezq Update First Entry",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"/update id:{{entryId}} > status:finished\"\n}"
+            },
+            "url": "{{baseUrl}}/ezq"
+          }
+        },
+        {
+          "name": "POST /ezq Delete First Entry",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"/delete id:{{entryId}}\"\n}"
+            },
+            "url": "{{baseUrl}}/ezq"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Library Import / Export",
+      "item": [
+        {
+          "name": "POST /library Create Entry",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created library entry', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "if (body.id) {",
+                  "  pm.environment.set('libraryEntryId', body.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "title",
+                  "value": "Postman Library Entry",
+                  "type": "text"
+                },
+                {
+                  "key": "media_id",
+                  "value": "postman-library",
+                  "type": "text"
+                },
+                {
+                  "key": "media_type",
+                  "value": "book",
+                  "type": "text"
+                },
+                {
+                  "key": "status",
+                  "value": "finished",
+                  "type": "text"
+                },
+                {
+                  "key": "released_at",
+                  "value": "2026-05-19",
+                  "type": "text"
+                },
+                {
+                  "key": "public_rating",
+                  "value": "8",
+                  "type": "text"
+                },
+                {
+                  "key": "personal_rating",
+                  "value": "9",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/library"
+          }
+        },
+        {
+          "name": "POST /library Create Entry With Local Image",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created library entry with image', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "pm.test('image file was uploaded', function () {",
+                  "  pm.expect(body.image_src, 'image_src').to.be.a('string').and.not.empty;",
+                  "});",
+                  "if (body.id) {",
+                  "  pm.environment.set('imageEntryId', body.id);",
+                  "}",
+                  "if (body.image_src) {",
+                  "  pm.environment.set('imageSrc', body.image_src);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "title",
+                  "value": "Postman Local Image Entry",
+                  "type": "text"
+                },
+                {
+                  "key": "media_id",
+                  "value": "postman-local-image",
+                  "type": "text"
+                },
+                {
+                  "key": "media_type",
+                  "value": "movie",
+                  "type": "text"
+                },
+                {
+                  "key": "status",
+                  "value": "planning",
+                  "type": "text"
+                },
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": "/Users/nikaqvrivishvili/projects/metavault/packages/web-client/src/assets/Meta.png"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/library"
+          }
+        },
+        {
+          "name": "GET /library",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/library"
+          }
+        },
+        {
+          "name": "GET /library/:id",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/library/{{libraryEntryId}}"
+          }
+        },
+        {
+          "name": "POST /library/import/csv",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('imported CSV', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "if (body.entries && body.entries[0] && body.entries[0].id) {",
+                  "  pm.environment.set('importedEntryId', body.entries[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "/Users/nikaqvrivishvili/projects/metavault/docs/postman/sample-library-import.csv"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/library/import/csv"
+          }
+        },
+        {
+          "name": "POST /library/export/csv",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": "{{baseUrl}}/library/export/csv"
+          }
+        },
+        {
+          "name": "POST /library/export/bundle",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": "{{baseUrl}}/library/export/bundle"
+          }
+        },
+        {
+          "name": "POST /library/import/bundle",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "{{bundleFilePath}}"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/library/import/bundle"
+          }
+        },
+        {
+          "name": "PATCH /library/:id",
+          "request": {
+            "method": "PATCH",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "title",
+                  "value": "Postman Library Entry Updated",
+                  "type": "text"
+                },
+                {
+                  "key": "status",
+                  "value": "on_hold",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/library/{{libraryEntryId}}"
+          }
+        },
+        {
+          "name": "DELETE /library/:id",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/library/{{libraryEntryId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "GET /users/profile",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/users/profile"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3435"
+    }
+  ]
+}

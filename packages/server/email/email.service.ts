@@ -48,7 +48,9 @@ class EmailService {
       from: parsedEnv.EMAIL_FROM,
       to,
       subject: "Verify your account",
-      html: `
+      html: isDevelopmentEmail
+        ? `OTP Code for ${to} is: ${otpCode}`
+        : `
       <div style="font-family: Arial, sans-serif; line-height: 1.5; max-width: 600px; margin: 0 auto;">
         <h2>Email Verification</h2>
         <p>Your OTP code is:</p>

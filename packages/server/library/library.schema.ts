@@ -32,8 +32,23 @@ export const libraryIdSchema = z.object({
   id: z.string().min(1),
 });
 
+const exportIdsSchema = z.preprocess((value) => {
+  if (value === "" || value === null) {
+    return undefined;
+  }
+
+  if (Array.isArray(value)) {
+    const ids = value.filter(
+      (id) => typeof id !== "string" || id.trim() !== ""
+    );
+    return ids.length > 0 ? ids : undefined;
+  }
+
+  return value;
+}, z.union([z.string().min(1), z.array(z.string().min(1))]).optional());
+
 export const exportLibraryEntriesSchema = z.object({
-  ids: z.union([z.string().min(1), z.array(z.string().min(1)).min(1)]),
+  ids: exportIdsSchema,
 });
 
 export type CreateLibraryEntryInput = z.infer<typeof createLibraryEntrySchema>;
