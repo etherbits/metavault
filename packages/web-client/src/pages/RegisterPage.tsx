@@ -21,14 +21,9 @@ export function RegisterPage() {
   const navigate = useNavigate();
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_50%_0%,#11141b_0%,#18181b_52%)] px-4 py-8">
-      <div
-        className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(250,204,21,0.03),transparent_40%)]"
-        aria-hidden="true"
-      />
-
+    <main className="relative min-h-screen overflow-hidden bg-[#18181B] px-4 py-8">
       <section
-        className="relative z-10 grid min-h-[calc(100vh-64px)] place-items-center gap-12 max-[420px]:gap-[30px]"
+        className="relative z-10 mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-[320px] flex-col items-center justify-center gap-12"
         aria-label="Create account"
       >
         <div
@@ -40,6 +35,7 @@ export function RegisterPage() {
 
         <form
           className="flex w-full max-w-[320px] flex-col gap-8 rounded-lg bg-[#27272a] p-6 text-[#e4e4e7] shadow-[0_18px_32px_rgba(0,0,0,0.24)] max-[420px]:gap-8"
+          autoComplete="off"
           onSubmit={async (event) => {
             event.preventDefault();
             setErrorMessage("");
@@ -84,7 +80,7 @@ export function RegisterPage() {
           }}
         >
           <header>
-            <h1 className="m-0 text-xl leading-tight font-semibold">
+            <h1 className="m-0 text-[20px] leading-6 font-semibold">
               Register
             </h1>
             <p className="mt-3 text-base leading-6 text-[#d4d4d8]">
@@ -160,7 +156,7 @@ export function RegisterPage() {
             }
           />
 
-          <div className="flex flex-col gap-4 pt-2">
+          <div className="flex flex-col gap-4">
             {errorMessage ? (
               <p className="rounded-md border border-[#ef4444]/45 bg-[#450a0a] px-3 py-2 text-sm leading-5 text-[#fecaca]">
                 {errorMessage}
@@ -203,7 +199,7 @@ function Field({
         {label}
       </span>
 
-      <span className="flex min-h-9 items-center gap-2 rounded-lg border border-[#3f3f46] bg-[rgba(255,255,255,0.05)] px-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+      <span className="flex h-9 min-h-9 items-center gap-2 rounded-lg border border-[#3f3f46] bg-[rgba(255,255,255,0.05)] px-3 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
         <span
           className="grid h-5 w-5 flex-none place-items-center text-[#a1a1aa]"
           aria-hidden="true"
