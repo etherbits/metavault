@@ -1,6 +1,6 @@
 [package]
 name = "ezq"
-version = "0.1.5"
+version = "0.1.6"
 edition = "2024"
 
 [lib]
@@ -12,3 +12,5 @@ regex = "1"
 wasm-bindgen = "0.2"
 serde = { version = "1", features = ["derive"] }
 tsify-next = { version = "0.5", features = ["js"] }
+chrono = "0.4"
+fuzzy-matcher = "0.3"

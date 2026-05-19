@@ -1,17 +1,17 @@
 import { z } from "zod";
 
-const collectionEntryIdSchema = z.object({
+const collectionEntrySchema = z.object({
   library_entry_id: z.string().min(1),
 });
 
 export const createCollectionSchema = z.object({
   name: z.string().min(1),
-  entries: z.array(collectionEntryIdSchema).optional(),
+  entries: z.array(collectionEntrySchema).optional(),
 });
 
 export const updateCollectionSchema = z.object({
   name: z.string().min(1).optional(),
-  entries: z.array(collectionEntryIdSchema).optional(),
+  entries: z.array(collectionEntrySchema).optional(),
 });
 
 export const collectionIdSchema = z.object({
@@ -21,3 +21,9 @@ export const collectionIdSchema = z.object({
 export const removeCollectionEntriesSchema = z.object({
   library_entry_ids: z.array(z.string().min(1)).min(1),
 });
+
+export type CreateCollectionInput = z.infer<typeof createCollectionSchema>;
+export type UpdateCollectionInput = z.infer<typeof updateCollectionSchema>;
+export type RemoveCollectionEntriesInput = z.infer<
+  typeof removeCollectionEntriesSchema
+>;

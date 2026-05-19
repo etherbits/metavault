@@ -1,176 +1,177 @@
-import type { Request, Response } from "express";
-import { CollectionModel } from "./collection.model";
 import { logger } from "../logger";
+import { err, ok, type Result } from "../utils/result";
+import {
+  collectionModel,
+  type Collection,
+  type CollectionWithEntries,
+} from "./collection.model";
+import type {
+  CreateCollectionInput,
+  RemoveCollectionEntriesInput,
+  UpdateCollectionInput,
+} from "./collection.schema";
 
-async function createCollection(req: Request, res: Response) {
-  try {
-    const userId = (req as any).user.userId;
-    const body = req.body as {
-      name: string;
-      entries?: Array<{ library_entry_id: string }>;
-    };
+type CollectionInput = {
+  userId: string;
+  id: string;
+};
 
-    const collectionId = crypto.randomUUID();
-    const libraryEntryIds = (body.entries ?? []).map((entry) => entry.library_entry_id);
+type CreateInput = {
+  userId: string;
+  body: CreateCollectionInput;
+};
 
-    const hasValidEntries = await CollectionModel.validateLibraryEntriesOwnership(
+type UpdateInput = CollectionInput & {
+  body: UpdateCollectionInput;
+};
+
+type RemoveEntriesInput = CollectionInput & {
+  body: RemoveCollectionEntriesInput;
+};
+
+class CollectionService {
+  async createCollection({
+    userId,
+    body,
+  }: CreateInput): Promise<Result<Collection>> {
+    const libraryEntryIds =
+      body.entries?.map((entry) => entry.library_entry_id) ?? [];
+
+    const entriesAreOwned = await this.userOwnsLibraryEntries(
       userId,
-      libraryEntryIds,
+      libraryEntryIds
     );
 
-    if (!hasValidEntries) {
-      return res.status(400).json({
-        message: "One or more library entries do not belong to the user",
-      });
+    if (!entriesAreOwned) {
+      return err(400, "One or more library entries do not belong to the user");
     }
 
-    const collection = await CollectionModel.create({
-      id: collectionId,
+    const collection = await collectionModel.create({
+      id: crypto.randomUUID(),
       user_id: userId,
       name: body.name,
     });
 
-    await CollectionModel.createEntries(collectionId, libraryEntryIds);
+    await collectionModel.createEntries(collection.id, libraryEntryIds);
 
     logger.info(`Collection created: ${collection.id}`);
-    res.status(201).json(collection);
-  } catch (error) {
-    logger.error("Create collection error: " + (error as Error).message);
-    res.status(500).json({ message: "Internal server error" });
+    return ok(collection);
   }
-}
 
-async function getUserCollections(req: Request, res: Response) {
-  try {
-    const userId = (req as any).user.userId;
-    const collections = await CollectionModel.getByUser(userId);
-    res.json(collections);
-  } catch (error) {
-    logger.error("Get user collections error: " + (error as Error).message);
-    res.status(500).json({ message: "Internal server error" });
+  async getUserCollections(
+    userId: string
+  ): Promise<Result<CollectionWithEntries[]>> {
+    const collections = await collectionModel.getByUser(userId);
+    return ok(collections);
   }
-}
 
-async function getCollectionById(req: Request, res: Response) {
-  try {
-    const userId = (req as any).user.userId;
-    const id = req.params.id as string;
-
-    const collection = await CollectionModel.getById(id);
+  async getCollectionById({
+    userId,
+    id,
+  }: CollectionInput): Promise<Result<Collection>> {
+    const collection = await collectionModel.getById(id);
 
     if (!collection || collection.user_id !== userId) {
-      return res.status(404).json({ message: "Collection not found" });
+      return err(404, "Collection not found");
     }
 
-    res.json(collection);
-  } catch (error) {
-    logger.error("Get collection error: " + (error as Error).message);
-    res.status(500).json({ message: "Internal server error" });
+    return ok(collection);
   }
-}
 
-async function updateCollection(req: Request, res: Response) {
-  try {
-    const userId = (req as any).user.userId;
-    const id = req.params.id as string;
-    const body = req.body as {
-      name?: string;
-      entries?: Array<{ library_entry_id: string }>;
-    };
-
-    const existing = await CollectionModel.getById(id);
+  async updateCollection({
+    userId,
+    id,
+    body,
+  }: UpdateInput): Promise<Result<Collection>> {
+    const existing = await collectionModel.getById(id);
 
     if (!existing || existing.user_id !== userId) {
-      return res.status(404).json({ message: "Collection not found" });
+      return err(404, "Collection not found");
     }
 
-    const libraryEntryIds = body.entries?.map((entry) => entry.library_entry_id);
+    const libraryEntryIds = body.entries
+      ? body.entries.map((entry) => entry.library_entry_id)
+      : undefined;
 
     if (libraryEntryIds) {
-      const hasValidEntries = await CollectionModel.validateLibraryEntriesOwnership(
+      const entriesAreOwned = await this.userOwnsLibraryEntries(
         userId,
-        libraryEntryIds,
+        libraryEntryIds
       );
 
-      if (!hasValidEntries) {
-        return res.status(400).json({
-          message: "One or more library entries do not belong to the user",
-        });
+      if (!entriesAreOwned) {
+        return err(
+          400,
+          "One or more library entries do not belong to the user"
+        );
       }
     }
 
-    const updated = await CollectionModel.update(id, userId, body.name);
+    const updated = await collectionModel.update(id, userId, {
+      name: body.name,
+    });
 
     if (!updated) {
-      return res.status(404).json({ message: "Collection not found" });
+      return err(404, "Collection not found");
     }
 
     if (libraryEntryIds) {
-      await CollectionModel.replaceEntries(id, libraryEntryIds);
+      await collectionModel.replaceEntries(id, libraryEntryIds);
     }
 
-    res.json(updated);
-  } catch (error) {
-    logger.error("Update collection error: " + (error as Error).message);
-    res.status(500).json({ message: "Internal server error" });
+    return ok(updated);
   }
-}
 
-async function deleteCollection(req: Request, res: Response) {
-  try {
-    const userId = (req as any).user.userId;
-    const id = req.params.id as string;
-
-    const deleted = await CollectionModel.delete(id, userId);
+  async deleteCollection({
+    userId,
+    id,
+  }: CollectionInput): Promise<Result<{ message: string }>> {
+    const deleted = await collectionModel.delete(id, userId);
 
     if (!deleted) {
-      return res.status(404).json({ message: "Collection not found" });
+      return err(404, "Collection not found");
     }
 
-    res.json({ message: "Collection deleted successfully" });
-  } catch (error) {
-    logger.error("Delete collection error: " + (error as Error).message);
-    res.status(500).json({ message: "Internal server error" });
+    return ok({ message: "Collection deleted successfully" });
   }
-}
 
-async function removeCollectionEntries(req: Request, res: Response) {
-  try {
-    const userId = (req as any).user.userId;
-    const id = req.params.id as string;
-    const body = req.body as { library_entry_ids: string[] };
-
-    const existing = await CollectionModel.getById(id);
+  async removeCollectionEntries({
+    userId,
+    id,
+    body,
+  }: RemoveEntriesInput): Promise<Result<{ message: string }>> {
+    const existing = await collectionModel.getById(id);
 
     if (!existing || existing.user_id !== userId) {
-      return res.status(404).json({ message: "Collection not found" });
+      return err(404, "Collection not found");
     }
 
-    const hasValidEntries = await CollectionModel.validateLibraryEntriesOwnership(
+    const libraryEntryIds = body.library_entry_ids;
+    const entriesAreOwned = await this.userOwnsLibraryEntries(
       userId,
-      body.library_entry_ids,
+      libraryEntryIds
     );
 
-    if (!hasValidEntries) {
-      return res.status(400).json({
-        message: "One or more library entries do not belong to the user",
-      });
+    if (!entriesAreOwned) {
+      return err(400, "One or more library entries do not belong to the user");
     }
 
-    await CollectionModel.removeEntries(id, body.library_entry_ids);
+    await collectionModel.removeEntries(id, libraryEntryIds);
 
-    res.json({ message: "Collection entries removed successfully" });
-  } catch (error) {
-    logger.error("Remove collection entries error: " + (error as Error).message);
-    res.status(500).json({ message: "Internal server error" });
+    return ok({ message: "Collection entries removed successfully" });
+  }
+
+  private async userOwnsLibraryEntries(
+    userId: string,
+    libraryEntryIds: string[]
+  ) {
+    const ownedCount = await collectionModel.countOwnedLibraryEntries(
+      userId,
+      libraryEntryIds
+    );
+
+    return ownedCount === libraryEntryIds.length;
   }
 }
 
-export const CollectionService = {
-  createCollection,
-  getUserCollections,
-  getCollectionById,
-  updateCollection,
-  deleteCollection,
-  removeCollectionEntries,
-};
+export const collectionService = new CollectionService();

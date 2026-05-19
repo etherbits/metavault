@@ -11,4 +11,9 @@ export async function createCollectionsTable(sql: SQL) {
       FOREIGN KEY (user_id) REFERENCES users(id)
     )
   `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS idx_collections_user_id
+    ON collections(user_id)
+  `;
 }

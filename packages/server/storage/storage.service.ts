@@ -1,6 +1,6 @@
-import fs from "fs/promises";
-import { getUserLibraryEntryDir, getUserMediaDir } from "./path.util";
+import fs from "node:fs/promises";
 import { logger } from "../logger";
+import { getUserLibraryEntryDir, getUserMediaDir } from "./path.util";
 
 export async function ensureDirExists(dir: string) {
   await fs.mkdir(dir, { recursive: true });

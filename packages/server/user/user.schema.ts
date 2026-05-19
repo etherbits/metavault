@@ -9,14 +9,14 @@ export const signUpSchema = z
       .max(20, "Username must be at most 20 characters")
       .regex(
         /^[a-zA-Z0-9_]+$/,
-        "Username can only contain letters, numbers, and underscores",
+        "Username can only contain letters, numbers, and underscores"
       ),
     password: z
       .string()
       .min(8, "Password must be at least 8 characters")
       .regex(
         /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-        "Password must contain at least one lowercase letter, one uppercase letter, and one number",
+        "Password must contain at least one lowercase letter, one uppercase letter, and one number"
       ),
     confirmPassword: z.string(),
   })
@@ -47,3 +47,4 @@ export type SignUpInput = z.infer<typeof signUpSchema>;
 export type SignInInput = z.infer<typeof signInSchema>;
 export type VerifyUserInput = z.infer<typeof verifyUserSchema>;
 export type ResendVerificationInput = z.infer<typeof resendVerificationSchema>;
+export type UserIdParams = z.infer<typeof userIdSchema>;

@@ -14,8 +14,12 @@ export interface CollectionEntry {
   library_entry_id: string;
 }
 
-export class CollectionModel {
-  static async create(data: {
+export type CollectionWithEntries = Collection & {
+  entries: string;
+};
+
+class CollectionModel {
+  async create(data: {
     id: string;
     user_id: string;
     name: string;
@@ -29,9 +33,7 @@ export class CollectionModel {
     return result[0] as Collection;
   }
 
-  static async createEntries(collectionId: string, libraryEntryIds: string[]) {
-    if (libraryEntryIds.length === 0) return;
-
+  async createEntries(collectionId: string, libraryEntryIds: string[]) {
     for (const libraryEntryId of libraryEntryIds) {
       await sql`
         INSERT INTO collection_entries (id, collection_id, library_entry_id)
@@ -40,7 +42,7 @@ export class CollectionModel {
     }
   }
 
-  static async getByUser(userId: string) {
+  async getByUser(userId: string): Promise<CollectionWithEntries[]> {
     const result = await sql`
       SELECT
         c.*,
@@ -63,10 +65,10 @@ export class CollectionModel {
       ORDER BY c.created_at DESC
     `;
 
-    return result;
+    return result as CollectionWithEntries[];
   }
 
-  static async getById(id: string): Promise<Collection | null> {
+  async getById(id: string): Promise<Collection | null> {
     const result = await sql`
       SELECT * FROM collections WHERE id = ${id}
     `;
@@ -74,11 +76,15 @@ export class CollectionModel {
     return (result[0] as Collection) || null;
   }
 
-  static async update(id: string, userId: string, name?: string) {
+  async update(
+    id: string,
+    userId: string,
+    data: { name?: string }
+  ): Promise<Collection | null> {
     const result = await sql`
       UPDATE collections
       SET
-        name = COALESCE(${name}, name),
+        name = COALESCE(${data.name}, name),
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ${id}
       AND user_id = ${userId}
@@ -88,7 +94,7 @@ export class CollectionModel {
     return (result[0] as Collection) || null;
   }
 
-  static async replaceEntries(collectionId: string, libraryEntryIds: string[]) {
+  async replaceEntries(collectionId: string, libraryEntryIds: string[]) {
     await sql`
       DELETE FROM collection_entries
       WHERE collection_id = ${collectionId}
@@ -97,9 +103,7 @@ export class CollectionModel {
     await this.createEntries(collectionId, libraryEntryIds);
   }
 
-  static async removeEntries(collectionId: string, libraryEntryIds: string[]) {
-    if (libraryEntryIds.length === 0) return;
-
+  async removeEntries(collectionId: string, libraryEntryIds: string[]) {
     await sql`
       DELETE FROM collection_entries
       WHERE collection_id = ${collectionId}
@@ -107,12 +111,7 @@ export class CollectionModel {
     `;
   }
 
-  static async delete(id: string, userId: string): Promise<boolean> {
-    await sql`
-      DELETE FROM collection_entries
-      WHERE collection_id = ${id}
-    `;
-
+  async delete(id: string, userId: string): Promise<boolean> {
     const result = await sql`
       DELETE FROM collections
       WHERE id = ${id}
@@ -123,11 +122,13 @@ export class CollectionModel {
     return result.length > 0;
   }
 
-  static async validateLibraryEntriesOwnership(
+  async countOwnedLibraryEntries(
     userId: string,
-    libraryEntryIds: string[],
-  ): Promise<boolean> {
-    if (libraryEntryIds.length === 0) return true;
+    libraryEntryIds: string[]
+  ): Promise<number> {
+    if (libraryEntryIds.length === 0) {
+      return 0;
+    }
 
     const result = await sql`
       SELECT COUNT(*) as count
@@ -136,6 +137,8 @@ export class CollectionModel {
       AND id IN ${sql(libraryEntryIds)}
     `;
 
-    return Number(result[0]?.count ?? 0) === libraryEntryIds.length;
+    return Number(result[0]?.count ?? 0);
   }
 }
+
+export const collectionModel = new CollectionModel();

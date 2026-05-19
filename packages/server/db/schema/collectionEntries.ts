@@ -6,8 +6,8 @@ export async function createCollectionEntriesTable(sql: SQL) {
       id TEXT PRIMARY KEY,
       collection_id TEXT NOT NULL,
       library_entry_id TEXT NOT NULL,
-      FOREIGN KEY (collection_id) REFERENCES collections(id),
-      FOREIGN KEY (library_entry_id) REFERENCES library_entries(id)
+      FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE,
+      FOREIGN KEY (library_entry_id) REFERENCES library_entries(id) ON DELETE CASCADE
     )
   `;
 }

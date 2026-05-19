@@ -20,19 +20,21 @@ export async function defaultSeed(sql: SQL) {
   const aliceEntry1 = {
     id: crypto.randomUUID(),
     user_id: alice.id,
+    title: "The Shawshank Redemption",
     media_id: "tt0111161",
     image_src:
       "https://res.cloudinary.com/dxvhcwyxe/image/upload/f_auto,dpr_auto,w_640,q_auto,c_fill,h_480,g_auto/ugc/breed/7d81f4f8-c6d8-47c8-af42-7199d5c9866e",
     media_type: "movie",
-    status: "completed",
+    status: "finished",
     personal_rating: 9.5,
   };
   const aliceEntry2 = {
     id: crypto.randomUUID(),
     user_id: alice.id,
+    title: "The Godfather",
     media_id: "tt0068646",
     media_type: "movie",
-    status: "watching",
+    status: "in_progress",
     personal_rating: null,
   };
 
