@@ -22,7 +22,6 @@ export function RegisterPage() {
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#18181B] px-4 py-8">
-
       <section
         className="relative z-10 mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-[320px] flex-col items-center justify-center gap-12"
         aria-label="Create account"
@@ -59,7 +58,9 @@ export function RegisterPage() {
               });
             } catch (error) {
               setErrorMessage(
-                error instanceof Error ? error.message : "Unable to create account"
+                error instanceof Error
+                  ? error.message
+                  : "Unable to create account"
               );
             } finally {
               setIsSubmitting(false);
@@ -67,7 +68,9 @@ export function RegisterPage() {
           }}
         >
           <header>
-            <h1 className="m-0 text-[20px] leading-6 font-semibold">Register</h1>
+            <h1 className="m-0 text-[20px] leading-6 font-semibold">
+              Register
+            </h1>
             <p className="mt-3 text-base leading-6 text-[#d4d4d8]">
               Fill in the details below to create your account
             </p>
@@ -130,7 +133,9 @@ export function RegisterPage() {
                 type="button"
                 className="grid h-5 w-5 place-items-center bg-transparent p-0 text-[#a1a1aa] transition-colors hover:text-[#e4e4e7] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#facc1566]"
                 aria-label={
-                  showConfirmPassword ? "Hide confirm password" : "Show confirm password"
+                  showConfirmPassword
+                    ? "Hide confirm password"
+                    : "Show confirm password"
                 }
                 onClick={() => setShowConfirmPassword((value) => !value)}
               >
@@ -170,13 +175,23 @@ export function RegisterPage() {
   );
 }
 
-function Field({ label, icon, action, ...props }: FieldProps & { action?: ReactNode }) {
+function Field({
+  label,
+  icon,
+  action,
+  ...props
+}: FieldProps & { action?: ReactNode }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-sm leading-5 font-medium text-[#fafafa]">{label}</span>
+      <span className="text-sm leading-5 font-medium text-[#fafafa]">
+        {label}
+      </span>
 
       <span className="flex h-9 min-h-9 items-center gap-2 rounded-lg border border-[#3f3f46] bg-[rgba(255,255,255,0.05)] px-3 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-        <span className="grid h-5 w-5 flex-none place-items-center text-[#a1a1aa]" aria-hidden="true">
+        <span
+          className="grid h-5 w-5 flex-none place-items-center text-[#a1a1aa]"
+          aria-hidden="true"
+        >
           {icon}
         </span>
 
@@ -185,7 +200,9 @@ function Field({ label, icon, action, ...props }: FieldProps & { action?: ReactN
           {...props}
         />
 
-        {action ? <span className="ml-auto grid place-items-center">{action}</span> : null}
+        {action ? (
+          <span className="ml-auto grid place-items-center">{action}</span>
+        ) : null}
       </span>
     </label>
   );

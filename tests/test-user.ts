@@ -1,0 +1,9 @@
+export const TEST_USER_ID = "00000000-0000-4000-8000-000000000001";
+export const TEST_AUTH_USER_ID = "00000000-0000-4000-8000-000000000002";
+export const TEST_AUTH_USERNAME = "e2e-auth";
+export const TEST_AUTH_EMAIL = "e2e-auth@test.local";
+export const TEST_AUTH_PASSWORD = "Password123";
+export const TEST_UNVERIFIED_USER_ID = "00000000-0000-4000-8000-000000000003";
+export const TEST_UNVERIFIED_EMAIL = "e2e-unverified@test.local";
+export const TEST_UNVERIFIED_OTP = "123456";
+export const TEST_DELETABLE_USER_ID = "00000000-0000-4000-8000-000000000004";

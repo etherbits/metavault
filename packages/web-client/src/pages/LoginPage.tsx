@@ -14,7 +14,6 @@ export function LoginPage() {
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#18181B] px-4 py-8">
-
       <section
         className="relative z-10 mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-[320px] flex-col items-center justify-center gap-12"
         aria-label="Log in to account"
@@ -34,7 +33,10 @@ export function LoginPage() {
             setIsSubmitting(true);
 
             try {
-              const response = await signIn({ username: username.trim(), password });
+              const response = await signIn({
+                username: username.trim(),
+                password,
+              });
               const typedUsername = username.trim();
               const resolvedUsername =
                 response.user?.username?.trim() || typedUsername;
@@ -68,7 +70,9 @@ export function LoginPage() {
           </header>
 
           <label className="flex flex-col gap-1">
-            <span className="text-sm leading-5 font-medium text-[#fafafa]">Username</span>
+            <span className="text-sm leading-5 font-medium text-[#fafafa]">
+              Username
+            </span>
 
             <span className="flex h-9 min-h-9 items-center gap-2 rounded-lg border border-[#3f3f46] bg-[rgba(255,255,255,0.05)] px-3 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
               <span
@@ -92,7 +96,9 @@ export function LoginPage() {
           </label>
 
           <label className="flex flex-col gap-1">
-            <span className="text-sm leading-5 font-medium text-[#fafafa]">Password</span>
+            <span className="text-sm leading-5 font-medium text-[#fafafa]">
+              Password
+            </span>
 
             <span className="flex h-9 min-h-9 items-center gap-2 rounded-lg border border-[#3f3f46] bg-[rgba(255,255,255,0.05)] px-3 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
               <span
@@ -124,7 +130,7 @@ export function LoginPage() {
             </span>
           </label>
 
-           <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4">
             {errorMessage ? (
               <p className="rounded-md border border-[#ef4444]/45 bg-[#450a0a] px-3 py-2 text-sm leading-5 text-[#fecaca]">
                 {errorMessage}

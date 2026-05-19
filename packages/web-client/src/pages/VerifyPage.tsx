@@ -7,7 +7,9 @@ export function VerifyPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const prefilledEmail =
-    typeof location.state === "object" && location.state !== null && "email" in location.state
+    typeof location.state === "object" &&
+    location.state !== null &&
+    "email" in location.state
       ? String((location.state as { email?: string }).email ?? "")
       : "";
 
@@ -53,7 +55,9 @@ export function VerifyPage() {
               navigate("/login");
             } catch (error) {
               setErrorMessage(
-                error instanceof Error ? error.message : "Unable to verify account"
+                error instanceof Error
+                  ? error.message
+                  : "Unable to verify account"
               );
             } finally {
               setIsSubmitting(false);
@@ -61,16 +65,23 @@ export function VerifyPage() {
           }}
         >
           <header>
-            <h1 className="m-0 text-xl leading-tight font-semibold">Verify account</h1>
+            <h1 className="m-0 text-xl leading-tight font-semibold">
+              Verify account
+            </h1>
             <p className="mt-3 text-base leading-6 text-[#d4d4d8]">
               Enter your email and the 6-digit code sent to your inbox
             </p>
           </header>
 
           <label className="flex flex-col gap-1">
-            <span className="text-sm leading-5 font-medium text-[#fafafa]">E-Mail</span>
+            <span className="text-sm leading-5 font-medium text-[#fafafa]">
+              E-Mail
+            </span>
             <span className="flex min-h-9 items-center gap-2 rounded-lg border border-[#3f3f46] bg-[rgba(255,255,255,0.05)] px-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-              <span className="grid h-5 w-5 flex-none place-items-center text-[#a1a1aa]" aria-hidden="true">
+              <span
+                className="grid h-5 w-5 flex-none place-items-center text-[#a1a1aa]"
+                aria-hidden="true"
+              >
                 <Mail size={16} />
               </span>
               <input
@@ -86,9 +97,14 @@ export function VerifyPage() {
           </label>
 
           <label className="flex flex-col gap-1">
-            <span className="text-sm leading-5 font-medium text-[#fafafa]">Verification code</span>
+            <span className="text-sm leading-5 font-medium text-[#fafafa]">
+              Verification code
+            </span>
             <span className="flex min-h-9 items-center gap-2 rounded-lg border border-[#3f3f46] bg-[rgba(255,255,255,0.05)] px-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-              <span className="grid h-5 w-5 flex-none place-items-center text-[#a1a1aa]" aria-hidden="true">
+              <span
+                className="grid h-5 w-5 flex-none place-items-center text-[#a1a1aa]"
+                aria-hidden="true"
+              >
                 <KeyRound size={16} />
               </span>
               <input
@@ -99,7 +115,9 @@ export function VerifyPage() {
                 maxLength={6}
                 placeholder="123456"
                 value={otpCode}
-                onChange={(event) => setOtpCode(event.target.value.replace(/\D/g, ""))}
+                onChange={(event) =>
+                  setOtpCode(event.target.value.replace(/\D/g, ""))
+                }
                 required
               />
             </span>
@@ -136,10 +154,14 @@ export function VerifyPage() {
 
                 try {
                   await resendVerificationCode({ email: email.trim() });
-                  setSuccessMessage("Verification code resent. Check your email.");
+                  setSuccessMessage(
+                    "Verification code resent. Check your email."
+                  );
                 } catch (error) {
                   setErrorMessage(
-                    error instanceof Error ? error.message : "Unable to resend code"
+                    error instanceof Error
+                      ? error.message
+                      : "Unable to resend code"
                   );
                 } finally {
                   setIsResending(false);

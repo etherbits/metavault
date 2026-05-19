@@ -1,22 +1,56 @@
 import nodemailer from "nodemailer";
 import "dotenv/config";
+import { parsedEnv } from "../env";
+import { logger } from "../logger";
 
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST,
-  port: 587,
-  secure: false,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+type EmailMessage = {
+  from?: string;
+  to: string;
+  subject: string;
+  html: string;
+};
 
-async function sendOtpCode(to: string, otpCode: string) {
-  return transporter.sendMail({
-    from: "Metavault",
-    to,
-    subject: "Verify your account",
-    html: `
+const isDevelopmentEmail =
+  parsedEnv.NODE_ENV !== "production" && !parsedEnv.EMAIL_HOST;
+const transporter = isDevelopmentEmail
+  ? {
+      sendMail(message: EmailMessage) {
+        logger.info(
+          {
+            to: message.to,
+            subject: message.subject,
+            html: message.html,
+          },
+          "Development email"
+        );
+
+        return Promise.resolve({
+          messageId: `dev-${Date.now()}`,
+        });
+      },
+    }
+  : nodemailer.createTransport({
+      host: parsedEnv.EMAIL_HOST,
+      port: parsedEnv.EMAIL_PORT,
+      secure: false,
+      auth:
+        parsedEnv.EMAIL_USER && parsedEnv.EMAIL_PASS
+          ? {
+              user: parsedEnv.EMAIL_USER,
+              pass: parsedEnv.EMAIL_PASS,
+            }
+          : undefined,
+    });
+
+class EmailService {
+  async sendOtpCode(to: string, otpCode: string) {
+    return transporter.sendMail({
+      from: parsedEnv.EMAIL_FROM,
+      to,
+      subject: "Verify your account",
+      html: isDevelopmentEmail
+        ? `OTP Code for ${to} is: ${otpCode}`
+        : `
       <div style="font-family: Arial, sans-serif; line-height: 1.5; max-width: 600px; margin: 0 auto;">
         <h2>Email Verification</h2>
         <p>Your OTP code is:</p>
@@ -27,24 +61,22 @@ async function sendOtpCode(to: string, otpCode: string) {
         <p>If you didn't request this code, please ignore this email.</p>
       </div>
     `.trim(),
-  });
-}
+    });
+  }
 
-async function sendWelcomeEmail(to: string) {
-  return transporter.sendMail({
-    from: "Metavault",
-    to,
-    subject: "Welcome",
-    html: `
+  async sendWelcomeEmail(to: string) {
+    return transporter.sendMail({
+      from: parsedEnv.EMAIL_FROM,
+      to,
+      subject: "Welcome",
+      html: `
       <div style="font-family: Arial, sans-serif; line-height: 1.5;">
         <h2>Welcome!</h2>
         <p>Thanks for joining us. We are glad you are here.</p>
       </div>
     `.trim(),
-  });
+    });
+  }
 }
 
-export const EmailService = {
-  sendOtpCode,
-  sendWelcomeEmail,
-};
+export const emailService = new EmailService();

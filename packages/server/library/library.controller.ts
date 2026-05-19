@@ -1,67 +1,226 @@
 import { Router } from "express";
-import { upload } from "../middleware/upload";
-import { authMiddleware } from "../middleware/isAuth";
-import { LibraryService } from "./library.service";
-import {
-  validateMiddleware,
-  validateParamsMiddleware,
-} from "../middleware/validation";
+import { bundleUpload, upload } from "../middleware/upload";
+import { validatedRoute } from "../middleware/validation";
+import { sendServiceError } from "../utils/http";
 import {
   createLibraryEntrySchema,
-  updateLibraryEntrySchema,
+  exportLibraryEntriesSchema,
   libraryIdSchema,
-} from "./library.validation";
+  updateLibraryEntrySchema,
+} from "./library.schema";
+import { libraryService } from "./library.service";
 
-const libraryRouter = Router();
+const libraryRouter = Router()
+  .post(
+    "/",
+    ...validatedRoute(
+      {
+        auth: true,
+        body: createLibraryEntrySchema,
+        middleware: [upload.single("image")],
+      },
+      async (req, res) => {
+        const result = await libraryService.createEntry({
+          userId: req.user.userId,
+          body: req.body,
+          imageBuffer: req.file?.buffer,
+        });
+        if (!result.ok) {
+          return sendServiceError(res, result.error);
+        }
 
-libraryRouter.post(
-  "/",
-  authMiddleware,
-  upload.single("image"),
-  validateMiddleware(createLibraryEntrySchema),
-  LibraryService.createEntry,
-);
-libraryRouter.get("/", authMiddleware, LibraryService.getUserLibrary);
-libraryRouter.get(
-  "/:id",
-  authMiddleware,
-  validateParamsMiddleware(libraryIdSchema),
-  LibraryService.getEntriyById,
-);
-libraryRouter.patch(
-  "/:id",
-  authMiddleware,
-  upload.single("image"),
-  validateMiddleware(updateLibraryEntrySchema),
-  validateParamsMiddleware(libraryIdSchema),
-  LibraryService.updateEntry,
-);
-libraryRouter.delete(
-  "/:id",
-  authMiddleware,
-  validateParamsMiddleware(libraryIdSchema),
-  LibraryService.deleteEntry,
-);
-libraryRouter.get("/", authMiddleware, LibraryService.getUserLibrary);
-libraryRouter.get(
-  "/:id",
-  authMiddleware,
-  validateParamsMiddleware(libraryIdSchema),
-  LibraryService.getEntriyById,
-);
-libraryRouter.put(
-  "/:id",
-  authMiddleware,
-  upload.single("image"),
-  validateMiddleware(updateLibraryEntrySchema),
-  validateParamsMiddleware(libraryIdSchema),
-  LibraryService.updateEntry,
-);
-libraryRouter.delete(
-  "/:id",
-  authMiddleware,
-  validateParamsMiddleware(libraryIdSchema),
-  LibraryService.deleteEntry,
-);
+        return res.status(201).json(result.data);
+      }
+    )
+  )
+  .get(
+    "/",
+    ...validatedRoute({ auth: true }, async (req, res) => {
+      const result = await libraryService.getUserLibrary(req.user.userId);
+      if (!result.ok) {
+        return sendServiceError(res, result.error);
+      }
+
+      return res.json(result.data);
+    })
+  )
+  .get(
+    "/:id",
+    ...validatedRoute(
+      { auth: true, params: libraryIdSchema },
+      async (req, res) => {
+        const result = await libraryService.getEntryById({
+          userId: req.user.userId,
+          id: req.params.id,
+        });
+        if (!result.ok) {
+          return sendServiceError(res, result.error);
+        }
+
+        return res.json(result.data);
+      }
+    )
+  )
+  .patch(
+    "/:id",
+    ...validatedRoute(
+      {
+        auth: true,
+        params: libraryIdSchema,
+        body: updateLibraryEntrySchema,
+        middleware: [upload.single("image")],
+      },
+      async (req, res) => {
+        const result = await libraryService.updateEntry({
+          userId: req.user.userId,
+          id: req.params.id,
+          body: req.body,
+          imageBuffer: req.file?.buffer,
+        });
+        if (!result.ok) {
+          return sendServiceError(res, result.error);
+        }
+
+        return res.json(result.data);
+      }
+    )
+  )
+  .put(
+    "/:id",
+    ...validatedRoute(
+      {
+        auth: true,
+        params: libraryIdSchema,
+        body: updateLibraryEntrySchema,
+        middleware: [upload.single("image")],
+      },
+      async (req, res) => {
+        const result = await libraryService.updateEntry({
+          userId: req.user.userId,
+          id: req.params.id,
+          body: req.body,
+          imageBuffer: req.file?.buffer,
+        });
+        if (!result.ok) {
+          return sendServiceError(res, result.error);
+        }
+
+        return res.json(result.data);
+      }
+    )
+  )
+  .delete(
+    "/:id",
+    ...validatedRoute(
+      { auth: true, params: libraryIdSchema },
+      async (req, res) => {
+        const result = await libraryService.deleteEntry({
+          userId: req.user.userId,
+          id: req.params.id,
+        });
+        if (!result.ok) {
+          return sendServiceError(res, result.error);
+        }
+
+        return res.json(result.data);
+      }
+    )
+  )
+  .post(
+    "/export/csv",
+    ...validatedRoute(
+      {
+        auth: true,
+        body: exportLibraryEntriesSchema,
+      },
+      async (req, res) => {
+        const result = await libraryService.exportEntriesToCsv({
+          userId: req.user.userId,
+          ids: req.body.ids,
+        });
+
+        if (!result.ok) {
+          return sendServiceError(res, result.error);
+        }
+
+        res.setHeader("Content-Type", "text/csv; charset=utf-8");
+        res.setHeader(
+          "Content-Disposition",
+          'attachment; filename="library-export.csv"'
+        );
+
+        return res.status(200).send(result.data.csv);
+      }
+    )
+  )
+  .post(
+    "/export/bundle",
+    ...validatedRoute(
+      {
+        auth: true,
+        body: exportLibraryEntriesSchema,
+      },
+      async (req, res) => {
+        const result = await libraryService.exportEntriesToBundle({
+          userId: req.user.userId,
+          ids: req.body.ids,
+        });
+
+        if (!result.ok) {
+          return sendServiceError(res, result.error);
+        }
+
+        res.setHeader("Content-Type", "application/zip");
+        res.setHeader(
+          "Content-Disposition",
+          'attachment; filename="library-export.zip"'
+        );
+
+        return res.status(200).send(result.data.buffer);
+      }
+    )
+  )
+  .post(
+    "/import/csv",
+    ...validatedRoute(
+      {
+        auth: true,
+        middleware: [upload.single("file")],
+      },
+      async (req, res) => {
+        const result = await libraryService.importEntriesFromCsv({
+          userId: req.user.userId,
+          csvBuffer: req.file?.buffer,
+        });
+
+        if (!result.ok) {
+          return sendServiceError(res, result.error);
+        }
+
+        return res.status(201).json(result.data);
+      }
+    )
+  )
+  .post(
+    "/import/bundle",
+    ...validatedRoute(
+      {
+        auth: true,
+        middleware: [bundleUpload.single("file")],
+      },
+      async (req, res) => {
+        const result = await libraryService.importEntriesFromBundle({
+          userId: req.user.userId,
+          bundleBuffer: req.file?.buffer,
+        });
+
+        if (!result.ok) {
+          return sendServiceError(res, result.error);
+        }
+
+        return res.status(201).json(result.data);
+      }
+    )
+  );
 
 export default libraryRouter;

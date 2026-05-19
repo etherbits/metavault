@@ -15,7 +15,10 @@ type ApiSuccessResponse = {
   };
 };
 
-async function request(path: string, options: RequestOptions): Promise<ApiSuccessResponse> {
+async function request(
+  path: string,
+  options: RequestOptions
+): Promise<ApiSuccessResponse> {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
   let response: Response;
 
@@ -34,9 +37,9 @@ async function request(path: string, options: RequestOptions): Promise<ApiSucces
     );
   }
 
-  const data = (await response.json().catch(() => null)) as
-    | { message?: string }
-    | null;
+  const data = (await response.json().catch(() => null)) as {
+    message?: string;
+  } | null;
 
   if (!response.ok) {
     throw new Error(data?.message ?? "Request failed");

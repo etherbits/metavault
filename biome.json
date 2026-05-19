@@ -20,7 +20,8 @@
     "formatter": {
       "quoteStyle": "double",
       "trailingCommas": "es5"
-    }
+    },
+    "assist": { "enabled": true }
   },
   "json": {
     "formatter": {
@@ -35,6 +36,13 @@
   "css": {
     "parser": {
       "tailwindDirectives": true
+    }
+  },
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
     }
   }
 }

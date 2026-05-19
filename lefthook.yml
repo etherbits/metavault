@@ -1,8 +1,8 @@
 pre-commit:
   commands:
     format:
-      glob: "*/.{ts,tsx,json,html}"
-      run: bun format --write {staged_files}
+      glob: "**/*.{ts,tsx,json,html}"
+      run: bun format
       stage_fixed: true
 
 pre-push:

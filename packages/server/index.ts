@@ -1,42 +1,45 @@
-import express from "express";
-import cors from "cors";
 import cookieParser from "cookie-parser";
-import { logger } from "./logger";
-import { loggerMiddleware } from "./middleware/logger";
-import { run_query } from "@etherbits/ezq-node";
+import cors from "cors";
+import express from "express";
 import authRouter from "./auth/auth.controller";
+import { parsedEnv } from "./env";
+import { ezqRouter } from "./ezq/ezq.controller";
+import { healthRouter } from "./health/health.controller";
 import libraryRouter from "./library/library.controller";
+import collectionRouter from "./collection/collection.controller";
+import { logger } from "./logger";
+import { unexpectedErrorMiddleware } from "./middleware/error";
+import { loggerMiddleware } from "./middleware/logger";
+import { rateLimit } from "./middleware/rateLimit";
+import { MEDIA_ROOT } from "./storage/path.util";
+import userRouter from "./user/user.controller";
 
 const app = express();
-const port = Number(process.env.PORT ?? 3435);
-const clientOrigin = process.env.CLIENT_ORIGIN ?? "http://localhost:3534";
 
+app.use(loggerMiddleware);
 app.use(express.json());
 app.use(cookieParser());
-app.use(loggerMiddleware);
+app.use(
+  rateLimit({
+    windowMs: parsedEnv.RATE_LIMIT_WINDOW_MS,
+    max: parsedEnv.GLOBAL_RATE_LIMIT_MAX,
+  })
+);
 app.use(
   cors({
-    origin: clientOrigin,
+    origin: parsedEnv.CLIENT_ORIGIN,
     credentials: true,
-  }),
+  })
 );
-
+app.use("/media", express.static(MEDIA_ROOT));
+app.use("/ezq", ezqRouter);
 app.use("/auth", authRouter);
 app.use("/library", libraryRouter);
+app.use("/collections", collectionRouter);
+app.use("/users", userRouter);
+app.use("/health", healthRouter);
+app.use(unexpectedErrorMiddleware);
 
-// biome-ignore lint/correctness/noUnusedFunctionParameters: req unused but required by Express signature
-app.get("/health", (req, res) => {
-  console.log("API URL:", process.env.BUN_PUBLIC_API_URL);
-  res.json({ status: "ok", uptime: process.uptime() });
+app.listen(parsedEnv.PORT, () => {
+  logger.info({ port: parsedEnv.PORT }, "Server started");
 });
-
-// biome-ignore lint/correctness/noUnusedFunctionParameters: req unused but required by Express signature
-app.get("/", (req, res) => {
-  res.send(run_query("c attack tag:action,adventure:minor,dark tag:fantasy"));
-});
-
-app.listen(port, () => {
-  logger.info({ port }, "Server started");
-});
-
-export type Test = { a: "b" };

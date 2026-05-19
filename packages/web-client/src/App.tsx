@@ -1,12 +1,3 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router";
-import { Sidebar } from "@/components/Sidebar";
-import { HomeSection } from "@/components/HomeSection";
-import { QueryInput } from "@/components/QueryInput";
-import { IntegrationCard } from "@/components/IntegrationCard";
-import { NotePanel } from "@/components/NotePanel";
-import { Pagination } from "@/components/Pagination";
-import { AddToCollectionDialog } from "@/components/AddToCollectionDialog";
 import {
   ArrowRight,
   Bot,
@@ -20,19 +11,26 @@ import {
   GripVertical,
   Home,
   Link2,
-  MessageSquarePlus,
   Menu,
+  MessageSquarePlus,
   Pencil,
   Plus,
   Save,
   ArrowUp,
+  SendHorizontal,
+  Settings,
   Sparkles,
   Star,
-  Settings,
   Trash2,
   Type,
   Upload,
 } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router";
+import HeroPoster from "@/assets/hero.png";
+import { AddToCollectionDialog } from "@/components/AddToCollectionDialog";
+import { HomeSection } from "@/components/HomeSection";
+import { IntegrationCard } from "@/components/IntegrationCard";
 import {
   MediaCard,
   type MediaItem,
@@ -40,6 +38,10 @@ import {
 } from "@/components/MediaCard";
 import BatmanPoster from "@/assets/download.jpeg";
 import { AUTH_STORAGE_KEY, AUTH_USER_STORAGE_KEY } from "@/lib/authApi";
+import { NotePanel } from "@/components/NotePanel";
+import { Pagination } from "@/components/Pagination";
+import { QueryInput } from "@/components/QueryInput";
+import { Sidebar } from "@/components/Sidebar";
 import "./index.css";
 
 type Page = "home" | "query" | "integrations" | "settings";
