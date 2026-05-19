@@ -16,7 +16,7 @@ import {
   Pencil,
   Plus,
   Save,
-  SendHorizontal,
+  ArrowUp,
   Settings,
   Sparkles,
   Star,
@@ -26,7 +26,6 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
-import HeroPoster from "@/assets/hero.png";
 import { AddToCollectionDialog } from "@/components/AddToCollectionDialog";
 import { HomeSection } from "@/components/HomeSection";
 import { IntegrationCard } from "@/components/IntegrationCard";
@@ -35,11 +34,12 @@ import {
   type MediaItem,
   type MediaStatus,
 } from "@/components/MediaCard";
+import BatmanPoster from "@/assets/download.jpeg";
+import { AUTH_STORAGE_KEY, AUTH_USER_STORAGE_KEY } from "@/lib/authApi";
 import { NotePanel } from "@/components/NotePanel";
 import { Pagination } from "@/components/Pagination";
 import { QueryInput } from "@/components/QueryInput";
 import { Sidebar } from "@/components/Sidebar";
-import { AUTH_STORAGE_KEY } from "@/lib/authApi";
 import "./index.css";
 
 type Page = "home" | "query" | "integrations" | "settings";
@@ -141,6 +141,7 @@ const QUERY_ITEMS: MediaItem[] = Array.from({ length: 18 }, (_, index) => {
   return {
     ...source,
     id: `query-${index + 1}`,
+    posterUrl: BatmanPoster,
   };
 });
 
@@ -357,6 +358,42 @@ export function App() {
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [assistantDraft, setAssistantDraft] = useState("");
   const [detailViewItemId, setDetailViewItemId] = useState<string | null>(null);
+  const [sidebarUser] = useState(() => {
+    const fallbackUser = {
+      name: "User",
+      email: "",
+    };
+
+    try {
+      const stored = localStorage.getItem(AUTH_USER_STORAGE_KEY);
+      if (!stored) return fallbackUser;
+      const parsed = JSON.parse(stored) as {
+        name?: unknown;
+        username?: unknown;
+        email?: unknown;
+      };
+      const nameFromName =
+        typeof parsed.name === "string" ? parsed.name.trim() : "";
+      const nameFromUsername =
+        typeof parsed.username === "string" ? parsed.username.trim() : "";
+      const name = nameFromName || nameFromUsername;
+      const email = typeof parsed.email === "string" ? parsed.email.trim() : "";
+      return {
+        name: name || fallbackUser.name,
+        email,
+      };
+    } catch {
+      const rawName = localStorage.getItem("metavault.username")?.trim() ?? "";
+      const rawEmail = localStorage.getItem("metavault.email")?.trim() ?? "";
+      if (rawName || rawEmail) {
+        return {
+          name: rawName || fallbackUser.name,
+          email: rawEmail,
+        };
+      }
+      return fallbackUser;
+    }
+  });
   const queryTimerRef = useRef<number | null>(null);
   const isCreateQuery = query.trim().toLowerCase().startsWith("create ");
   const isUpdateQuery = query.trim().toLowerCase().startsWith("update ");
@@ -739,6 +776,9 @@ export function App() {
     setSelectMode(false);
     setSelectedIds([]);
     localStorage.removeItem(AUTH_STORAGE_KEY);
+    localStorage.removeItem(AUTH_USER_STORAGE_KEY);
+    localStorage.removeItem("metavault.username");
+    localStorage.removeItem("metavault.email");
     navigate("/login");
   };
 
@@ -807,6 +847,7 @@ export function App() {
         isOpen={sidebarOpen}
         onToggle={handleToggleSidebar}
         onSignOut={handleSignOut}
+        user={sidebarUser}
       />
 
       {sidebarOpen && (
@@ -891,7 +932,7 @@ export function App() {
                     <section className="flex w-full max-w-[400px] flex-col gap-8">
                       <div className="relative h-auto w-full overflow-hidden rounded-[4px] shadow-[4px_0px_16px_rgba(164,37,36,0.18)]">
                         <img
-                          src={detailViewItem.posterUrl ?? HeroPoster}
+                          src={detailViewItem.posterUrl ?? BatmanPoster}
                           alt={detailViewItem.title}
                           className="h-full min-h-[460px] w-full object-cover"
                         />
@@ -1137,12 +1178,12 @@ export function App() {
                         </p>
                       )
                     ) : (
-                      <div className="flex w-full items-center justify-between gap-4">
+                      <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                         <p className="text-[14px] leading-5 text-[#A1A1AA]">
                           Retrieved {queryResults.length} results
                         </p>
 
-                        <div className="flex justify-start sm:justify-end">
+                        <div className="flex w-full justify-start sm:w-auto sm:justify-end">
                           <Pagination
                             currentPage={currentPage}
                             totalPages={totalPages}
@@ -1379,9 +1420,14 @@ export function App() {
 
       {activePage === "query" && assistantOpen && (
         <>
-          <div className="fixed inset-0 z-40 bg-[#18181B]/[0.86] backdrop-blur-[8px]" />
+          <button
+            type="button"
+            aria-label="Close assistant chat"
+            onClick={() => setAssistantOpen(false)}
+            className="fixed inset-0 z-40 bg-[#18181B]/[0.86] backdrop-blur-[8px]"
+          />
 
-          <section className="fixed bottom-12 right-4 z-50 flex h-[500px] w-[calc(100vw-2rem)] max-w-[500px] flex-col gap-5 rounded-[8px] bg-[#18181B] px-5 pb-5 pt-3 shadow-[0px_20px_25px_-5px_rgba(0,0,0,0.1),0px_8px_10px_-6px_rgba(0,0,0,0.1)] sm:right-8 lg:right-[104px]">
+          <section className="fixed bottom-12 right-4 z-50 flex h-[500px] w-[calc(100vw-2rem)] max-w-[500px] flex-col gap-5 rounded-[8px] bg-[#18181B] px-5 pb-5 pt-3 shadow-[0px_20px_25px_-5px_rgba(0,0,0,0.1),0px_8px_10px_-6px_rgba(0,0,0,0.1)] sm:right-12">
             <div className="flex h-8 items-center gap-3">
               <h3 className="flex-1 text-[20px] font-semibold leading-6 text-[#E4E4E7]">
                 Metavault Assistant Chat
@@ -1389,9 +1435,9 @@ export function App() {
 
               <button
                 type="button"
-                className="flex h-8 items-center gap-1 rounded-[8px] border border-[#3F3F46] bg-white/5 px-2 py-1 text-xs text-[#FAFAFA] shadow-[0px_1px_2px_rgba(0,0,0,0.05)]"
+                className="flex h-8 w-[166px] items-center justify-between gap-1 rounded-[8px] border border-[#3F3F46] bg-white/5 px-2 py-1 text-xs text-[#FAFAFA] shadow-[0px_1px_2px_rgba(0,0,0,0.05)]"
               >
-                <span>Select an item</span>
+                <span className="truncate">Could you describe the...</span>
                 <ChevronDown size={16} className="text-[#A1A1AA]" />
               </button>
 
@@ -1427,14 +1473,14 @@ export function App() {
                   value={assistantDraft}
                   onChange={(event) => setAssistantDraft(event.target.value)}
                   className="h-[100px] w-full resize-none rounded-[8px] border border-[#3F3F46] bg-white/5 p-2 pr-12 text-[14px] leading-5 text-[#FAFAFA] outline-none placeholder:text-[#A1A1AA]"
-                  placeholder="Type your follow-up..."
+                  placeholder="Could you give me a recommendation, based on the current results"
                 />
 
                 <button
                   type="button"
                   className="absolute bottom-2 right-2 flex h-9 w-9 items-center justify-center rounded-[8px] bg-[#FACC15] text-[#09090B]"
                 >
-                  <SendHorizontal size={20} />
+                  <ArrowUp size={20} />
                 </button>
               </div>
             </div>
@@ -1446,7 +1492,9 @@ export function App() {
         <button
           type="button"
           onClick={() => setAssistantOpen((prev) => !prev)}
-          className="fixed bottom-12 right-12 z-[60] flex h-10 w-10 items-center justify-center rounded-[8px] bg-[#FACC15] text-[#09090B] shadow-[0px_20px_25px_-5px_rgba(0,0,0,0.1),0px_8px_10px_-6px_rgba(0,0,0,0.1)]"
+          className={`fixed z-[60] flex h-10 w-10 items-center justify-center rounded-[8px] bg-[#FACC15] text-[#09090B] shadow-[0px_20px_25px_-5px_rgba(0,0,0,0.1),0px_8px_10px_-6px_rgba(0,0,0,0.1)] ${
+            assistantOpen ? "bottom-10 right-2" : "bottom-12 right-12"
+          }`}
           aria-label={
             assistantOpen ? "Close assistant chat" : "Open assistant chat"
           }
