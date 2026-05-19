@@ -17,7 +17,6 @@ import {
   Plus,
   Save,
   ArrowUp,
-  SendHorizontal,
   Settings,
   Sparkles,
   Star,
@@ -27,7 +26,6 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
-import HeroPoster from "@/assets/hero.png";
 import { AddToCollectionDialog } from "@/components/AddToCollectionDialog";
 import { HomeSection } from "@/components/HomeSection";
 import { IntegrationCard } from "@/components/IntegrationCard";
