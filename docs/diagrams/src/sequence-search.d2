@@ -1,0 +1,24 @@
+shape: sequence_diagram
+
+user: User
+client: "Browser (React)"
+ezq_wasm: "EZQ WASM"
+api: "MetaVault API"
+ezq_node: "EZQ (Node)"
+db: "SQLite"
+
+user -> client: "type query"
+client -> ezq_wasm: "generate_ast(rawQuery)"
+ezq_wasm -> client: "{ ast, canonical, errors }"
+client -> client: "inline feedback"
+
+user -> client: "press Enter"
+client -> api: "POST /ezq { query }"
+api -> ezq_node: "generate_ast(query)"
+ezq_node -> api: "ast"
+api -> ezq_node: "generate_sql(ast, { user_id })"
+ezq_node -> api: "EzqSqlStep[]"
+api -> db: "SELECT library_entries ... WHERE user_id=?"
+db -> api: "matched rows + json tags"
+api -> client: "200 OK { rows }"
+client -> user: "render result grid"

@@ -13,43 +13,33 @@ ai: AI Service { shape: rectangle }
 
 system: MetaVault {
   auth: Authentication {
-    register: Register
-    login: Login
-    logout: Logout
+    grid-columns: 2
+    register: Register { shape: oval }
+    verify: Verify Account { shape: oval }
+    login: Login { shape: oval }
+    logout: Logout { shape: oval }
   }
   library: Library {
-    add: Add Entries
-    search: Search Entries
-    update: Update Entries
-    delete: Delete Entries
-    rate: Rate
-    import: Import Media
-    export: Export Media
+    grid-columns: 4
+    add: Add Entries { shape: oval }
+    update: Update Entries { shape: oval }
+    delete: Delete Entries { shape: oval }
+    search: Search Entries { shape: oval }
+    import: Import Media { shape: oval }
+    export: Export Media { shape: oval }
   }
   integrations: Integrations {
-    toggle_source: Toggle Source Integration
-    toggle_ai: Toggle AI Integration
+    grid-columns: 2
+    toggle_source: Toggle Source Integration { shape: oval }
+    toggle_ai: Toggle AI Integration { shape: oval }
   }
-  ai_chat: AI Chat
+  ai_chat: AI Chat { shape: oval }
 }
 
-# Auth
-user -> system.auth.register
-user -> system.auth.login
-user -> system.auth.logout
-
-# Library actions
-user -> system.library.add
-user -> system.library.update
-user -> system.library.search
-user -> system.library.delete
-user -> system.library.rate
-user -> system.library.import
-user -> system.library.export
-
-# Integrations & AI
-user -> system.integrations.toggle_source
-user -> system.integrations.toggle_ai
+# User interacts with each feature group
+user -> system.auth
+user -> system.library
+user -> system.integrations
 user -> system.ai_chat
 
 # Collapse the source connections to the container level
