@@ -1,19 +1,46 @@
 import nodemailer from "nodemailer";
 import "dotenv/config";
 import { parsedEnv } from "../env";
+import { logger } from "../logger";
 
-const transporter =
-  parsedEnv.NODE_ENV === "test"
-    ? nodemailer.createTransport({ jsonTransport: true })
-    : nodemailer.createTransport({
-        host: parsedEnv.EMAIL_HOST,
-        port: 587,
-        secure: false,
-        auth: {
-          user: parsedEnv.EMAIL_USER,
-          pass: parsedEnv.EMAIL_PASS,
-        },
-      });
+type EmailMessage = {
+  from?: string;
+  to: string;
+  subject: string;
+  html: string;
+};
+
+const isDevelopmentEmail =
+  parsedEnv.NODE_ENV !== "production" && !parsedEnv.EMAIL_HOST;
+const transporter = isDevelopmentEmail
+  ? {
+      sendMail(message: EmailMessage) {
+        logger.info(
+          {
+            to: message.to,
+            subject: message.subject,
+            html: message.html,
+          },
+          "Development email"
+        );
+
+        return Promise.resolve({
+          messageId: `dev-${Date.now()}`,
+        });
+      },
+    }
+  : nodemailer.createTransport({
+      host: parsedEnv.EMAIL_HOST,
+      port: parsedEnv.EMAIL_PORT,
+      secure: false,
+      auth:
+        parsedEnv.EMAIL_USER && parsedEnv.EMAIL_PASS
+          ? {
+              user: parsedEnv.EMAIL_USER,
+              pass: parsedEnv.EMAIL_PASS,
+            }
+          : undefined,
+    });
 
 class EmailService {
   async sendOtpCode(to: string, otpCode: string) {

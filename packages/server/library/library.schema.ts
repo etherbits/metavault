@@ -19,6 +19,8 @@ const libraryEntryFieldsSchema = z.object({
     .enum(["in_progress", "dropped", "planning", "on_hold", "finished"])
     .optional(),
 
+  released_at: z.string().optional(),
+
   public_rating: optionalRatingSchema,
   personal_rating: optionalRatingSchema,
 });

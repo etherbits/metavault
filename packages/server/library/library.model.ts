@@ -1,5 +1,7 @@
 import { sql } from "../db";
 
+export type LibraryTagWeight = "major" | "minor";
+
 export interface LibraryEntry {
   id: string;
   user_id: string;
@@ -17,8 +19,16 @@ export interface LibraryEntry {
   public_rating: number | null;
   personal_rating: number | null;
 
+  released_at: string | null;
+
   created_at: string;
   updated_at: string;
+}
+
+export interface LibraryTag {
+  id: string;
+  value: string;
+  weight: LibraryTagWeight;
 }
 
 export interface CreateLibraryEntryData {
@@ -35,6 +45,8 @@ export interface CreateLibraryEntryData {
 
   public_rating?: number;
   personal_rating?: number;
+
+  released_at?: string;
 }
 
 export interface UpdateLibraryEntryData {
@@ -50,6 +62,8 @@ export interface UpdateLibraryEntryData {
 
   public_rating?: number;
   personal_rating?: number;
+
+  released_at?: string;
 }
 
 class LibraryModel {
@@ -67,7 +81,8 @@ class LibraryModel {
         status,
         image_src,
         public_rating,
-        personal_rating
+        personal_rating,
+        released_at
       )
       VALUES (
         ${data.id},
@@ -79,7 +94,8 @@ class LibraryModel {
         ${data.status ?? null},
         ${data.image_src ?? null},
         ${data.public_rating ?? null},
-        ${data.personal_rating ?? null}
+        ${data.personal_rating ?? null},
+        ${data.released_at ?? null}
       )
       RETURNING *
     `;
@@ -106,10 +122,14 @@ class LibraryModel {
   }
 
   async getByIds(userId: string, ids: string[]): Promise<LibraryEntry[]> {
+    if (ids.length === 0) {
+      return [];
+    }
+
     const result = await sql`
       SELECT * FROM library_entries
       WHERE user_id = ${userId}
-      AND id = ANY(${ids})
+      AND id IN ${sql(ids)}
       ORDER BY created_at DESC
     `;
 
@@ -132,6 +152,7 @@ class LibraryModel {
         image_src = COALESCE(${data.image_src}, image_src),
         public_rating = COALESCE(${data.public_rating}, public_rating),
         personal_rating = COALESCE(${data.personal_rating}, personal_rating),
+        released_at = COALESCE(${data.released_at}, released_at),
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ${id}
       AND user_id = ${userId}
@@ -150,6 +171,80 @@ class LibraryModel {
     `;
 
     return result.length > 0;
+  }
+
+  async getTagsByEntryIds(
+    userId: string,
+    entryIds: string[]
+  ): Promise<Map<string, LibraryTag[]>> {
+    const tagsByEntryId = new Map<string, LibraryTag[]>();
+
+    if (entryIds.length === 0) {
+      return tagsByEntryId;
+    }
+
+    const result = await sql`
+      SELECT
+        library_entry_tags.library_entry_id,
+        tags.id,
+        tags.value,
+        tags.weight
+      FROM library_entry_tags
+      JOIN tags ON tags.id = library_entry_tags.tag_id
+      JOIN library_entries ON library_entries.id = library_entry_tags.library_entry_id
+      WHERE library_entries.user_id = ${userId}
+      AND library_entry_tags.library_entry_id IN ${sql(entryIds)}
+      ORDER BY tags.value ASC
+    `;
+
+    for (const row of result as Array<
+      LibraryTag & { library_entry_id: string }
+    >) {
+      const tags = tagsByEntryId.get(row.library_entry_id) ?? [];
+      tags.push({
+        id: row.id,
+        value: row.value,
+        weight: row.weight,
+      });
+      tagsByEntryId.set(row.library_entry_id, tags);
+    }
+
+    return tagsByEntryId;
+  }
+
+  async findOrCreateTag({
+    userId,
+    value,
+    weight,
+  }: {
+    userId: string;
+    value: string;
+    weight: LibraryTagWeight;
+  }): Promise<LibraryTag> {
+    await sql`
+      INSERT INTO tags (id, user_id, value, weight)
+      VALUES (${crypto.randomUUID()}, ${userId}, ${value}, ${weight})
+      ON CONFLICT(value, weight, user_id) DO NOTHING
+    `;
+
+    const result = await sql`
+      SELECT id, value, weight
+      FROM tags
+      WHERE user_id = ${userId}
+      AND value = ${value}
+      AND weight = ${weight}
+      LIMIT 1
+    `;
+
+    return result[0] as LibraryTag;
+  }
+
+  async linkTag(entryId: string, tagId: string): Promise<void> {
+    await sql`
+      INSERT INTO library_entry_tags (library_entry_id, tag_id)
+      VALUES (${entryId}, ${tagId})
+      ON CONFLICT(library_entry_id, tag_id) DO NOTHING
+    `;
   }
 }
 

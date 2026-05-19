@@ -15,19 +15,20 @@ const envSchema = z
     RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
     MEDIA_ROOT: z.string().default("media"),
     EMAIL_HOST: z.string().optional(),
+    EMAIL_PORT: z.coerce.number().int().positive().default(587),
     EMAIL_USER: z.string().optional(),
     EMAIL_PASS: z.string().optional(),
     EMAIL_FROM: z.string().optional(),
   })
   .superRefine((env, ctx) => {
-    if (env.NODE_ENV === "test") return;
+    if (env.NODE_ENV !== "production") return;
 
     for (const key of ["EMAIL_HOST", "EMAIL_USER", "EMAIL_PASS"] as const) {
       if (!env[key]) {
         ctx.addIssue({
           code: "custom",
           path: [key],
-          message: `${key} is required outside test`,
+          message: `${key} is required in production`,
         });
       }
     }

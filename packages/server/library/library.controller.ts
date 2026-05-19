@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { upload } from "../middleware/upload";
+import { bundleUpload, upload } from "../middleware/upload";
 import { validatedRoute } from "../middleware/validation";
 import { sendServiceError } from "../utils/http";
 import {
@@ -149,7 +149,34 @@ const libraryRouter = Router()
           'attachment; filename="library-export.csv"'
         );
 
-        return res.status(200).send(result.data);
+        return res.status(200).send(result.data.csv);
+      }
+    )
+  )
+  .post(
+    "/export/bundle",
+    ...validatedRoute(
+      {
+        auth: true,
+        body: exportLibraryEntriesSchema,
+      },
+      async (req, res) => {
+        const result = await libraryService.exportEntriesToBundle({
+          userId: req.user.userId,
+          ids: req.body.ids,
+        });
+
+        if (!result.ok) {
+          return sendServiceError(res, result.error);
+        }
+
+        res.setHeader("Content-Type", "application/zip");
+        res.setHeader(
+          "Content-Disposition",
+          'attachment; filename="library-export.zip"'
+        );
+
+        return res.status(200).send(result.data.buffer);
       }
     )
   )
@@ -164,6 +191,27 @@ const libraryRouter = Router()
         const result = await libraryService.importEntriesFromCsv({
           userId: req.user.userId,
           csvBuffer: req.file?.buffer,
+        });
+
+        if (!result.ok) {
+          return sendServiceError(res, result.error);
+        }
+
+        return res.status(201).json(result.data);
+      }
+    )
+  )
+  .post(
+    "/import/bundle",
+    ...validatedRoute(
+      {
+        auth: true,
+        middleware: [bundleUpload.single("file")],
+      },
+      async (req, res) => {
+        const result = await libraryService.importEntriesFromBundle({
+          userId: req.user.userId,
+          bundleBuffer: req.file?.buffer,
         });
 
         if (!result.ok) {

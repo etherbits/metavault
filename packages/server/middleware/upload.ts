@@ -8,3 +8,10 @@ export const upload = multer({
     fileSize: 5 * 1024 * 1024, // 5MB
   },
 });
+
+export const bundleUpload = multer({
+  storage,
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB
+  },
+});
