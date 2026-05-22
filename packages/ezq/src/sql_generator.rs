@@ -551,10 +551,7 @@ impl SqlGenerator {
         out: &mut Vec<WriteItem>,
     ) -> Option<()> {
         match expr {
-            ASTExpr::Leaf(s) => out.push(WriteItem {
-                leaf: s,
-                remove,
-            }),
+            ASTExpr::Leaf(s) => out.push(WriteItem { leaf: s, remove }),
             ASTExpr::Not(inner) => {
                 if remove {
                     return None;
@@ -565,7 +562,7 @@ impl SqlGenerator {
                 for item in items {
                     self.collect_update_write_items(item, remove, out)?;
                 }
-            },
+            }
             _ => return None,
         }
 
@@ -1326,10 +1323,7 @@ mod tests {
     fn update_empty_selection_can_remove_tag_for_user_entries() {
         let sql = generator()
             .generate(
-                root(
-                    "update",
-                    update(and(vec![]), not(leaf("tag:a:major"))),
-                ),
+                root("update", update(and(vec![]), not(leaf("tag:a:major")))),
                 Extras {
                     user_id: Some("user-1".to_string()),
                 },
