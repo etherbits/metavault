@@ -1,17 +1,18 @@
 import {
-  Film,
-  Tv,
-  Gamepad2,
-  BookOpen,
   BookMarked,
+  BookOpen,
+  Film,
+  Flag,
   FolderOpen,
-  Loader2,
+  Gamepad2,
+  Tv,
 } from "lucide-react";
+import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import type { MediaType, MediaStatus } from "./MediaCard";
+import type { MediaStatus, MediaType } from "@/features/library/types";
 
 // --- Type Badge ---
-const typeIcons: Record<MediaType, React.ReactNode> = {
+const typeIcons: Record<MediaType, ReactNode> = {
   Movie: <Film size={10} />,
   "TV Show": <Tv size={10} />,
   Anime: <Tv size={10} />,
@@ -46,31 +47,35 @@ const statusConfig: Record<
   { bg: string; text: string; border: string }
 > = {
   "On Hold": {
-    bg: "bg-[#1e3a5f]",
-    text: "text-[#5b9bd5]",
-    border: "border-[#2a5080]",
+    bg: "bg-[#3F3F46]/40",
+    text: "text-[#A1A1AA]",
+    border: "border-[#71717A]",
   },
   "In Progress": {
-    bg: "bg-[#1e3d2f]",
-    text: "text-[#4caf7d]",
-    border: "border-[#2a5540]",
+    bg: "bg-[#FACC15]/10",
+    text: "text-[#FACC15]",
+    border: "border-[#FACC15]",
   },
   Planning: {
-    bg: "bg-[#2d2a1e]",
-    text: "text-[#c9a227]",
-    border: "border-[#4a3f10]",
+    bg: "bg-[#A78BFA]/10",
+    text: "text-[#A78BFA]",
+    border: "border-[#A78BFA]",
   },
   Dropped: {
-    bg: "bg-[#3d1e1e]",
-    text: "text-[#c94040]",
-    border: "border-[#552020]",
+    bg: "bg-[#F87171]/10",
+    text: "text-[#F87171]",
+    border: "border-[#F87171]",
   },
   Finished: {
-    bg: "bg-[#1e2d3d]",
-    text: "text-[#5b9bd5]",
-    border: "border-[#253a52]",
+    bg: "bg-[#60A5FA]/10",
+    text: "text-[#60A5FA]",
+    border: "border-[#60A5FA]",
   },
 };
+
+export function getStatusBadgeTone(status: MediaStatus) {
+  return statusConfig[status] ?? statusConfig["On Hold"];
+}
 
 interface StatusBadgeProps {
   status: MediaStatus;
@@ -78,18 +83,18 @@ interface StatusBadgeProps {
 }
 
 export function StatusBadge({ status, className }: StatusBadgeProps) {
-  const config = statusConfig[status] ?? statusConfig["On Hold"];
+  const config = getStatusBadgeTone(status);
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full border",
+        "inline-flex h-5 shrink-0 items-center gap-1 whitespace-nowrap rounded-[8px] border px-2 text-[12px] font-semibold leading-4",
         config.bg,
         config.text,
         config.border,
         className
       )}
     >
-      <Loader2 size={9} className="opacity-70" />
+      <Flag size={12} />
       {status}
     </span>
   );

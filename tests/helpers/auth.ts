@@ -15,6 +15,31 @@ export async function signIn(
   return response;
 }
 
+export async function createVerifiedUser(
+  request: APIRequestContext,
+  username: string,
+  email: string,
+  password = TEST_AUTH_PASSWORD
+) {
+  const signUpResponse = await request.post("/auth/sign-up", {
+    data: {
+      email,
+      username,
+      password,
+      confirmPassword: password,
+    },
+  });
+  expect(signUpResponse.ok()).toBeTruthy();
+
+  const otpCode = await getLatestOtp(email);
+  expect(otpCode).toBeTruthy();
+
+  const verifyResponse = await request.post("/auth/verify-user", {
+    data: { email, otpCode },
+  });
+  expect(verifyResponse.ok()).toBeTruthy();
+}
+
 export async function getLatestOtp(email: string) {
   const databaseUrl = process.env.DATABASE_URL;
 

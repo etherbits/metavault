@@ -132,6 +132,12 @@
     @apply bg-background text-foreground;
   }
 
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="switch"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+
   /* Chrome, Edge, Safari */
   *::-webkit-scrollbar {
     width: 10px;

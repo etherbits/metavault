@@ -1,10 +1,12 @@
-import { useEffect } from "react";
 import { ChevronDown } from "lucide-react";
+import { useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import type { CollectionView } from "@/features/collections/hooks";
 
 interface AddToCollectionDialogProps {
   open: boolean;
   selectedCollection: string;
-  collections: string[];
+  collections: CollectionView[];
   onCollectionChange: (value: string) => void;
   onConfirm: () => void;
   onCancel: () => void;
@@ -66,13 +68,13 @@ export function AddToCollectionDialog({
             onChange={(event) => onCollectionChange(event.target.value)}
             className="h-9 w-full appearance-none rounded-[8px] border border-[#3F3F46] bg-white/5 px-3 pr-10 text-[14px] leading-5 text-[#FAFAFA] shadow-sm outline-none focus:border-[#52525B]"
           >
-            {collections.map((collectionName) => (
+            {collections.map((collection) => (
               <option
-                key={collectionName}
-                value={collectionName}
+                key={collection.id}
+                value={collection.id}
                 className="bg-[#18181B] text-[#FAFAFA]"
               >
-                {collectionName}
+                {collection.name}
               </option>
             ))}
           </select>
@@ -84,21 +86,13 @@ export function AddToCollectionDialog({
         </div>
 
         <div className="mt-4 flex items-center justify-end gap-2">
-          <button
-            type="button"
-            onClick={onConfirm}
-            className="h-9 rounded-[8px] bg-[#FACC15] px-3 text-[14px] font-medium text-[#09090B] hover:bg-[#eab308]"
-          >
+          <Button type="button" variant="brand" size="lg" onClick={onConfirm}>
             Move
-          </button>
+          </Button>
 
-          <button
-            type="button"
-            onClick={onCancel}
-            className="h-9 rounded-[8px] border border-[#3F3F46] bg-white/5 px-3 text-[14px] font-medium text-[#FAFAFA] hover:bg-white/10"
-          >
+          <Button type="button" variant="surface" size="lg" onClick={onCancel}>
             Cancel
-          </button>
+          </Button>
         </div>
       </div>
     </div>

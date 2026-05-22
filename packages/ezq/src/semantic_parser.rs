@@ -158,6 +158,19 @@ impl SemanticParser {
             });
         }
 
+        if let ASTExpr::Not(expr) = token_tree {
+            return Ok(ASTExpr::Not(Box::new(self.parse_token_tree(*expr)?)));
+        }
+
+        if let ASTExpr::Or(exprs) = token_tree {
+            return Ok(ASTExpr::Or(
+                exprs
+                    .into_iter()
+                    .map(|expr| self.parse_token_tree(expr))
+                    .collect::<Result<Vec<_>, _>>()?,
+            ));
+        }
+
         let (title, mut token_tree) = self.construct_title(token_tree);
         if let Some(title) = title {
             if let ASTExpr::And(exprs) = &mut token_tree {
@@ -513,12 +526,48 @@ mod tests {
     }
 
     #[test]
+    fn parse_constructs_title_under_or() {
+        let input = root("create", ASTExpr::Or(vec![leaf("a"), leaf("b")]));
+        let result = parser().parse(input).unwrap();
+        assert_eq!(
+            result,
+            root(
+                "create",
+                ASTExpr::Or(vec![
+                    ASTExpr::And(vec![leaf("title:a")]),
+                    ASTExpr::And(vec![leaf("title:b")]),
+                ]),
+            )
+        );
+    }
+
+    #[test]
     fn parse_preserves_not_structure() {
         let input = root("search", ASTExpr::Not(Box::new(leaf("media_type:movie"))));
         let result = parser().parse(input).unwrap();
         assert_eq!(
             result,
             root("search", ASTExpr::Not(Box::new(leaf("media_type:movie"))),)
+        );
+    }
+
+    #[test]
+    fn parse_constructs_title_under_not() {
+        let input = root(
+            "delete",
+            ASTExpr::Not(Box::new(ASTExpr::And(vec![
+                leaf("attack"),
+                leaf("on"),
+                leaf("titan"),
+            ]))),
+        );
+        let result = parser().parse(input).unwrap();
+        assert_eq!(
+            result,
+            root(
+                "delete",
+                ASTExpr::Not(Box::new(ASTExpr::And(vec![leaf("title:attack_on_titan")]))),
+            )
         );
     }
 

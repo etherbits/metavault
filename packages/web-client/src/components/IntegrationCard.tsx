@@ -1,5 +1,6 @@
 import { Eye, EyeOff } from "lucide-react";
 import { useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
 
 interface IntegrationCardProps {
   name: string;
@@ -112,21 +113,23 @@ export function IntegrationCard({
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row">
-          <button
+          <Button
             type="button"
+            variant="brand"
             onClick={handleSave}
-            className="flex h-10 flex-1 items-center justify-center rounded-[8px] bg-[#FACC15] px-5 text-[14px] font-medium leading-5 text-[#09090B] transition-colors hover:bg-[#eab308]"
+            className="h-10 flex-1 rounded-[8px] px-5 text-[14px] leading-5"
           >
             Save
-          </button>
+          </Button>
 
-          <button
+          <Button
             type="button"
+            variant="surface"
             onClick={handleClear}
-            className="flex h-10 flex-1 items-center justify-center rounded-[8px] border border-[#3F3F46] bg-white/5 px-5 text-[14px] font-medium leading-5 text-[#FAFAFA] shadow-sm transition-colors hover:bg-white/10"
+            className="h-10 flex-1 rounded-[8px] px-5 text-[14px] leading-5"
           >
             Clear
-          </button>
+          </Button>
         </div>
       </div>
     </div>

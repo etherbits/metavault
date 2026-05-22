@@ -168,7 +168,7 @@ impl Tokenizer {
                 return Err(TokenizerError::MalformedUpdateExpression);
             };
 
-            if selection.is_empty() || values.is_empty() {
+            if values.is_empty() {
                 return Err(TokenizerError::MalformedUpdateExpression);
             }
 
@@ -451,6 +451,12 @@ mod tests {
                 )
             )
         );
+    }
+
+    #[test]
+    fn update_allows_empty_selection() {
+        let ast = tk().tokenize("/u > tag:action").unwrap();
+        assert_eq!(ast, root("u", update(and(vec![]), leaf("tag:action"))));
     }
 
     #[test]

@@ -37,16 +37,26 @@ export class EzqService {
     }
 
     if (action === "delete") {
-      await this.runSteps(this.sql, steps);
-      return { ok: true, rows: [] };
+      const rows = await this.sql.begin(async (tx) => {
+        const matched = await this.searchByExpression(expression, extras, tx);
+        await this.runSteps(tx, steps);
+        return matched;
+      });
+      return { ok: true, rows };
     }
 
     if (action === "create") {
       const { valueMap } = await this.sql.begin((tx) =>
         this.runSteps(tx, steps)
       );
-      const entryId = valueMap.get(ENTRY_ID_TOKEN);
-      const rows = entryId ? await this.searchByIds([entryId], extras) : [];
+      const entryIds = Array.from(valueMap.entries())
+        .filter(
+          ([token]) =>
+            token === ENTRY_ID_TOKEN || token.startsWith(`${ENTRY_ID_TOKEN}_`)
+        )
+        .map(([, value]) => value);
+      const rows =
+        entryIds.length > 0 ? await this.searchByIds(entryIds, extras) : [];
       return { ok: true, rows };
     }
 
@@ -63,7 +73,23 @@ export class EzqService {
         extras
       );
       const ids = matched.map((row) => row.id);
-      await this.sql.begin((tx) => this.runSteps(tx, steps));
+      if (ids.length === 0) {
+        return { ok: true, rows: [] };
+      }
+
+      const stableUpdateAst: ASTExpr = {
+        Root: {
+          action: "update",
+          expression: {
+            Update: {
+              selection: this.idExpression(ids),
+              values: expression.Update.values,
+            },
+          },
+        },
+      };
+      const stableSteps = generate_sql(stableUpdateAst, extras);
+      await this.sql.begin((tx) => this.runSteps(tx, stableSteps));
       const rows = await this.searchByIds(ids, extras);
       return { ok: true, rows };
     }
@@ -102,13 +128,14 @@ export class EzqService {
 
   private async searchByExpression(
     expression: ASTExpr,
-    extras: Extras | null
+    extras: Extras | null,
+    executor: SqlExecutor = this.sql
   ): Promise<LibraryEntryWithTags[]> {
     const ast: ASTExpr = { Root: { action: "search", expression } };
     const steps = generate_sql(ast, extras);
     const step = steps[0];
     if (!step) return [];
-    const rows = await this.sql.unsafe(step.sql, step.params);
+    const rows = await executor.unsafe(step.sql, step.params);
     return LibraryEntryRowsSchema.parse(rows);
   }
 
@@ -117,10 +144,12 @@ export class EzqService {
     extras: Extras | null
   ): Promise<LibraryEntryWithTags[]> {
     if (ids.length === 0) return [];
-    const expression: ASTExpr =
-      ids.length === 1
-        ? { Leaf: `id:${ids[0]}` }
-        : { Or: ids.map((id) => ({ Leaf: `id:${id}` })) };
-    return this.searchByExpression(expression, extras);
+    return this.searchByExpression(this.idExpression(ids), extras);
+  }
+
+  private idExpression(ids: string[]): ASTExpr {
+    return ids.length === 1
+      ? { Leaf: `id:${ids[0]}` }
+      : { Or: ids.map((id) => ({ Leaf: `id:${id}` })) };
   }
 }

@@ -1,7 +1,11 @@
-import { useState } from "react";
 import { KeyRound, Mail } from "lucide-react";
+import { useState } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { resendVerificationCode, verifyUser } from "@/lib/authApi";
+import { Button } from "@/components/ui/button";
+import {
+  useResendVerificationCode,
+  useVerifyUser,
+} from "@/features/auth/hooks";
 
 export function VerifyPage() {
   const navigate = useNavigate();
@@ -17,8 +21,8 @@ export function VerifyPage() {
   const [otpCode, setOtpCode] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isResending, setIsResending] = useState(false);
+  const verifyMutation = useVerifyUser();
+  const resendMutation = useResendVerificationCode();
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_50%_0%,#11141b_0%,#18181b_52%)] px-4 py-8">
@@ -44,10 +48,9 @@ export function VerifyPage() {
             event.preventDefault();
             setErrorMessage("");
             setSuccessMessage("");
-            setIsSubmitting(true);
 
             try {
-              await verifyUser({
+              await verifyMutation.mutateAsync({
                 email: email.trim(),
                 otpCode: otpCode.trim(),
               });
@@ -59,8 +62,6 @@ export function VerifyPage() {
                   ? error.message
                   : "Unable to verify account"
               );
-            } finally {
-              setIsSubmitting(false);
             }
           }}
         >
@@ -135,25 +136,26 @@ export function VerifyPage() {
               </p>
             ) : null}
 
-            <button
+            <Button
               type="submit"
-              disabled={isSubmitting}
-              className="min-h-9 w-full cursor-pointer rounded-lg border border-transparent bg-[#facc15] px-3 py-2 text-sm leading-5 font-medium text-[#09090b] transition-[transform,filter] duration-120 hover:-translate-y-px hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#facc1566]"
+              variant="brand"
+              disabled={verifyMutation.isPending}
+              className="min-h-9 w-full"
             >
-              {isSubmitting ? "Verifying..." : "Verify account"}
-            </button>
+              {verifyMutation.isPending ? "Verifying..." : "Verify account"}
+            </Button>
 
-            <button
+            <Button
               type="button"
-              disabled={isResending}
-              className="min-h-9 w-full cursor-pointer rounded-lg border border-[#3f3f46] bg-[rgba(255,255,255,0.05)] px-3 py-2 text-sm leading-5 font-medium text-[#fafafa] transition-[transform,filter] duration-120 hover:-translate-y-px hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#facc1566]"
+              variant="surface"
+              disabled={resendMutation.isPending}
+              className="min-h-9 w-full"
               onClick={async () => {
                 setErrorMessage("");
                 setSuccessMessage("");
-                setIsResending(true);
 
                 try {
-                  await resendVerificationCode({ email: email.trim() });
+                  await resendMutation.mutateAsync({ email: email.trim() });
                   setSuccessMessage(
                     "Verification code resent. Check your email."
                   );
@@ -163,21 +165,20 @@ export function VerifyPage() {
                       ? error.message
                       : "Unable to resend code"
                   );
-                } finally {
-                  setIsResending(false);
                 }
               }}
             >
-              {isResending ? "Resending..." : "Resend code"}
-            </button>
+              {resendMutation.isPending ? "Resending..." : "Resend code"}
+            </Button>
 
-            <button
+            <Button
               type="button"
-              className="min-h-9 w-full cursor-pointer rounded-lg border border-[#3f3f46] bg-transparent px-3 py-2 text-sm leading-5 font-medium text-[#d4d4d8] transition-[transform,filter] duration-120 hover:-translate-y-px hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#facc1566]"
+              variant="ghost"
+              className="min-h-9 w-full text-[#D4D4D8]"
               onClick={() => navigate("/login")}
             >
               Back to login
-            </button>
+            </Button>
           </div>
         </form>
       </section>
