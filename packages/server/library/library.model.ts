@@ -56,7 +56,7 @@ export interface UpdateLibraryEntryData {
   source_id?: string;
 
   media_type?: string;
-  status?: string;
+  status?: string | null;
 
   image_src?: string;
 
@@ -141,6 +141,7 @@ class LibraryModel {
     userId: string,
     data: UpdateLibraryEntryData
   ): Promise<LibraryEntry | null> {
+    const hasStatus = Object.hasOwn(data, "status");
     const result = await sql`
       UPDATE library_entries
       SET
@@ -148,7 +149,7 @@ class LibraryModel {
         media_id = COALESCE(${data.media_id}, media_id),
         source_id = COALESCE(${data.source_id}, source_id),
         media_type = COALESCE(${data.media_type}, media_type),
-        status = COALESCE(${data.status}, status),
+        status = CASE WHEN ${hasStatus} THEN ${data.status ?? null} ELSE status END,
         image_src = COALESCE(${data.image_src}, image_src),
         public_rating = COALESCE(${data.public_rating}, public_rating),
         personal_rating = COALESCE(${data.personal_rating}, personal_rating),

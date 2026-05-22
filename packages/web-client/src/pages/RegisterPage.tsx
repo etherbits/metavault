@@ -1,8 +1,9 @@
-import { useState, type InputHTMLAttributes, type ReactNode } from "react";
 import { Eye, EyeOff, Lock, Mail, User } from "lucide-react";
+import { type InputHTMLAttributes, type ReactNode, useState } from "react";
 import { useNavigate } from "react-router";
-import { AUTH_USER_STORAGE_KEY, signUp } from "@/lib/authApi";
 import { MetaIcon } from "@/components/MetaIcon";
+import { Button } from "@/components/ui/button";
+import { useSignUp } from "@/features/auth/hooks";
 
 type FieldProps = {
   label: string;
@@ -16,8 +17,8 @@ export function RegisterPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const signUpMutation = useSignUp();
   const navigate = useNavigate();
 
   return (
@@ -45,25 +46,16 @@ export function RegisterPage() {
               return;
             }
 
-            setIsSubmitting(true);
             try {
               const normalizedEmail = email.trim();
               const normalizedUsername = username.trim();
 
-              await signUp({
+              await signUpMutation.mutateAsync({
                 email: normalizedEmail,
                 username: normalizedUsername,
                 password,
                 confirmPassword,
               });
-
-              localStorage.setItem(
-                AUTH_USER_STORAGE_KEY,
-                JSON.stringify({
-                  username: normalizedUsername,
-                  email: normalizedEmail,
-                })
-              );
 
               navigate("/verify", {
                 state: { email: normalizedEmail },
@@ -74,8 +66,6 @@ export function RegisterPage() {
                   ? error.message
                   : "Unable to create account"
               );
-            } finally {
-              setIsSubmitting(false);
             }
           }}
         >
@@ -163,23 +153,27 @@ export function RegisterPage() {
               </p>
             ) : null}
 
-            <button
+            <Button
               type="submit"
-              disabled={isSubmitting}
-              className="min-h-9 w-full cursor-pointer rounded-lg border border-transparent bg-[#facc15] px-3 py-2 text-sm leading-5 font-medium text-[#09090b] transition-[transform,filter] duration-120 hover:-translate-y-px hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#facc1566]"
+              variant="brand"
+              disabled={signUpMutation.isPending}
+              className="min-h-9 w-full"
             >
-              {isSubmitting ? "Creating account..." : "Create account"}
-            </button>
+              {signUpMutation.isPending
+                ? "Creating account..."
+                : "Create account"}
+            </Button>
 
-            <button
+            <Button
               type="button"
-              className="min-h-9 w-full cursor-pointer rounded-lg border border-[#3f3f46] bg-[rgba(255,255,255,0.05)] px-3 py-2 text-sm leading-5 font-medium text-[#fafafa] transition-[transform,filter] duration-120 hover:-translate-y-px hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#facc1566]"
+              variant="surface"
+              className="min-h-9 w-full"
               onClick={() => {
                 navigate("/login");
               }}
             >
               Switch to login
-            </button>
+            </Button>
           </div>
         </form>
       </section>

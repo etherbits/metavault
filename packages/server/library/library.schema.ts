@@ -26,7 +26,11 @@ const libraryEntryFieldsSchema = z.object({
 });
 
 export const createLibraryEntrySchema = libraryEntryFieldsSchema;
-export const updateLibraryEntrySchema = libraryEntryFieldsSchema.partial();
+export const updateLibraryEntrySchema = libraryEntryFieldsSchema
+  .partial()
+  .extend({
+    status: libraryEntryFieldsSchema.shape.status.nullable(),
+  });
 
 export const libraryIdSchema = z.object({
   id: z.string().min(1),

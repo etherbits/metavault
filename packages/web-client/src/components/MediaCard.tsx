@@ -1,46 +1,23 @@
-import { useEffect, useRef, useState } from "react";
 import {
-  Calendar,
-  Star,
-  MoreHorizontal,
-  Maximize2,
-  Clapperboard,
   BookOpen,
-  Gamepad2,
-  Tv,
+  Calendar,
+  Clapperboard,
   FileText,
-  Flag,
+  Gamepad2,
+  Maximize2,
+  Star,
+  Tv,
 } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { StatusBadge } from "@/components/Badges";
+import { MediaCardMenu } from "@/components/MediaCardMenu";
 import { Button } from "@/components/ui/button";
-import { StatusDropdown } from "./StatusDropdown";
-
-export type MediaType =
-  | "Movie"
-  | "TV Show"
-  | "Anime"
-  | "Game"
-  | "Book"
-  | "Manga"
-  | "Other";
-
-export type MediaStatus =
-  | "On Hold"
-  | "In Progress"
-  | "Planning"
-  | "Dropped"
-  | "Finished";
-
-export interface MediaItem {
-  id: string;
-  title: string;
-  type: MediaType;
-  status?: MediaStatus;
-  date: string;
-  rating: string;
-  tags: string[];
-  posterUrl?: string;
-}
+import { Card, CardContent } from "@/components/ui/card";
+import type {
+  MediaItem,
+  MediaStatus,
+  MediaType,
+} from "@/features/library/types";
+import { cn } from "@/lib/utils";
 
 interface MediaCardProps {
   item: MediaItem;
@@ -85,74 +62,6 @@ export function MediaCard({
   onViewDetails,
 }: MediaCardProps) {
   const posterSrc = item.posterUrl || "/images.jpeg";
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
-  const [submenuSide, setSubmenuSide] = useState<"left" | "right">("left");
-  const [submenuVertical, setSubmenuVertical] = useState<"up" | "down">("down");
-  const menuRef = useRef<HTMLDivElement | null>(null);
-  const menuButtonRef = useRef<HTMLDivElement | null>(null);
-
-  function handleToggleMenu() {
-    if (!menuOpen) {
-      const triggerRect = menuButtonRef.current?.getBoundingClientRect();
-      if (triggerRect) {
-        const panelWidth = 176;
-        const submenuWidth = 176;
-        const panelHeight = 248;
-        const gap = 12;
-        const viewportPadding = 8;
-        const viewportWidth = window.innerWidth;
-        const viewportHeight = window.innerHeight;
-
-        let nextLeft = triggerRect.left - panelWidth - gap;
-
-        if (nextLeft < viewportPadding) {
-          nextLeft = triggerRect.right + gap;
-        }
-
-        const maxLeft = Math.max(
-          viewportPadding,
-          viewportWidth - panelWidth - viewportPadding
-        );
-        nextLeft = Math.min(Math.max(viewportPadding, nextLeft), maxLeft);
-
-        let nextTop = triggerRect.bottom + gap;
-        let nextSubmenuVertical: "up" | "down" = "down";
-
-        if (nextTop + panelHeight > viewportHeight - viewportPadding) {
-          nextTop = triggerRect.top - panelHeight - gap;
-          nextSubmenuVertical = "up";
-        }
-
-        nextTop = Math.max(
-          viewportPadding,
-          Math.min(nextTop, viewportHeight - panelHeight - viewportPadding)
-        );
-
-        const canOpenSubmenuLeft =
-          nextLeft - gap - submenuWidth >= viewportPadding;
-        const canOpenSubmenuRight =
-          nextLeft + panelWidth + gap + submenuWidth <=
-          viewportWidth - viewportPadding;
-
-        if (canOpenSubmenuLeft) {
-          setSubmenuSide("left");
-        } else if (canOpenSubmenuRight) {
-          setSubmenuSide("right");
-        } else {
-          const leftSpace = nextLeft;
-          const rightSpace = viewportWidth - (nextLeft + panelWidth);
-          setSubmenuSide(rightSpace > leftSpace ? "right" : "left");
-        }
-
-        setSubmenuVertical(nextSubmenuVertical);
-
-        setMenuPosition({ top: nextTop, left: nextLeft });
-      }
-    }
-
-    setMenuOpen((prev) => !prev);
-  }
 
   function handleCardClick() {
     if (selectMode) {
@@ -160,43 +69,12 @@ export function MediaCard({
     }
   }
 
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (!menuRef.current?.contains(event.target as Node)) {
-        setMenuOpen(false);
-      }
-    }
-
-    function handleEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setMenuOpen(false);
-      }
-    }
-
-    function handleViewportChange() {
-      setMenuOpen(false);
-    }
-
-    if (menuOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-      document.addEventListener("keydown", handleEscape);
-      window.addEventListener("resize", handleViewportChange);
-      window.addEventListener("scroll", handleViewportChange, true);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("keydown", handleEscape);
-      window.removeEventListener("resize", handleViewportChange);
-      window.removeEventListener("scroll", handleViewportChange, true);
-    };
-  }, [menuOpen]);
-
   return (
     <Card
-      className={`relative h-full min-h-[300px] w-full overflow-visible rounded-[4px] border-none bg-[#27272A] py-0 text-white ring-0 shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)] sm:max-w-[420px] ${
-        menuOpen ? "z-40" : ""
-      } ${selected ? "ring-2 ring-[#FACC15]" : ""}`}
+      className={cn(
+        "relative h-full min-h-[300px] w-full overflow-visible rounded-[4px] border-none bg-[#27272A] py-0 text-white ring-0 shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)]",
+        selected && "ring-2 ring-[#FACC15]"
+      )}
       onClick={handleCardClick}
     >
       <div className="flex h-full flex-col sm:flex-row">
@@ -209,7 +87,7 @@ export function MediaCard({
         </div>
 
         <CardContent className="flex h-full w-full min-w-0 flex-1 flex-col gap-4 px-4 py-3">
-          <h3 className="truncate text-lg font-medium leading-7 text-[#F4F4F5] sm:text-[20px]">
+          <h3 className="line-clamp-2 text-lg font-medium leading-7 text-[#F4F4F5] sm:text-[20px]">
             {item.title}
           </h3>
 
@@ -220,12 +98,7 @@ export function MediaCard({
                 {item.type}
               </span>
 
-              {item.status && (
-                <span className="inline-flex h-5 shrink-0 items-center gap-1 whitespace-nowrap rounded-[8px] border border-[#60A5FA] px-2 text-[12px] font-semibold leading-4 text-[#60A5FA]">
-                  <Flag size={12} />
-                  {item.status}
-                </span>
-              )}
+              {item.status && <StatusBadge status={item.status} />}
             </div>
 
             <div className="flex flex-col gap-2">
@@ -253,64 +126,24 @@ export function MediaCard({
           </div>
 
           <div className="mt-auto flex items-center justify-end gap-3">
-            <div className="relative" ref={menuRef}>
-              <div ref={menuButtonRef}>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon-xs"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    handleToggleMenu();
-                  }}
-                  className="h-6 w-6 rounded-[4px] border-[#3F3F46] bg-white/5 text-white hover:bg-white/10 hover:text-white"
-                >
-                  <MoreHorizontal size={16} />
-                </Button>
-              </div>
-
-              {menuOpen && (
-                <StatusDropdown
-                  className="fixed z-[500]"
-                  selectMode={selectMode}
-                  onSelect={() => {
-                    onEnterSelectMode?.(item.id);
-                    setMenuOpen(false);
-                  }}
-                  currentStatus={item.status}
-                  onChangeStatus={(next) => {
-                    onChangeStatus?.(item.id, next);
-                    setMenuOpen(false);
-                  }}
-                  onAddToCollection={() => {
-                    onAddToCollection?.(item.id);
-                    setMenuOpen(false);
-                  }}
-                  onDelete={() => {
-                    onDelete?.(item.id);
-                    setMenuOpen(false);
-                  }}
-                  onRemoveStatus={() => {
-                    onRemoveStatus?.(item.id);
-                    setMenuOpen(false);
-                  }}
-                  submenuSide={submenuSide}
-                  submenuVertical={submenuVertical}
-                  style={{
-                    top: `${menuPosition.top}px`,
-                    left: `${menuPosition.left}px`,
-                  }}
-                />
-              )}
-            </div>
+            <MediaCardMenu
+              selectMode={selectMode}
+              currentStatus={item.status}
+              onSelect={() => onEnterSelectMode?.(item.id)}
+              onChangeStatus={(status) => onChangeStatus?.(item.id, status)}
+              onAddToCollection={() => onAddToCollection?.(item.id)}
+              onDelete={() => onDelete?.(item.id)}
+              onRemoveStatus={() => onRemoveStatus?.(item.id)}
+            />
 
             <Button
               type="button"
+              variant="brand"
               onClick={(event) => {
                 event.stopPropagation();
                 onViewDetails?.(item);
               }}
-              className="h-8 rounded-[8px] bg-[#FACC15] px-[10px] text-[14px] font-medium leading-5 text-[#27272A] hover:bg-[#eab308]"
+              className="rounded-[8px] px-[10px] text-[14px] leading-5"
             >
               <Maximize2 size={16} />
               View Details

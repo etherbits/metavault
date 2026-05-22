@@ -1,15 +1,16 @@
-import { useState } from "react";
 import { Eye, EyeOff, Lock, User } from "lucide-react";
+import { useState } from "react";
 import { useNavigate } from "react-router";
-import { AUTH_STORAGE_KEY, AUTH_USER_STORAGE_KEY, signIn } from "@/lib/authApi";
 import { MetaIcon } from "@/components/MetaIcon";
+import { Button } from "@/components/ui/button";
+import { useSignIn } from "@/features/auth/hooks";
 
 export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const signInMutation = useSignIn();
   const navigate = useNavigate();
 
   return (
@@ -31,35 +32,17 @@ export function LoginPage() {
           onSubmit={async (event) => {
             event.preventDefault();
             setErrorMessage("");
-            setIsSubmitting(true);
 
             try {
-              const response = await signIn({
+              await signInMutation.mutateAsync({
                 username: username.trim(),
                 password,
               });
-              const typedUsername = username.trim();
-              const resolvedUsername =
-                response.user?.username?.trim() || typedUsername;
-              const resolvedEmail = response.user?.email?.trim() || "";
-              localStorage.setItem(AUTH_STORAGE_KEY, "true");
-              localStorage.setItem(
-                AUTH_USER_STORAGE_KEY,
-                JSON.stringify({
-                  name: resolvedUsername,
-                  username: resolvedUsername,
-                  email: resolvedEmail,
-                })
-              );
-              localStorage.setItem("metavault.username", resolvedUsername);
-              localStorage.setItem("metavault.email", resolvedEmail);
               navigate("/app");
             } catch (error) {
               setErrorMessage(
                 error instanceof Error ? error.message : "Unable to sign in"
               );
-            } finally {
-              setIsSubmitting(false);
             }
           }}
         >
@@ -138,23 +121,25 @@ export function LoginPage() {
               </p>
             ) : null}
 
-            <button
+            <Button
               type="submit"
-              disabled={isSubmitting}
-              className="min-h-9 w-full cursor-pointer rounded-lg border border-transparent bg-[#facc15] px-3 py-2 text-sm leading-5 font-medium text-[#09090b] transition-[transform,filter] duration-120 hover:-translate-y-px hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#facc1566]"
+              variant="brand"
+              disabled={signInMutation.isPending}
+              className="min-h-9 w-full"
             >
-              {isSubmitting ? "Logging in..." : "Log In"}
-            </button>
+              {signInMutation.isPending ? "Logging in..." : "Log In"}
+            </Button>
 
-            <button
+            <Button
               type="button"
-              className="min-h-9 w-full cursor-pointer rounded-lg border border-[#3f3f46] bg-[rgba(255,255,255,0.05)] px-3 py-2 text-sm leading-5 font-medium text-[#fafafa] transition-[transform,filter] duration-120 hover:-translate-y-px hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#facc1566]"
+              variant="surface"
+              className="min-h-9 w-full"
               onClick={() => {
                 navigate("/register");
               }}
             >
               Switch to registration
-            </button>
+            </Button>
           </div>
         </form>
       </section>

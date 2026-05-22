@@ -1,17 +1,17 @@
-import { type ReactNode, useEffect, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
-  Home,
-  Database,
-  CodeSquare,
   ChevronLeft,
+  CodeSquare,
+  Database,
+  Home,
   Settings,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { AnimatePresence, motion } from "motion/react";
+import { useEffect, useRef, useState } from "react";
+import { Link, useLocation } from "react-router";
 import { MetaIcon } from "@/components/MetaIcon";
-
-type SidebarPage = "home" | "query" | "integrations" | "settings";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface SidebarUser {
   name: string;
@@ -19,8 +19,6 @@ interface SidebarUser {
 }
 
 interface SidebarProps {
-  activePage: SidebarPage;
-  onNavigate: (page: SidebarPage) => void;
   isOpen: boolean;
   onToggle: () => void;
   onSignOut?: () => void;
@@ -28,170 +26,198 @@ interface SidebarProps {
 }
 
 interface SidebarNavItemConfig {
-  id: SidebarPage;
+  to: string;
   label: string;
   icon: LucideIcon;
 }
 
 const navItems: SidebarNavItemConfig[] = [
-  { id: "home", label: "Home", icon: Home },
-  { id: "query", label: "Query", icon: Database },
-  { id: "integrations", label: "Integrations", icon: CodeSquare },
+  { to: "/app/home", label: "Home", icon: Home },
+  { to: "/app/query", label: "Query", icon: Database },
+  { to: "/app/integrations", label: "Integrations", icon: CodeSquare },
 ];
+
+const settingsPath = "/app/settings";
+const sidebarTransition = {
+  type: "tween",
+  duration: 0.28,
+  ease: [0.22, 1, 0.36, 1],
+} as const;
+const labelTransition = {
+  type: "tween",
+  duration: 0.2,
+  ease: [0.22, 1, 0.36, 1],
+} as const;
 
 function getInitials(name: string): string {
   const first = name.trim()[0];
   return first ? first.toUpperCase() : "U";
 }
 
-function SidebarText({
+function SidebarLabel({
   isOpen,
   children,
   className,
 }: {
   isOpen: boolean;
-  children: ReactNode;
+  children: React.ReactNode;
   className?: string;
 }) {
   return (
-    <span
-      className={cn(
-        "whitespace-nowrap transition-all duration-200 ease-out",
-        isOpen
-          ? "translate-x-0 opacity-100"
-          : "pointer-events-none -translate-x-2 overflow-hidden opacity-0 w-0",
-        className
-      )}
-    >
-      {children}
-    </span>
+    <AnimatePresence initial={false}>
+      {isOpen ? (
+        <motion.span
+          key="label"
+          transition={labelTransition}
+          className={cn("min-w-0 overflow-hidden whitespace-nowrap", className)}
+        >
+          {children}
+        </motion.span>
+      ) : null}
+    </AnimatePresence>
   );
 }
 
 function SidebarBrand({ isOpen }: { isOpen: boolean }) {
   return (
-    <div
+    <motion.div
+      layout
       className={cn(
-        "flex h-11 min-w-0 items-center",
-        isOpen ? "gap-2 p-2" : "justify-center p-0"
+        "flex h-11 gap-2 items-center overflow-hidden",
+        isOpen ? "px-2" : "justify-center px-0"
       )}
+      transition={sidebarTransition}
     >
-      <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-[6px] bg-[#27272A]">
-        <MetaIcon className="h-6 w-[22px]" />
+      <div className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-[6px] bg-[#27272A]">
+        <MetaIcon className="h-7 w-7" />
       </div>
 
-      <SidebarText
+      <SidebarLabel
         isOpen={isOpen}
         className="text-[16px] font-semibold text-[#E4E4E7]"
       >
         MetaVault
-      </SidebarText>
-    </div>
+      </SidebarLabel>
+    </motion.div>
   );
 }
 
-function SidebarNavItem({
-  item,
+function SidebarRowFrame({
+  isOpen,
+  children,
+}: {
+  isOpen: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <motion.div
+      animate={{ width: isOpen ? 220 : 32 }}
+      transition={sidebarTransition}
+      className="h-8 overflow-hidden"
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+function SidebarRowButton({
   active,
   isOpen,
-  onClick,
+  children,
+  ...props
+}: React.ComponentPropsWithoutRef<"button"> & {
+  active?: boolean;
+  isOpen: boolean;
+}) {
+  return (
+    <SidebarRowFrame isOpen={isOpen}>
+      <Button
+        type="button"
+        variant="ghost"
+        className={cn(
+          "h-8 w-full overflow-hidden rounded-md py-1 text-sm shadow-none",
+          "hover:bg-[#18181B] hover:text-[#D4D4D8]",
+          active
+            ? "bg-[#18181B] text-[#FACC15] hover:bg-[#18181B] hover:text-[#FACC15]"
+            : "text-[#D4D4D8]",
+          isOpen ? "justify-start px-4" : "justify-center p-0"
+        )}
+        {...props}
+      >
+        {children}
+      </Button>
+    </SidebarRowFrame>
+  );
+}
+
+function SidebarRowLink({
+  to,
+  active,
+  isOpen,
+  children,
 }: {
-  item: SidebarNavItemConfig;
+  to: string;
   active: boolean;
   isOpen: boolean;
-  onClick: () => void;
+  children: React.ReactNode;
 }) {
-  const Icon = item.icon;
-
   return (
-    <Button
-      type="button"
-      variant="ghost"
-      onClick={onClick}
-      className={cn(
-        "h-8 w-full justify-start rounded-md px-3 py-1 text-sm shadow-none",
-        "hover:bg-[#18181B] hover:text-[#D4D4D8]",
-        active
-          ? "bg-[#18181B] text-[#FACC15] hover:bg-[#18181B] hover:text-[#FACC15]"
-          : "text-[#D4D4D8]",
-        !isOpen && "justify-center px-0"
-      )}
-    >
-      <Icon size={16} className="shrink-0" />
-      <SidebarText isOpen={isOpen}>{item.label}</SidebarText>
-    </Button>
+    <SidebarRowFrame isOpen={isOpen}>
+      <Button
+        asChild
+        variant="ghost"
+        className={cn(
+          "h-8 w-full overflow-hidden rounded-md py-1 text-sm shadow-none",
+          "hover:bg-[#18181B] hover:text-[#D4D4D8]",
+          active
+            ? "bg-[#18181B] text-[#FACC15] hover:bg-[#18181B] hover:text-[#FACC15]"
+            : "text-[#D4D4D8]",
+          isOpen ? "justify-start px-4" : "justify-center p-0"
+        )}
+      >
+        <Link to={to}>{children}</Link>
+      </Button>
+    </SidebarRowFrame>
   );
 }
 
 function SidebarNav({
-  activePage,
-  onNavigate,
+  pathname,
   isOpen,
 }: {
-  activePage: SidebarPage;
-  onNavigate: (page: SidebarPage) => void;
+  pathname: string;
   isOpen: boolean;
 }) {
   return (
-    <div className="flex w-full min-w-0 flex-col gap-1">
-      {navItems.map((item) => (
-        <SidebarNavItem
-          key={item.id}
-          item={item}
-          active={activePage === item.id}
-          isOpen={isOpen}
-          onClick={() => onNavigate(item.id)}
-        />
-      ))}
+    <div
+      className={cn(
+        "flex w-full min-w-0 flex-col gap-1",
+        !isOpen && "items-center"
+      )}
+    >
+      {navItems.map((item) => {
+        const Icon = item.icon;
+        return (
+          <SidebarRowLink
+            key={item.to}
+            to={item.to}
+            active={pathname.startsWith(item.to)}
+            isOpen={isOpen}
+          >
+            <Icon size={16} className="shrink-0" />
+            <SidebarLabel isOpen={isOpen}>{item.label}</SidebarLabel>
+          </SidebarRowLink>
+        );
+      })}
     </div>
   );
 }
 
 function SidebarDivider() {
-  return <div className="h-px bg-[#3F3F46]" />;
+  return <div className="h-px w-full bg-[#3F3F46]" />;
 }
 
-function SidebarAction({
-  icon: Icon,
-  label,
-  isOpen,
-  onClick,
-  rotateWhenClosed = false,
-  active = false,
-}: {
-  icon: LucideIcon;
-  label: string;
-  isOpen: boolean;
-  onClick?: () => void;
-  rotateWhenClosed?: boolean;
-  active?: boolean;
-}) {
-  return (
-    <Button
-      type="button"
-      variant="ghost"
-      onClick={onClick}
-      className={cn(
-        "h-8 w-full justify-start rounded-md px-3 py-1 shadow-none",
-        active
-          ? "bg-[#18181B] text-[#FACC15] hover:bg-[#18181B] hover:text-[#FACC15]"
-          : "text-[#D4D4D8] hover:bg-[#18181B] hover:text-[#D4D4D8]",
-        !isOpen && "justify-center px-0"
-      )}
-    >
-      <Icon
-        size={16}
-        className={cn(
-          "shrink-0 transition-transform duration-300 ease-in-out",
-          rotateWhenClosed && !isOpen && "rotate-180"
-        )}
-      />
-      <SidebarText isOpen={isOpen}>{label}</SidebarText>
-    </Button>
-  );
-}
-
-function SidebarUser({
+function SidebarUserRow({
   user,
   isOpen,
   onSignOut,
@@ -252,108 +278,122 @@ function SidebarUser({
           canOpenSignOut ? () => setIsSignOutOpen((prev) => !prev) : undefined
         }
         className={cn(
-          "flex h-11 w-full min-w-0 items-center gap-2 rounded-md px-2 py-1 text-left",
+          "flex h-11 w-full min-w-0 items-center overflow-hidden rounded-md text-left",
           canOpenSignOut
             ? "cursor-pointer hover:bg-[#18181B]"
             : "cursor-default",
-          !isOpen && "justify-center px-0"
+          isOpen ? "gap-2 px-2 py-1" : "justify-center"
         )}
       >
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#18181B] text-sm font-semibold text-[#FAFAFA]">
           {getInitials(user.name)}
         </div>
 
-        <SidebarText isOpen={isOpen} className="min-w-0 flex-1">
-          <div className="flex min-w-0 flex-col leading-tight">
-            <span className="truncate text-sm text-[#FAFAFA]">{user.name}</span>
-            {user.email ? (
-              <span className="truncate text-xs text-[#A1A1AA]">
-                {user.email}
+        <AnimatePresence initial={false}>
+          {isOpen ? (
+            <motion.div
+              key="user-details"
+              initial={{ opacity: 0, x: -6, width: 0, marginLeft: 0 }}
+              animate={{ opacity: 1, x: 0, width: 160, marginLeft: 8 }}
+              exit={{ opacity: 0, x: -4, width: 0, marginLeft: 0 }}
+              transition={labelTransition}
+              className="flex min-w-0 flex-col overflow-hidden leading-tight"
+            >
+              <span className="truncate text-sm text-[#FAFAFA]">
+                {user.name}
               </span>
-            ) : null}
-          </div>
-        </SidebarText>
+              {user.email ? (
+                <span className="truncate text-xs text-[#A1A1AA]">
+                  {user.email}
+                </span>
+              ) : null}
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
       </button>
     </div>
   );
 }
 
 function SidebarFooter({
-  activePage,
-  onNavigate,
+  pathname,
   isOpen,
   onToggle,
   onSignOut,
   user,
 }: {
-  activePage: SidebarPage;
-  onNavigate: (page: SidebarPage) => void;
+  pathname: string;
   isOpen: boolean;
   onToggle: () => void;
   onSignOut?: () => void;
   user: SidebarUser;
 }) {
   return (
-    <div className="flex w-full min-w-0 flex-col gap-1">
+    <div
+      className={cn(
+        "flex w-full min-w-0 flex-col gap-1",
+        !isOpen && "items-center"
+      )}
+    >
       <SidebarDivider />
 
-      <SidebarAction
-        icon={ChevronLeft}
-        label="Close sidebar"
-        isOpen={isOpen}
-        onClick={onToggle}
-        rotateWhenClosed
-      />
+      <SidebarRowButton isOpen={isOpen} onClick={onToggle}>
+        <motion.span
+          animate={{ rotate: isOpen ? 0 : 180 }}
+          transition={sidebarTransition}
+          className="flex shrink-0"
+        >
+          <ChevronLeft size={16} />
+        </motion.span>
+        <SidebarLabel isOpen={isOpen}>Close sidebar</SidebarLabel>
+      </SidebarRowButton>
 
-      <SidebarAction
-        icon={Settings}
-        label="Settings"
+      <SidebarRowLink
+        to={settingsPath}
+        active={pathname.startsWith(settingsPath)}
         isOpen={isOpen}
-        onClick={() => onNavigate("settings")}
-        active={activePage === "settings"}
-      />
+      >
+        <Settings size={16} className="shrink-0" />
+        <SidebarLabel isOpen={isOpen}>Settings</SidebarLabel>
+      </SidebarRowLink>
 
       <SidebarDivider />
-      <SidebarUser user={user} isOpen={isOpen} onSignOut={onSignOut} />
+      <SidebarUserRow user={user} isOpen={isOpen} onSignOut={onSignOut} />
     </div>
   );
 }
 
 export function Sidebar({
-  activePage,
-  onNavigate,
   isOpen,
   onToggle,
   onSignOut,
   user = { name: "User", email: "" },
 }: SidebarProps) {
+  const { pathname } = useLocation();
+
   return (
-    <aside
-      className={cn(
-        "fixed inset-y-0 left-0 z-30 flex h-screen shrink-0 flex-col justify-between overflow-visible border-r border-[#27272A] bg-[#09090B] lg:relative lg:z-20",
-        "transition-[width,padding,transform] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
-        isOpen
-          ? "w-[240px] translate-x-0 p-3"
-          : "w-0 -translate-x-full p-0 lg:w-[72px] lg:translate-x-0 lg:p-3"
-      )}
+    <motion.aside
+      animate={{ width: isOpen ? 240 : 68 }}
+      transition={sidebarTransition}
+      className="flex h-dvh shrink-0 flex-col justify-between overflow-hidden border-r border-[#27272A] bg-[#09090B] p-[10px]"
     >
-      <div className="flex w-full min-w-0 flex-col gap-1">
+      <div
+        className={cn(
+          "flex w-full min-w-0 flex-col gap-1",
+          !isOpen && "items-center"
+        )}
+      >
         <SidebarBrand isOpen={isOpen} />
-        <SidebarNav
-          activePage={activePage}
-          onNavigate={onNavigate}
-          isOpen={isOpen}
-        />
+        <SidebarNav pathname={pathname} isOpen={isOpen} />
       </div>
 
       <SidebarFooter
-        activePage={activePage}
-        onNavigate={onNavigate}
+        pathname={pathname}
         isOpen={isOpen}
         onToggle={onToggle}
         onSignOut={onSignOut}
         user={user}
       />
-    </aside>
+    </motion.aside>
   );
 }

@@ -65,12 +65,14 @@ impl SqlGenerator {
         expr: ASTExpr,
         extras: &Extras,
     ) -> Result<Vec<EzqSqlStep>, SqlGenerateError> {
-        if self.is_empty_expr(&expr) {
-            return Err(SqlGenerateError::MissingMatchCriteria);
-        }
         self.assert_no_sort(&expr)?;
         let mut params = vec![];
         let where_clause = self.build_where_with_extras(expr, &mut params, extras)?;
+        let where_clause = if where_clause.is_empty() {
+            "1 = 1".to_string()
+        } else {
+            where_clause
+        };
         Ok(vec![EzqSqlStep {
             sql: format!("DELETE FROM library_entries WHERE {}", where_clause),
             params,
@@ -83,6 +85,24 @@ impl SqlGenerator {
         expr: ASTExpr,
         extras: &Extras,
     ) -> Result<Vec<EzqSqlStep>, SqlGenerateError> {
+        if let ASTExpr::Or(items) = expr {
+            let mut statements = vec![];
+            for (index, item) in items.into_iter().enumerate() {
+                let entry_id_token = format!("{}_{}", ENTRY_ID_TOKEN, index + 1);
+                statements.extend(self.build_create_one(item, extras, entry_id_token)?);
+            }
+            return Ok(statements);
+        }
+
+        self.build_create_one(expr, extras, ENTRY_ID_TOKEN.to_string())
+    }
+
+    fn build_create_one(
+        &self,
+        expr: ASTExpr,
+        extras: &Extras,
+        entry_id_token: String,
+    ) -> Result<Vec<EzqSqlStep>, SqlGenerateError> {
         self.assert_no_sort(&expr)?;
         let leaves = self
             .extract_write_leaves(expr)
@@ -90,6 +110,7 @@ impl SqlGenerator {
         let WriteParts {
             mut scalar_cols,
             tag_values,
+            ..
         } = self.collect_write_parts(leaves)?;
         if let Some(user_id) = &extras.user_id {
             scalar_cols.insert(0, ("user_id".to_string(), user_id.clone()));
@@ -110,7 +131,7 @@ impl SqlGenerator {
                 cols, placeholders
             ),
             params: entry_params,
-            outputs: vec![ENTRY_ID_TOKEN.to_string()],
+            outputs: vec![entry_id_token.clone()],
         });
 
         for tag in tag_values {
@@ -125,7 +146,7 @@ impl SqlGenerator {
                     sql: "INSERT INTO library_entry_tags (library_entry_id, tag_id) SELECT ?, tags.id FROM tags WHERE tags.user_id = ? AND tags.value = ? AND tags.weight = ?"
                         .to_string(),
                     params: vec![
-                        ENTRY_ID_TOKEN.to_string(),
+                        entry_id_token.clone(),
                         user_id.clone(),
                         tag.value,
                         tag.weight,
@@ -143,7 +164,7 @@ impl SqlGenerator {
                     sql: "INSERT INTO library_entry_tags (library_entry_id, tag_id) SELECT ?, tags.id FROM tags WHERE tags.value = ? AND tags.weight = ?"
                         .to_string(),
                     params: vec![
-                        ENTRY_ID_TOKEN.to_string(),
+                        entry_id_token.clone(),
                         tag.value,
                         tag.weight,
                     ],
@@ -164,25 +185,25 @@ impl SqlGenerator {
             return Err(SqlGenerateError::UnsupportedUpdateShape);
         };
 
-        if self.is_empty_expr(selection.as_ref()) {
-            return Err(SqlGenerateError::MissingMatchCriteria);
-        }
         self.assert_no_sort(&selection)?;
         self.assert_no_sort(&values)?;
 
         let mut match_params = vec![];
         let where_clause = self.build_where_with_extras(*selection, &mut match_params, extras)?;
-        if where_clause.is_empty() {
-            return Err(SqlGenerateError::MissingMatchCriteria);
-        }
+        let where_clause = if where_clause.is_empty() {
+            "1 = 1".to_string()
+        } else {
+            where_clause
+        };
 
-        let leaves = self
-            .extract_write_leaves(*values)
+        let write_items = self
+            .extract_update_write_items(*values)
             .ok_or(SqlGenerateError::UnsupportedUpdateWriteShape)?;
         let WriteParts {
             scalar_cols: set_pairs,
             tag_values,
-        } = self.collect_write_parts(leaves)?;
+            tag_removals,
+        } = self.collect_write_items(write_items)?;
         let mut statements = vec![];
 
         if !set_pairs.is_empty() {
@@ -256,6 +277,45 @@ impl SqlGenerator {
             }
         }
 
+        for tag in tag_removals {
+            if let Some(user_id) = &extras.user_id {
+                let mut params = match_params.clone();
+                params.extend([user_id.clone(), tag.value, tag.weight]);
+                statements.push(EzqSqlStep {
+                    sql: format!(
+                        "DELETE FROM library_entry_tags \
+                         WHERE library_entry_id IN (\
+                             SELECT library_entries.id FROM library_entries WHERE {}\
+                         ) \
+                         AND tag_id IN (\
+                             SELECT tags.id FROM tags \
+                             WHERE tags.user_id = ? AND tags.value = ? AND tags.weight = ?\
+                         )",
+                        where_clause
+                    ),
+                    params,
+                    outputs: vec![],
+                });
+            } else {
+                let mut params = match_params.clone();
+                params.extend([tag.value, tag.weight]);
+                statements.push(EzqSqlStep {
+                    sql: format!(
+                        "DELETE FROM library_entry_tags \
+                         WHERE library_entry_id IN (\
+                             SELECT library_entries.id FROM library_entries WHERE {}\
+                         ) \
+                         AND tag_id IN (\
+                             SELECT tags.id FROM tags WHERE tags.value = ? AND tags.weight = ?\
+                         )",
+                        where_clause
+                    ),
+                    params,
+                    outputs: vec![],
+                });
+            }
+        }
+
         Ok(statements)
     }
 
@@ -315,41 +375,72 @@ impl SqlGenerator {
     }
 
     fn collect_write_parts(&self, leaves: Vec<String>) -> Result<WriteParts, SqlGenerateError> {
+        self.collect_write_items(
+            leaves
+                .into_iter()
+                .map(|leaf| WriteItem {
+                    leaf,
+                    remove: false,
+                })
+                .collect(),
+        )
+    }
+
+    fn collect_write_items(&self, items: Vec<WriteItem>) -> Result<WriteParts, SqlGenerateError> {
         let mut scalar_cols = vec![];
         let mut tag_values = vec![];
+        let mut tag_removals = vec![];
         let mut title_value: Option<String> = None;
 
-        for leaf in &leaves {
+        for item in &items {
+            let leaf = &item.leaf;
             let (prefix, segments) = self.split_leaf(leaf)?;
             match prefix {
                 "id" => return Err(SqlGenerateError::IdNotAllowedInWriteContext),
                 "status" | "media_type" => {
+                    if item.remove {
+                        return Err(SqlGenerateError::UnsupportedUpdateWriteShape);
+                    }
                     let value = first_segment(&segments, leaf)?;
-                    scalar_cols.push((prefix.to_string(), value.to_string()));
+                    upsert_scalar_col(&mut scalar_cols, prefix, value.to_string());
                 }
                 "public_rating" | "personal_rating" => {
+                    if item.remove {
+                        return Err(SqlGenerateError::UnsupportedUpdateWriteShape);
+                    }
                     let value = first_segment(&segments, leaf)?;
                     let (op, num) = split_op_value(value);
                     if op != "=" {
                         return Err(SqlGenerateError::InequalityInWriteContext(leaf.clone()));
                     }
-                    scalar_cols.push((prefix.to_string(), num));
+                    upsert_scalar_col(&mut scalar_cols, prefix, num);
                 }
                 "created_at" => {
+                    if item.remove {
+                        return Err(SqlGenerateError::UnsupportedUpdateWriteShape);
+                    }
                     let value = first_segment(&segments, leaf)?;
                     let (op, date) = split_op_value(value);
                     if op != "=" {
                         return Err(SqlGenerateError::InequalityInWriteContext(leaf.clone()));
                     }
-                    scalar_cols.push((prefix.to_string(), reformat_date(&date)?));
+                    upsert_scalar_col(&mut scalar_cols, prefix, reformat_date(&date)?);
                 }
                 "tag" => {
-                    tag_values.push(TagWrite {
+                    let tag = TagWrite {
                         value: first_segment(&segments, leaf)?.to_string(),
                         weight: nth_segment(&segments, 1, leaf)?.to_string(),
-                    });
+                    };
+                    if item.remove {
+                        tag_removals.push(tag);
+                    } else {
+                        tag_values.push(tag);
+                    }
                 }
                 "title" => {
+                    if item.remove {
+                        return Err(SqlGenerateError::UnsupportedUpdateWriteShape);
+                    }
                     if title_value.is_some() {
                         return Err(SqlGenerateError::MultipleTitlesNotAllowed);
                     }
@@ -360,12 +451,13 @@ impl SqlGenerator {
         }
 
         if let Some(title) = title_value {
-            scalar_cols.push(("title".to_string(), title));
+            upsert_scalar_col(&mut scalar_cols, "title", title);
         }
 
         Ok(WriteParts {
             scalar_cols,
             tag_values,
+            tag_removals,
         })
     }
 
@@ -446,6 +538,40 @@ impl SqlGenerator {
         }
     }
 
+    fn extract_update_write_items(&self, expr: ASTExpr) -> Option<Vec<WriteItem>> {
+        let mut out = vec![];
+        self.collect_update_write_items(expr, false, &mut out)?;
+        Some(out)
+    }
+
+    fn collect_update_write_items(
+        &self,
+        expr: ASTExpr,
+        remove: bool,
+        out: &mut Vec<WriteItem>,
+    ) -> Option<()> {
+        match expr {
+            ASTExpr::Leaf(s) => out.push(WriteItem {
+                leaf: s,
+                remove,
+            }),
+            ASTExpr::Not(inner) => {
+                if remove {
+                    return None;
+                }
+                self.collect_update_write_items(*inner, true, out)?;
+            }
+            ASTExpr::And(items) => {
+                for item in items {
+                    self.collect_update_write_items(item, remove, out)?;
+                }
+            },
+            _ => return None,
+        }
+
+        Some(())
+    }
+
     fn is_empty_expr(&self, expr: &ASTExpr) -> bool {
         match expr {
             ASTExpr::Leaf(s) => s.trim().is_empty(),
@@ -502,9 +628,24 @@ impl SqlGenerator {
     }
 }
 
+fn upsert_scalar_col(cols: &mut Vec<(String, String)>, name: &str, value: String) {
+    if let Some((_, existing_value)) = cols.iter_mut().find(|(col, _)| col == name) {
+        *existing_value = value;
+        return;
+    }
+
+    cols.push((name.to_string(), value));
+}
+
 struct WriteParts {
     scalar_cols: Vec<(String, String)>,
     tag_values: Vec<TagWrite>,
+    tag_removals: Vec<TagWrite>,
+}
+
+struct WriteItem {
+    leaf: String,
+    remove: bool,
 }
 
 struct TagWrite {
@@ -617,8 +758,6 @@ pub enum SqlGenerateError {
     UnsupportedUpdateShape,
     #[error("`update` write expression must be a flat AND of qualifier leaves")]
     UnsupportedUpdateWriteShape,
-    #[error("`update` requires a non-empty match query")]
-    MissingMatchCriteria,
     #[error("Inequality operator not allowed in write-context value: {0}")]
     InequalityInWriteContext(String),
     #[error("write expressions do not allow setting `id`")]
@@ -902,20 +1041,45 @@ mod tests {
     }
 
     #[test]
-    fn delete_rejects_empty_expression() {
-        let err = generator()
+    fn delete_empty_expression_targets_all_rows() {
+        let sql = generator()
             .generate(root("delete", leaf("")), Extras::default())
-            .unwrap_err();
-        assert!(matches!(err, SqlGenerateError::MissingMatchCriteria));
+            .unwrap();
+
+        assert_eq!(sql.len(), 1);
+        assert_eq!(sql[0].sql, "DELETE FROM library_entries WHERE 1 = 1");
+        assert_eq!(sql[0].params, Vec::<String>::new());
     }
 
     #[test]
-    fn create_rejects_non_flat_expression() {
+    fn delete_empty_expression_still_scopes_by_user_id() {
+        let sql = generator()
+            .generate(
+                root("delete", leaf("")),
+                Extras {
+                    user_id: Some("user-1".to_string()),
+                },
+            )
+            .unwrap();
+
+        assert_eq!(sql.len(), 1);
+        assert_eq!(
+            sql[0].sql,
+            "DELETE FROM library_entries WHERE library_entries.user_id = ?"
+        );
+        assert_eq!(sql[0].params, vec!["user-1".to_string()]);
+    }
+
+    #[test]
+    fn create_rejects_nested_non_flat_expression() {
         let err = generator()
             .generate(
                 root(
                     "create",
-                    or(vec![leaf("status:finished"), leaf("tag:action:major")]),
+                    and(vec![
+                        leaf("title:attack_on_titan"),
+                        or(vec![leaf("status:finished"), leaf("tag:action:major")]),
+                    ]),
                 ),
                 Extras::default(),
             )
@@ -995,6 +1159,73 @@ mod tests {
     }
 
     #[test]
+    fn create_duplicate_scalar_values_use_last_value() {
+        let sql = generator()
+            .generate(
+                root(
+                    "create",
+                    and(vec![
+                        leaf("tag:comedy:major"),
+                        leaf("tag:family:major"),
+                        leaf("tag:christmas:major"),
+                        leaf("status:in_progress"),
+                        leaf("personal_rating:7"),
+                        leaf("public_rating:8.5"),
+                        leaf("status:finished"),
+                        leaf("title:home_alone"),
+                    ]),
+                ),
+                Extras::default(),
+            )
+            .unwrap();
+
+        assert_eq!(
+            sql[0].sql,
+            "INSERT INTO library_entries (status, personal_rating, public_rating, title) VALUES (?, ?, ?, ?) RETURNING id"
+        );
+        assert_eq!(
+            sql[0].params,
+            vec![
+                "finished".to_string(),
+                "7".to_string(),
+                "8.5".to_string(),
+                "home alone".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn create_with_or_generates_one_entry_per_branch() {
+        let sql = generator()
+            .generate(
+                root(
+                    "create",
+                    or(vec![leaf("title:first"), leaf("title:second")]),
+                ),
+                Extras {
+                    user_id: Some("user-1".to_string()),
+                },
+            )
+            .unwrap();
+
+        assert_eq!(sql.len(), 2);
+        assert_eq!(
+            sql[0].sql,
+            "INSERT INTO library_entries (user_id, title) VALUES (?, ?) RETURNING id"
+        );
+        assert_eq!(
+            sql[0].params,
+            vec!["user-1".to_string(), "first".to_string()]
+        );
+        assert_eq!(sql[0].outputs, vec!["ENTRY_ID_1".to_string()]);
+        assert_eq!(
+            sql[1].params,
+            vec!["user-1".to_string(), "second".to_string()]
+        );
+        assert_eq!(sql[1].outputs, vec!["ENTRY_ID_2".to_string()]);
+    }
+
+    #[test]
     fn create_uses_optional_user_id_when_provided() {
         let sql = generator()
             .generate(
@@ -1048,14 +1279,150 @@ mod tests {
     }
 
     #[test]
-    fn update_requires_match_criteria() {
-        let err = generator()
+    fn update_empty_selection_targets_all_rows() {
+        let sql = generator()
             .generate(
                 root("update", update(and(vec![]), leaf("status:finished"))),
                 Extras::default(),
             )
+            .unwrap();
+
+        assert_eq!(sql.len(), 1);
+        assert_eq!(
+            sql[0].sql,
+            "UPDATE library_entries SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE 1 = 1"
+        );
+        assert_eq!(sql[0].params, vec!["finished".to_string()]);
+    }
+
+    #[test]
+    fn update_empty_selection_still_scopes_by_user_id() {
+        let sql = generator()
+            .generate(
+                root("update", update(and(vec![]), leaf("tag:action:major"))),
+                Extras {
+                    user_id: Some("user-1".to_string()),
+                },
+            )
+            .unwrap();
+
+        assert_eq!(sql.len(), 2);
+        assert_eq!(
+            sql[1].sql,
+            "INSERT INTO library_entry_tags (library_entry_id, tag_id) SELECT library_entries.id, tags.id FROM library_entries JOIN tags ON tags.user_id = ? AND tags.value = ? AND tags.weight = ? WHERE library_entries.user_id = ? AND NOT EXISTS (SELECT 1 FROM library_entry_tags WHERE library_entry_tags.library_entry_id = library_entries.id AND library_entry_tags.tag_id = tags.id)"
+        );
+        assert_eq!(
+            sql[1].params,
+            vec![
+                "user-1".to_string(),
+                "action".to_string(),
+                "major".to_string(),
+                "user-1".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn update_empty_selection_can_remove_tag_for_user_entries() {
+        let sql = generator()
+            .generate(
+                root(
+                    "update",
+                    update(and(vec![]), not(leaf("tag:a:major"))),
+                ),
+                Extras {
+                    user_id: Some("user-1".to_string()),
+                },
+            )
+            .unwrap();
+
+        assert_eq!(sql.len(), 1);
+        assert_eq!(
+            sql[0].sql,
+            "DELETE FROM library_entry_tags WHERE library_entry_id IN (SELECT library_entries.id FROM library_entries WHERE library_entries.user_id = ?) AND tag_id IN (SELECT tags.id FROM tags WHERE tags.user_id = ? AND tags.value = ? AND tags.weight = ?)"
+        );
+        assert_eq!(
+            sql[0].params,
+            vec![
+                "user-1".to_string(),
+                "user-1".to_string(),
+                "a".to_string(),
+                "major".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn update_rejects_negated_non_tag_write() {
+        let err = generator()
+            .generate(
+                root("update", update(and(vec![]), not(leaf("status:finished")))),
+                Extras::default(),
+            )
             .unwrap_err();
-        assert!(matches!(err, SqlGenerateError::MissingMatchCriteria));
+        assert!(matches!(err, SqlGenerateError::UnsupportedUpdateWriteShape));
+    }
+
+    #[test]
+    fn update_can_remove_grouped_tags_and_update_title() {
+        let sql = generator()
+            .generate(
+                root(
+                    "update",
+                    update(
+                        leaf("title:home_alone"),
+                        and(vec![
+                            not(and(vec![
+                                leaf("tag:cringe:major"),
+                                leaf("tag:family:major"),
+                            ])),
+                            leaf("title:not_home_alone"),
+                        ]),
+                    ),
+                ),
+                Extras {
+                    user_id: Some("user-1".to_string()),
+                },
+            )
+            .unwrap();
+
+        assert_eq!(sql.len(), 3);
+        assert_eq!(
+            sql[0].sql,
+            "UPDATE library_entries SET title = ?, updated_at = CURRENT_TIMESTAMP WHERE (library_entries.title LIKE ?) AND library_entries.user_id = ?"
+        );
+        assert_eq!(
+            sql[0].params,
+            vec![
+                "not home alone".to_string(),
+                "%home alone%".to_string(),
+                "user-1".to_string(),
+            ]
+        );
+        assert_eq!(
+            sql[1].sql,
+            "DELETE FROM library_entry_tags WHERE library_entry_id IN (SELECT library_entries.id FROM library_entries WHERE (library_entries.title LIKE ?) AND library_entries.user_id = ?) AND tag_id IN (SELECT tags.id FROM tags WHERE tags.user_id = ? AND tags.value = ? AND tags.weight = ?)"
+        );
+        assert_eq!(
+            sql[1].params,
+            vec![
+                "%home alone%".to_string(),
+                "user-1".to_string(),
+                "user-1".to_string(),
+                "cringe".to_string(),
+                "major".to_string(),
+            ]
+        );
+        assert_eq!(
+            sql[2].params,
+            vec![
+                "%home alone%".to_string(),
+                "user-1".to_string(),
+                "user-1".to_string(),
+                "family".to_string(),
+                "major".to_string(),
+            ]
+        );
     }
 
     #[test]

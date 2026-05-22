@@ -1,6 +1,8 @@
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useState } from "react";
-import { MediaCard, type MediaItem, type MediaStatus } from "./MediaCard";
+import { Button } from "@/components/ui/button";
+import type { MediaItem, MediaStatus } from "@/features/library/types";
+import { MediaCard } from "./MediaCard";
 
 interface HomeSectionProps {
   title: string;
@@ -16,6 +18,8 @@ interface HomeSectionProps {
   onViewDetails?: (item: MediaItem) => void;
 }
 
+const HOME_PREVIEW_LIMIT = 3;
+
 export function HomeSection({
   title,
   count,
@@ -29,6 +33,7 @@ export function HomeSection({
   onAddToCollection,
   onViewDetails,
 }: HomeSectionProps) {
+  const previewItems = items.slice(0, HOME_PREVIEW_LIMIT);
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   return (
@@ -46,22 +51,27 @@ export function HomeSection({
         </div>
 
         <div className="flex w-full items-center gap-3 sm:w-auto">
-          <button
-            type="button"
-            onClick={onQueryMore}
-            className="flex h-[36px] min-h-[36px] flex-1 items-center justify-center rounded-[8px] border border-[#3F3F46] bg-white/5 px-3 text-[14px] font-medium leading-5 text-[#FAFAFA] shadow-[0px_1px_2px_rgba(0,0,0,0.05)] transition-colors hover:bg-white/10 sm:flex-none"
-          >
-            Query More
-          </button>
+          {onQueryMore ? (
+            <Button
+              type="button"
+              variant="surface"
+              size="lg"
+              onClick={onQueryMore}
+              className="flex-1 sm:flex-none"
+            >
+              Query More
+            </Button>
+          ) : null}
 
-          <button
+          <Button
             type="button"
+            variant="surface"
+            size="icon-lg"
             aria-label="Toggle section"
             onClick={() => setIsOpen((prev) => !prev)}
-            className="flex h-[36px] w-[36px] min-h-[36px] min-w-[36px] items-center justify-center rounded-[8px] border border-[#3F3F46] bg-white/5 text-[#FAFAFA] shadow-[0px_1px_2px_rgba(0,0,0,0.05)] transition-colors hover:bg-white/10"
           >
             {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -74,13 +84,13 @@ export function HomeSection({
             </div>
           )}
 
-          {!loading && items.length === 0 && (
+          {!loading && previewItems.length === 0 && (
             <div className="py-8 text-sm text-[#A1A1AA]">No items found</div>
           )}
 
-          {!loading && items.length > 0 && (
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:gap-8 xl:grid-cols-3">
-              {items.map((item) => (
+          {!loading && previewItems.length > 0 && (
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-2 2xl:grid-cols-3 2xl:gap-8">
+              {previewItems.map((item) => (
                 <MediaCard
                   key={item.id}
                   item={item}
