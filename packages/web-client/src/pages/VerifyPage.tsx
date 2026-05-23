@@ -32,7 +32,7 @@ export function VerifyPage() {
       />
 
       <section
-        className="relative z-10 grid min-h-[calc(100vh-64px)] place-items-center gap-12 max-[420px]:gap-[30px]"
+        className="relative z-10 mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-[320px] flex-col items-center justify-center gap-12"
         aria-label="Verify account"
       >
         <div
