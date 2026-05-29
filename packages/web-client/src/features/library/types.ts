@@ -24,7 +24,7 @@ export interface MediaItem {
   title: string;
   type: MediaType;
   status?: MediaStatus;
-  date: string;
+  releasedAt: string;
   rating: string;
   tags: string[];
   posterUrl?: string;

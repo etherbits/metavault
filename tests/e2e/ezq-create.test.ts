@@ -44,7 +44,7 @@ test("POST /ezq /create returns the new entry with its tags", async ({
   await openQueryPage(page);
   await executeQuery(page, `/search tg:${tag}`);
   await expectQueryResult(page, title);
-  await expect(page.getByText(tag)).toBeVisible();
+  await expect(page.getByText(tag, { exact: true })).toBeVisible();
 });
 
 test("query page /c can create multiple items at once", async ({

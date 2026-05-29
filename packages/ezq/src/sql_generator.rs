@@ -17,7 +17,10 @@ impl SqlGenerator {
         ast: ASTExpr,
         extras: Extras,
     ) -> Result<Vec<EzqSqlStep>, SqlGenerateError> {
-        let ASTExpr::Root { action, expression } = ast else {
+        let ASTExpr::Root {
+            action, expression, ..
+        } = ast
+        else {
             return Err(SqlGenerateError::UnsupportedExpression);
         };
 
@@ -211,7 +214,9 @@ impl SqlGenerator {
                 .iter()
                 .map(|(c, _)| format!("{} = ?", c))
                 .collect();
-            set_clause_parts.push("updated_at = CURRENT_TIMESTAMP".to_string());
+            if !set_pairs.iter().any(|(column, _)| column == "updated_at") {
+                set_clause_parts.push("updated_at = CURRENT_TIMESTAMP".to_string());
+            }
             let set_clause = set_clause_parts.join(", ");
             let mut params: Vec<String> = set_pairs.into_iter().map(|(_, v)| v).collect();
             params.extend(match_params.iter().cloned());
@@ -415,7 +420,7 @@ impl SqlGenerator {
                     }
                     upsert_scalar_col(&mut scalar_cols, prefix, num);
                 }
-                "created_at" => {
+                column if DATE_COLUMNS.contains(&column) => {
                     if item.remove {
                         return Err(SqlGenerateError::UnsupportedUpdateWriteShape);
                     }
@@ -424,7 +429,7 @@ impl SqlGenerator {
                     if op != "=" {
                         return Err(SqlGenerateError::InequalityInWriteContext(leaf.clone()));
                     }
-                    upsert_scalar_col(&mut scalar_cols, prefix, reformat_date(&date)?);
+                    upsert_scalar_col(&mut scalar_cols, column, reformat_date(&date)?);
                 }
                 "tag" => {
                     let tag = TagWrite {
@@ -486,11 +491,11 @@ impl SqlGenerator {
                 params.push(num);
                 Ok(format!("library_entries.{} {} ?", prefix, op))
             }
-            "created_at" => {
+            column if DATE_COLUMNS.contains(&column) => {
                 let value = first_segment(&segments, leaf)?;
                 let (op, date) = split_op_value(value);
                 params.push(reformat_date(&date)?);
-                Ok(format!("date(library_entries.{}) {} date(?)", prefix, op))
+                Ok(format!("date(library_entries.{}) {} date(?)", column, op))
             }
             "tag" => {
                 params.push(first_segment(&segments, leaf)?.to_string());
@@ -655,6 +660,8 @@ struct Sort {
     direction: &'static str,
 }
 
+const DATE_COLUMNS: &[&str] = &["created_at", "updated_at", "released_at"];
+
 const SORTABLE_COLUMNS: &[&str] = &[
     "id",
     "title",
@@ -662,6 +669,7 @@ const SORTABLE_COLUMNS: &[&str] = &[
     "media_type",
     "public_rating",
     "personal_rating",
+    "released_at",
     "created_at",
     "updated_at",
 ];
@@ -783,6 +791,7 @@ mod tests {
         ASTExpr::Root {
             action: action.to_string(),
             expression: Box::new(expr),
+            commands: vec![],
         }
     }
 
@@ -848,6 +857,28 @@ mod tests {
                 "%attack on titan%".to_string(),
                 "2024-06-01".to_string(),
             ]
+        );
+    }
+
+    #[test]
+    fn search_supports_updated_and_released_at_date_filters() {
+        let ast = root(
+            "search",
+            and(vec![
+                leaf("updated_at:>=01-06-2024"),
+                leaf("released_at:<15-01-2025"),
+            ]),
+        );
+
+        let sql = generator().generate(ast, Extras::default()).unwrap();
+        assert_eq!(sql.len(), 1);
+        assert_eq!(
+            sql[0].sql,
+            "SELECT library_entries.*, COALESCE((SELECT json_group_array(json_object('id', tags.id, 'value', tags.value, 'weight', tags.weight)) FROM library_entry_tags JOIN tags ON tags.id = library_entry_tags.tag_id WHERE library_entry_tags.library_entry_id = library_entries.id), '[]') AS tags FROM library_entries WHERE (date(library_entries.updated_at) >= date(?) AND date(library_entries.released_at) < date(?))"
+        );
+        assert_eq!(
+            sql[0].params,
+            vec!["2024-06-01".to_string(), "2025-01-15".to_string()]
         );
     }
 
@@ -926,6 +957,18 @@ mod tests {
                 .ends_with(" ORDER BY library_entries.created_at DESC")
         );
         assert_eq!(sql[0].params, vec!["user-1".to_string()]);
+    }
+
+    #[test]
+    fn search_sort_supports_released_at() {
+        let ast = root("search", leaf("sort:released_at:ascending"));
+        let sql = generator().generate(ast, Extras::default()).unwrap();
+        assert!(
+            sql[0]
+                .sql
+                .ends_with(" ORDER BY library_entries.released_at ASC")
+        );
+        assert_eq!(sql[0].params, Vec::<String>::new());
     }
 
     #[test]
@@ -1156,6 +1199,37 @@ mod tests {
     }
 
     #[test]
+    fn create_supports_released_and_updated_at_date_values() {
+        let sql = generator()
+            .generate(
+                root(
+                    "create",
+                    and(vec![
+                        leaf("title:attack_on_titan"),
+                        leaf("released_at:01-06-2024"),
+                        leaf("updated_at:15-01-2025"),
+                    ]),
+                ),
+                Extras::default(),
+            )
+            .unwrap();
+
+        assert_eq!(sql.len(), 1);
+        assert_eq!(
+            sql[0].sql,
+            "INSERT INTO library_entries (released_at, updated_at, title) VALUES (?, ?, ?) RETURNING id"
+        );
+        assert_eq!(
+            sql[0].params,
+            vec![
+                "2024-06-01".to_string(),
+                "2025-01-15".to_string(),
+                "attack on titan".to_string(),
+            ]
+        );
+    }
+
+    #[test]
     fn create_duplicate_scalar_values_use_last_value() {
         let sql = generator()
             .generate(
@@ -1317,6 +1391,13 @@ mod tests {
                 "user-1".to_string(),
             ]
         );
+    }
+
+    #[test]
+    fn update_with_empty_write_expression_generates_no_statements() {
+        let ast = root("update", update(leaf("title:attack"), and(vec![])));
+        let sql = generator().generate(ast, Extras::default()).unwrap();
+        assert!(sql.is_empty());
     }
 
     #[test]
@@ -1504,6 +1585,39 @@ mod tests {
             ]
         );
         assert_eq!(sql[2].outputs, Vec::<String>::new());
+    }
+
+    #[test]
+    fn update_supports_released_and_updated_at_date_values() {
+        let sql = generator()
+            .generate(
+                root(
+                    "update",
+                    update(
+                        leaf("id:42"),
+                        and(vec![
+                            leaf("released_at:01-06-2024"),
+                            leaf("updated_at:15-01-2025"),
+                        ]),
+                    ),
+                ),
+                Extras::default(),
+            )
+            .unwrap();
+
+        assert_eq!(sql.len(), 1);
+        assert_eq!(
+            sql[0].sql,
+            "UPDATE library_entries SET released_at = ?, updated_at = ? WHERE library_entries.id = ?"
+        );
+        assert_eq!(
+            sql[0].params,
+            vec![
+                "2024-06-01".to_string(),
+                "2025-01-15".to_string(),
+                "42".to_string(),
+            ]
+        );
     }
 
     #[test]

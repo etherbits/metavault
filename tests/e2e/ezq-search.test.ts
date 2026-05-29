@@ -46,7 +46,7 @@ test("POST /ezq /search by tag returns matching entries with tags", async ({
   await openQueryPage(page);
   await executeQuery(page, `/search tg:${tag}`);
   await expectQueryResult(page, title);
-  await expect(page.getByText(tag)).toBeVisible();
+  await expect(page.getByText(tag, { exact: true })).toBeVisible();
 });
 
 test("POST /ezq /s returns all of the user's entries", async ({

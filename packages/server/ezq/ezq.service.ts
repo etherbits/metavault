@@ -5,6 +5,7 @@ import {
   LibraryEntryRowsSchema,
   type LibraryEntryWithTags,
 } from "./ezq.schema";
+import { EzqCommandExecutor } from "./ezq-command-executor";
 
 const ENTRY_ID_TOKEN = "ENTRY_ID";
 
@@ -16,7 +17,10 @@ export type EzqResult =
   | { ok: false; status: number; error: string };
 
 export class EzqService {
-  constructor(private readonly sql: SQL) {}
+  constructor(
+    private readonly sql: SQL,
+    private readonly commandExecutor = new EzqCommandExecutor()
+  ) {}
 
   async execute(query: string, extras: Extras | null): Promise<EzqResult> {
     const ast = generate_ast(query);
@@ -29,11 +33,15 @@ export class EzqService {
     }
 
     const { action, expression } = ast.Root;
+    const commands =
+      (ast.Root as typeof ast.Root & { commands?: string[] }).commands ?? [];
     const steps = generate_sql(ast, extras);
 
     if (action === "search") {
       const { lastRows } = await this.runSteps(this.sql, steps);
-      return { ok: true, rows: LibraryEntryRowsSchema.parse(lastRows) };
+      const rows = LibraryEntryRowsSchema.parse(lastRows);
+      await this.commandExecutor.execute({ action, commands, rows });
+      return { ok: true, rows };
     }
 
     if (action === "delete") {
@@ -42,6 +50,7 @@ export class EzqService {
         await this.runSteps(tx, steps);
         return matched;
       });
+      await this.commandExecutor.execute({ action, commands, rows });
       return { ok: true, rows };
     }
 
@@ -57,6 +66,7 @@ export class EzqService {
         .map(([, value]) => value);
       const rows =
         entryIds.length > 0 ? await this.searchByIds(entryIds, extras) : [];
+      await this.commandExecutor.execute({ action, commands, rows });
       return { ok: true, rows };
     }
 
@@ -74,6 +84,7 @@ export class EzqService {
       );
       const ids = matched.map((row) => row.id);
       if (ids.length === 0) {
+        await this.commandExecutor.execute({ action, commands, rows: [] });
         return { ok: true, rows: [] };
       }
 
@@ -86,11 +97,13 @@ export class EzqService {
               values: expression.Update.values,
             },
           },
+          commands: [],
         },
-      };
+      } as ASTExpr;
       const stableSteps = generate_sql(stableUpdateAst, extras);
       await this.sql.begin((tx) => this.runSteps(tx, stableSteps));
       const rows = await this.searchByIds(ids, extras);
+      await this.commandExecutor.execute({ action, commands, rows });
       return { ok: true, rows };
     }
 
@@ -131,7 +144,9 @@ export class EzqService {
     extras: Extras | null,
     executor: SqlExecutor = this.sql
   ): Promise<LibraryEntryWithTags[]> {
-    const ast: ASTExpr = { Root: { action: "search", expression } };
+    const ast: ASTExpr = {
+      Root: { action: "search", expression, commands: [] },
+    } as ASTExpr;
     const steps = generate_sql(ast, extras);
     const step = steps[0];
     if (!step) return [];

@@ -104,7 +104,7 @@ export function MediaCard({
             <div className="flex flex-col gap-2">
               <span className="inline-flex h-5 w-fit items-center gap-1 rounded-[8px] bg-[#3F3F46] px-2 text-[12px] font-semibold leading-4 text-[#FAFAFA]">
                 <Calendar size={12} />
-                {item.date}
+                {item.releasedAt}
               </span>
 
               <span className="inline-flex h-5 w-fit items-center gap-1 rounded-[8px] bg-[#3F3F46] px-2 text-[12px] font-semibold leading-4 text-[#FAFAFA]">

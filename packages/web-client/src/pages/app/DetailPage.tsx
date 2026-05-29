@@ -105,7 +105,7 @@ function DetailPageContent({
             <InfoPill
               icon={<CalendarDays size={24} />}
               label="Release Date"
-              value={item.date}
+              value={item.releasedAt}
             />
             <InfoPill
               icon={<Star size={24} />}

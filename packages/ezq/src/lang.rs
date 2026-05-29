@@ -25,6 +25,8 @@ pub const QUALIFIER_SEMANTICS: &[&[QualifierSegmentRule]] = &[
         ]),
     ],
     &[Single("created_at"), Date],
+    &[Single("updated_at"), Date],
+    &[Single("released_at"), Date],
     &[
         Single("sort"),
         FuzzyList(&[
@@ -34,6 +36,7 @@ pub const QUALIFIER_SEMANTICS: &[&[QualifierSegmentRule]] = &[
             "media_type",
             "public_rating",
             "personal_rating",
+            "released_at",
             "created_at",
             "updated_at",
         ]),

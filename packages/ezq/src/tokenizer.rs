@@ -126,7 +126,11 @@ impl Tokenizer {
         return Some(query[start_idx..end_idx].to_string());
     }
 
-    fn split_top_level_update_separator(&self, s: &str) -> Option<(String, String)> {
+    fn split_top_level_update_separator(
+        &self,
+        s: &str,
+        allow_trailing_separator: bool,
+    ) -> Option<(String, String)> {
         let mut open_count = 0;
 
         for (i, ch) in s.char_indices() {
@@ -140,14 +144,16 @@ impl Tokenizer {
                 continue;
             }
 
-            if open_count == 0
-                && ch == '>'
-                && i > 0
-                && s[..i].ends_with(' ')
-                && s[i + ch.len_utf8()..].starts_with(' ')
-            {
+            if open_count == 0 && ch == '>' && i > 0 && s[..i].ends_with(' ') {
+                let after_separator = &s[i + ch.len_utf8()..];
+                if !after_separator.starts_with(' ')
+                    && !(allow_trailing_separator && after_separator.is_empty())
+                {
+                    continue;
+                }
+
                 let left = s[..i].trim().to_string();
-                let right = s[i + ch.len_utf8()..].trim().to_string();
+                let right = after_separator.trim().to_string();
                 return Some((left, right));
             }
         }
@@ -155,7 +161,11 @@ impl Tokenizer {
         None
     }
 
-    fn generate_token_tree(&self, query: &str) -> Result<ASTExpr, TokenizerError> {
+    fn generate_token_tree(
+        &self,
+        query: &str,
+        commands: Vec<String>,
+    ) -> Result<ASTExpr, TokenizerError> {
         let action = match self.get_action_term(query) {
             Some(action) => action,
             None => "/search".to_string(),
@@ -164,11 +174,13 @@ impl Tokenizer {
         let query = &query.replace(&action, "").replace("/", "");
 
         let expression = if self.resolve_action(&action) == "update" {
-            let Some((selection, values)) = self.split_top_level_update_separator(query) else {
+            let Some((selection, values)) =
+                self.split_top_level_update_separator(query, !commands.is_empty())
+            else {
                 return Err(TokenizerError::MalformedUpdateExpression);
             };
 
-            if values.is_empty() {
+            if values.is_empty() && commands.is_empty() {
                 return Err(TokenizerError::MalformedUpdateExpression);
             }
 
@@ -183,6 +195,7 @@ impl Tokenizer {
         Ok(ASTExpr::Root {
             action: action.strip_prefix("/").unwrap().to_string(),
             expression: Box::new(expression),
+            commands,
         })
     }
 
@@ -294,12 +307,73 @@ impl Tokenizer {
                 selection: Box::new(self.normalize_expr(*selection)),
                 values: Box::new(self.normalize_expr(*values)),
             },
-            ASTExpr::Root { action, expression } => ASTExpr::Root {
+            ASTExpr::Root {
+                action,
+                expression,
+                commands,
+            } => ASTExpr::Root {
                 action,
                 expression: Box::new(self.normalize_expr(*expression)),
+                commands,
             },
             leaf => leaf,
         }
+    }
+
+    fn extract_commands(&self, query: &str) -> (String, Vec<String>) {
+        let mut stripped = String::with_capacity(query.len());
+        let mut commands = vec![];
+        let mut token_start = None;
+
+        for (i, ch) in query.char_indices() {
+            if ch.is_whitespace() {
+                if let Some(start) = token_start.take() {
+                    let token = &query[start..i];
+                    if let Some(mut expanded_commands) = self.parse_command_token(token) {
+                        commands.append(&mut expanded_commands);
+                    } else {
+                        stripped.push_str(token);
+                    }
+                }
+                stripped.push(ch);
+            } else if token_start.is_none() {
+                token_start = Some(i);
+            }
+        }
+
+        if let Some(start) = token_start {
+            let token = &query[start..];
+            if let Some(mut expanded_commands) = self.parse_command_token(token) {
+                commands.append(&mut expanded_commands);
+            } else {
+                stripped.push_str(token);
+            }
+        }
+
+        (stripped.trim().to_string(), commands)
+    }
+
+    fn parse_command_token(&self, token: &str) -> Option<Vec<String>> {
+        let command = token.strip_prefix('#')?;
+        if command.is_empty() {
+            return None;
+        }
+
+        let expanded_commands = self
+            .expand_qualifier_value_list(command)
+            .into_iter()
+            .map(|command| command.to_ascii_lowercase())
+            .collect::<Vec<_>>();
+
+        if expanded_commands.iter().any(|command| {
+            command
+                .split(':')
+                .any(|segment| segment.is_empty() || !is_valid_command_segment(segment))
+        }) {
+            return None;
+        }
+
+        Some(expanded_commands)
     }
 
     pub fn tokenize(&self, mut input_query: &str) -> Result<ASTExpr, TokenizerError> {
@@ -308,11 +382,22 @@ impl Tokenizer {
             return Err(TokenizerError::EmptyInput);
         }
 
-        let token_tree = self.generate_token_tree(input_query)?;
+        let (query_without_commands, commands) = self.extract_commands(input_query);
+        if query_without_commands.is_empty() {
+            return Err(TokenizerError::EmptyInput);
+        }
+
+        let token_tree = self.generate_token_tree(&query_without_commands, commands)?;
         let normalized_tree = self.normalize_expr(token_tree);
 
         Ok(normalized_tree)
     }
+}
+
+fn is_valid_command_segment(segment: &str) -> bool {
+    segment
+        .chars()
+        .all(|ch| ch.is_ascii_alphanumeric() || ch == '-' || ch == '_')
 }
 
 #[derive(Debug, Error)]
@@ -329,6 +414,7 @@ pub enum ASTExpr {
     Root {
         action: String,
         expression: Box<ASTExpr>,
+        commands: Vec<String>,
     },
     Update {
         selection: Box<ASTExpr>,
@@ -352,6 +438,15 @@ mod tests {
         ASTExpr::Root {
             action: action.to_string(),
             expression: Box::new(expr),
+            commands: vec![],
+        }
+    }
+
+    fn root_with_commands(action: &str, expr: ASTExpr, commands: Vec<&str>) -> ASTExpr {
+        ASTExpr::Root {
+            action: action.to_string(),
+            expression: Box::new(expr),
+            commands: commands.into_iter().map(str::to_string).collect(),
         }
     }
 
@@ -402,6 +497,93 @@ mod tests {
     fn explicit_action_overrides_default() {
         let ast = tk().tokenize("/create hello").unwrap();
         assert_eq!(ast, root("create", leaf("hello")));
+    }
+
+    #[test]
+    fn extracts_commands_from_create_query() {
+        let ast = tk().tokenize("/c something #a #b").unwrap();
+        assert_eq!(
+            ast,
+            root_with_commands("c", leaf("something"), vec!["a", "b"])
+        );
+    }
+
+    #[test]
+    fn expands_comma_separated_command_token() {
+        let ast = tk().tokenize("/c something #a,b,c").unwrap();
+        assert_eq!(
+            ast,
+            root_with_commands("c", leaf("something"), vec!["a", "b", "c"])
+        );
+    }
+
+    #[test]
+    fn expands_command_token_like_qualifier_values() {
+        let ast = tk().tokenize("/c something #enrich:a,b:full").unwrap();
+        assert_eq!(
+            ast,
+            root_with_commands(
+                "c",
+                leaf("something"),
+                vec!["enrich:a:full", "enrich:b:full"]
+            )
+        );
+    }
+
+    #[test]
+    fn expands_nested_command_token_to_cartesian_product() {
+        let ast = tk()
+            .tokenize("/c something #enrich:a,b:full,preview")
+            .unwrap();
+        assert_eq!(
+            ast,
+            root_with_commands(
+                "c",
+                leaf("something"),
+                vec![
+                    "enrich:a:full",
+                    "enrich:a:preview",
+                    "enrich:b:full",
+                    "enrich:b:preview"
+                ]
+            )
+        );
+    }
+
+    #[test]
+    fn extracts_commands_from_search_query_and_normalizes_case() {
+        let ast = tk().tokenize("title:#Alive #Enrich #source-api").unwrap();
+        assert_eq!(
+            ast,
+            root_with_commands("search", leaf("title:#Alive"), vec!["enrich", "source-api"])
+        );
+    }
+
+    #[test]
+    fn command_tokens_do_not_become_title_terms() {
+        let ast = tk().tokenize("/c something #enrich").unwrap();
+        assert_eq!(
+            ast,
+            root_with_commands("c", leaf("something"), vec!["enrich"])
+        );
+    }
+
+    #[test]
+    fn invalid_command_like_tokens_remain_expression_terms() {
+        let ast = tk().tokenize("/c #").unwrap();
+        assert_eq!(ast, root("c", leaf("#")));
+    }
+
+    #[test]
+    fn invalid_command_lists_remain_expression_terms() {
+        let ast = tk().tokenize("/c #a,,b").unwrap();
+        assert_eq!(ast, root("c", and(vec![leaf("#a"), leaf(""), leaf("b")])));
+
+        let ast = tk().tokenize("/c #a,:full").unwrap();
+        assert_eq!(ast, root("c", and(vec![leaf("#a:full"), leaf(":full")])));
+
+        let ast = tk().tokenize("/c #a,@b").unwrap();
+        assert_eq!(ast, root("c", and(vec![leaf("#a"), leaf("@b")])));
     }
 
     #[test]
@@ -478,6 +660,43 @@ mod tests {
             root(
                 "update",
                 update(leaf("created_at:>=01-06-2024"), leaf("status:finished"))
+            )
+        );
+    }
+
+    #[test]
+    fn update_extracts_command_from_write_side() {
+        let ast = tk().tokenize("/u title > #enrich").unwrap();
+        assert_eq!(
+            ast,
+            root_with_commands("u", update(leaf("title"), and(vec![])), vec!["enrich"])
+        );
+    }
+
+    #[test]
+    fn update_extracts_command_alongside_write_values() {
+        let ast = tk()
+            .tokenize("/u title > status:finished #enrich #ENRICH")
+            .unwrap();
+        assert_eq!(
+            ast,
+            root_with_commands(
+                "u",
+                update(leaf("title"), leaf("status:finished")),
+                vec!["enrich", "enrich"]
+            )
+        );
+    }
+
+    #[test]
+    fn update_extracts_expanded_command_from_write_side() {
+        let ast = tk().tokenize("/u title > #enrich:a,b:full").unwrap();
+        assert_eq!(
+            ast,
+            root_with_commands(
+                "u",
+                update(leaf("title"), and(vec![])),
+                vec!["enrich:a:full", "enrich:b:full"]
             )
         );
     }
