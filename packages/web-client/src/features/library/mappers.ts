@@ -51,14 +51,16 @@ export function mapServerEntryToMediaItem(
       ? `${Number.isInteger(entry.public_rating) ? entry.public_rating.toFixed(0) : entry.public_rating.toFixed(1)} / 10`
       : "-";
 
+  const releasedAt = entry.released_at?.slice(0, 10) || "-";
+
   return {
     id: entry.id,
     title: entry.title,
     type: entry.media_type ? serverToUiType[entry.media_type] : "Other",
     status: entry.status ? serverToUiStatus[entry.status] : undefined,
-    date: entry.released_at?.slice(0, 10) || "-",
+    releasedAt,
     rating,
-    tags: entry.tags.map((tag) => tag.value),
+    tags: entry.tags,
     posterUrl: entry.image_src ?? undefined,
   };
 }
@@ -80,14 +82,10 @@ export function mapMediaItemToServerEntry(
     status: item.status ? uiToServerStatus[item.status] : null,
     public_rating: Number.isFinite(numericRating) ? numericRating : null,
     personal_rating: null,
-    released_at: item.date === "-" ? null : item.date,
+    released_at: item.releasedAt === "-" ? null : item.releasedAt,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
-    tags: item.tags.map((tag, index) => ({
-      id: `${item.id}-tag-${index + 1}`,
-      value: tag,
-      weight: "major",
-    })),
+    tags: item.tags,
   };
 }
 

@@ -59,6 +59,7 @@ export function Pagination({
     <div className="flex h-[30px] items-center gap-2">
       <button
         type="button"
+        aria-label="Previous page"
         onClick={() => onPageChange(Math.max(1, currentPage - 1))}
         disabled={currentPage === 1}
         className="flex h-[30px] w-[30px] items-center justify-center rounded-[8px] bg-[#27272A] text-[#F4F4F5] disabled:opacity-40"
@@ -93,6 +94,7 @@ export function Pagination({
 
       <button
         type="button"
+        aria-label="Next page"
         onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
         disabled={currentPage === totalPages}
         className="flex h-[30px] w-[30px] items-center justify-center rounded-[8px] bg-[#27272A] text-[#F4F4F5] disabled:opacity-40"

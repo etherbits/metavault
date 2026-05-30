@@ -86,8 +86,74 @@ test("POST /ezq /update applies scalar set and tag insert, returning updated row
     `/update id:${created.id} > status:finished tg:${extraTag}`
   );
   await expectQueryResult(page, title);
-  await expect(page.getByText("Finished")).toBeVisible();
-  await expect(page.getByText(extraTag)).toBeVisible();
+  await expect(page.getByText("Finished", { exact: true })).toBeVisible();
+  await expect(page.getByText(extraTag, { exact: true })).toBeVisible();
+});
+
+test("POST /ezq /u supports release date shorthand", async ({ request }) => {
+  await signIn(request);
+  const titleToken = `release_date_entry_${Date.now()}`;
+
+  const createResponse = await request.post("/ezq", {
+    data: {
+      query: `/create ${titleToken}`,
+    },
+  });
+  expect(createResponse.ok()).toBeTruthy();
+  const created = (await createResponse.json()).rows[0] as { id: string };
+
+  const updateResponse = await request.post("/ezq", {
+    data: {
+      query: `/u ${titleToken} > release:07-04-2013`,
+    },
+  });
+  expect(updateResponse.ok()).toBeTruthy();
+
+  const body = await updateResponse.json();
+  expect(body.rows).toHaveLength(1);
+  expect(body.rows[0]).toEqual(
+    expect.objectContaining({
+      id: created.id,
+      released_at: "2013-04-07",
+    })
+  );
+});
+
+test("POST /ezq /u can run command-only enrich without mutating the matched row", async ({
+  request,
+}) => {
+  await signIn(request);
+  const titleToken = `command_only_enrich_${Date.now()}`;
+  const title = titleToken.replace(/_/g, " ");
+
+  const createResponse = await request.post("/ezq", {
+    data: {
+      query: `/create ${titleToken} status:planning`,
+    },
+  });
+  expect(createResponse.ok()).toBeTruthy();
+  const created = (await createResponse.json()).rows[0] as {
+    id: string;
+    status: string;
+  };
+  expect(created.status).toBe("planning");
+
+  const updateResponse = await request.post("/ezq", {
+    data: {
+      query: `/u ${titleToken} > #enrich`,
+    },
+  });
+  expect(updateResponse.ok()).toBeTruthy();
+
+  const body = await updateResponse.json();
+  expect(body.rows).toHaveLength(1);
+  expect(body.rows[0]).toEqual(
+    expect.objectContaining({
+      id: created.id,
+      title,
+      status: "planning",
+    })
+  );
 });
 
 test("POST /ezq /u with empty target updates all user entries", async ({

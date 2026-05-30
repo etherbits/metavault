@@ -1,6 +1,8 @@
 import type { ASTExpr, Extras, EzqSqlStep } from "@etherbits/ezq-node";
 import { generate_ast, generate_sql } from "@etherbits/ezq-node";
 import type { SQL } from "bun";
+import { CommandDelegator } from "../commands/command-delegator";
+import { EnrichmentCommandExecutor } from "../enrichment/enrichment-command-executor";
 import {
   LibraryEntryRowsSchema,
   type LibraryEntryWithTags,
@@ -16,6 +18,10 @@ export type EzqResult =
   | { ok: false; status: number; error: string };
 
 export class EzqService {
+  private readonly commandDelegator = new CommandDelegator([
+    new EnrichmentCommandExecutor(),
+  ]);
+
   constructor(private readonly sql: SQL) {}
 
   async execute(query: string, extras: Extras | null): Promise<EzqResult> {
@@ -29,11 +35,20 @@ export class EzqService {
     }
 
     const { action, expression } = ast.Root;
+    const commands =
+      (ast.Root as typeof ast.Root & { commands?: string[] }).commands ?? [];
+    const userId = this.getUserId(extras);
     const steps = generate_sql(ast, extras);
 
     if (action === "search") {
       const { lastRows } = await this.runSteps(this.sql, steps);
-      return { ok: true, rows: LibraryEntryRowsSchema.parse(lastRows) };
+      const rows = LibraryEntryRowsSchema.parse(lastRows);
+      const result = await this.commandDelegator.delegateCommands(commands, {
+        action,
+        rows,
+        userId,
+      });
+      return { ok: true, rows: result.rows };
     }
 
     if (action === "delete") {
@@ -42,7 +57,12 @@ export class EzqService {
         await this.runSteps(tx, steps);
         return matched;
       });
-      return { ok: true, rows };
+      const result = await this.commandDelegator.delegateCommands(commands, {
+        action,
+        rows,
+        userId,
+      });
+      return { ok: true, rows: result.rows };
     }
 
     if (action === "create") {
@@ -57,7 +77,12 @@ export class EzqService {
         .map(([, value]) => value);
       const rows =
         entryIds.length > 0 ? await this.searchByIds(entryIds, extras) : [];
-      return { ok: true, rows };
+      const result = await this.commandDelegator.delegateCommands(commands, {
+        action,
+        rows,
+        userId,
+      });
+      return { ok: true, rows: result.rows };
     }
 
     if (action === "update") {
@@ -74,6 +99,11 @@ export class EzqService {
       );
       const ids = matched.map((row) => row.id);
       if (ids.length === 0) {
+        await this.commandDelegator.delegateCommands(commands, {
+          action,
+          rows: [],
+          userId,
+        });
         return { ok: true, rows: [] };
       }
 
@@ -86,12 +116,18 @@ export class EzqService {
               values: expression.Update.values,
             },
           },
+          commands: [],
         },
-      };
+      } as ASTExpr;
       const stableSteps = generate_sql(stableUpdateAst, extras);
       await this.sql.begin((tx) => this.runSteps(tx, stableSteps));
       const rows = await this.searchByIds(ids, extras);
-      return { ok: true, rows };
+      const result = await this.commandDelegator.delegateCommands(commands, {
+        action,
+        rows,
+        userId,
+      });
+      return { ok: true, rows: result.rows };
     }
 
     return { ok: false, status: 400, error: `Unsupported action: ${action}` };
@@ -131,7 +167,9 @@ export class EzqService {
     extras: Extras | null,
     executor: SqlExecutor = this.sql
   ): Promise<LibraryEntryWithTags[]> {
-    const ast: ASTExpr = { Root: { action: "search", expression } };
+    const ast: ASTExpr = {
+      Root: { action: "search", expression, commands: [] },
+    } as ASTExpr;
     const steps = generate_sql(ast, extras);
     const step = steps[0];
     if (!step) return [];
@@ -151,5 +189,11 @@ export class EzqService {
     return ids.length === 1
       ? { Leaf: `id:${ids[0]}` }
       : { Or: ids.map((id) => ({ Leaf: `id:${id}` })) };
+  }
+
+  private getUserId(extras: Extras | null): string | null {
+    if (!extras || typeof extras !== "object") return null;
+    const userId = (extras as unknown as Record<string, unknown>).user_id;
+    return typeof userId === "string" ? userId : null;
   }
 }

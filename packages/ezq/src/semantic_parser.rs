@@ -183,9 +183,14 @@ impl SemanticParser {
 
     pub fn parse(&self, token_tree: ASTExpr) -> Result<ASTExpr, ParseError> {
         match token_tree {
-            ASTExpr::Root { action, expression } => Ok(ASTExpr::Root {
+            ASTExpr::Root {
+                action,
+                expression,
+                commands,
+            } => Ok(ASTExpr::Root {
                 action: self.parse_action(&action),
                 expression: Box::new(self.parse_token_tree(*expression)?),
+                commands,
             }),
             _ => Err(ParseError::UnsupportedExpression),
         }
@@ -220,6 +225,15 @@ mod tests {
         ASTExpr::Root {
             action: action.to_string(),
             expression: Box::new(expr),
+            commands: vec![],
+        }
+    }
+
+    fn root_with_commands(action: &str, expr: ASTExpr, commands: Vec<&str>) -> ASTExpr {
+        ASTExpr::Root {
+            action: action.to_string(),
+            expression: Box::new(expr),
+            commands: commands.into_iter().map(str::to_string).collect(),
         }
     }
 
@@ -404,6 +418,22 @@ mod tests {
     }
 
     #[test]
+    fn qualifier_date_fields_include_updated_and_released_at() {
+        assert_eq!(
+            parser()
+                .parse_qualifier("updated_at:<=15-01-2025".into())
+                .unwrap(),
+            "updated_at:<=15-01-2025"
+        );
+        assert_eq!(
+            parser()
+                .parse_qualifier("released_at:01-06-2024".into())
+                .unwrap(),
+            "released_at:01-06-2024"
+        );
+    }
+
+    #[test]
     fn qualifier_invalid_when_value_empty_for_nonempty_rule() {
         let err = parser().parse_qualifier("id:".into()).unwrap_err();
         assert!(matches!(err, ParseError::InvalidQualifierSemantics(_)));
@@ -506,6 +536,20 @@ mod tests {
         assert_eq!(
             result,
             root("search", ASTExpr::And(vec![leaf("title:attack_on_titan")]))
+        );
+    }
+
+    #[test]
+    fn parse_preserves_commands_without_parsing_them_as_qualifiers() {
+        let input = root_with_commands("c", leaf("attack"), vec!["enrich"]);
+        let result = parser().parse(input).unwrap();
+        assert_eq!(
+            result,
+            root_with_commands(
+                "create",
+                ASTExpr::And(vec![leaf("title:attack")]),
+                vec!["enrich"]
+            )
         );
     }
 

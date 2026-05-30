@@ -12,15 +12,20 @@ const precedenceRank: Record<Precedence, number> = {
 
 export function canonicalizeEzqQuery(input: string) {
   const trimmed = input.trim();
-  if (trimmed === "") return "";
+  const query = trimmed === "" ? "/" : trimmed;
 
-  return formatAst(generate_ast(trimmed), "root");
+  return formatAst(generate_ast(query), "root");
 }
 
 function formatAst(ast: ASTExpr, parent: Precedence): string {
   if ("Root" in ast) {
     const expression = formatAst(ast.Root.expression, "root");
-    return [`/${ast.Root.action}`, expression].filter(Boolean).join(" ");
+    const commands =
+      (ast.Root as typeof ast.Root & { commands?: string[] }).commands ?? [];
+    const commandText = commands.map((command) => `#${command}`).join(" ");
+    return [`/${ast.Root.action}`, expression, commandText]
+      .filter(Boolean)
+      .join(" ");
   }
 
   if ("Update" in ast) {
@@ -39,7 +44,7 @@ function formatAst(ast: ASTExpr, parent: Precedence): string {
   if ("Or" in ast) {
     const expression = ast.Or.map((expr) => formatAst(expr, "or"))
       .filter(Boolean)
-      .join("|");
+      .join(" | ");
     return wrap(expression, "or", parent);
   }
 

@@ -11,4 +11,7 @@ export const queryKeys = {
   collections: {
     all: ["collections"] as const,
   },
+  sourceIntegrations: {
+    all: ["source-integrations"] as const,
+  },
 } as const;

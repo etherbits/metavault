@@ -2,6 +2,7 @@ import type {
   EntryMediaType,
   EntryStatus,
 } from "../../../../server/db/schema/libraryEntries";
+import type { LibraryEntryWithTags } from "./contracts";
 
 export type MediaType =
   | "Movie"
@@ -24,9 +25,9 @@ export interface MediaItem {
   title: string;
   type: MediaType;
   status?: MediaStatus;
-  date: string;
+  releasedAt: string;
   rating: string;
-  tags: string[];
+  tags: LibraryEntryWithTags["tags"];
   posterUrl?: string;
 }
 

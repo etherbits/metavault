@@ -105,7 +105,7 @@ function DetailPageContent({
             <InfoPill
               icon={<CalendarDays size={24} />}
               label="Release Date"
-              value={item.date}
+              value={item.releasedAt}
             />
             <InfoPill
               icon={<Star size={24} />}
@@ -147,10 +147,10 @@ function DetailPageContent({
             <div className="flex flex-wrap gap-4">
               {item.tags.map((tag) => (
                 <span
-                  key={tag}
+                  key={tag.id}
                   className="inline-flex h-[35px] items-center rounded-[6px] bg-[#262626] px-[10px] text-[18px] font-medium leading-[27px] text-[#A1A1AA]"
                 >
-                  {tag}
+                  {tag.value}
                 </span>
               ))}
             </div>
