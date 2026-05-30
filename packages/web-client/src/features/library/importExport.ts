@@ -7,6 +7,7 @@ import {
   mapServerEntriesToMediaItems,
 } from "@/features/library/mappers";
 import type { MediaItem } from "@/features/library/types";
+import { TagsColumnSchema } from "../../../../server/ezq/ezq.schema";
 
 const LegacyMediaItemSchema = z.object({
   title: z.string(),
@@ -14,7 +15,7 @@ const LegacyMediaItemSchema = z.object({
   status: z.string().optional(),
   date: z.string().optional(),
   rating: z.string().optional(),
-  tags: z.array(z.string()).optional(),
+  tags: TagsColumnSchema,
   posterUrl: z.string().optional(),
 });
 
@@ -40,7 +41,7 @@ export function normalizeImportedItems(raw: unknown): Omit<MediaItem, "id">[] {
       type: entry.type && isMediaType(entry.type) ? entry.type : "Other",
       status:
         entry.status && isMediaStatus(entry.status) ? entry.status : undefined,
-      date: entry.date ?? "-",
+      releasedAt: entry.date ?? "-",
       rating: entry.rating ?? "-",
       tags: entry.tags ?? [],
       posterUrl: entry.posterUrl,

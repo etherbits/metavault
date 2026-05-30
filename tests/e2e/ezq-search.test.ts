@@ -3,6 +3,7 @@ import { signIn } from "../helpers/auth";
 import {
   executeQuery,
   expectQueryResult,
+  expectQueryResultOnAnyPage,
   openQueryPage,
 } from "../helpers/queryPage";
 
@@ -46,7 +47,7 @@ test("POST /ezq /search by tag returns matching entries with tags", async ({
   await openQueryPage(page);
   await executeQuery(page, `/search tg:${tag}`);
   await expectQueryResult(page, title);
-  await expect(page.getByText(tag)).toBeVisible();
+  await expect(page.getByText(tag, { exact: true })).toBeVisible();
 });
 
 test("POST /ezq /s returns all of the user's entries", async ({
@@ -71,7 +72,7 @@ test("POST /ezq /s returns all of the user's entries", async ({
 
   await openQueryPage(page);
   await executeQuery(page, "/s");
-  await expectQueryResult(page, title);
+  await expectQueryResultOnAnyPage(page, title);
 });
 
 test("query page empty input searches all and matches /s", async ({

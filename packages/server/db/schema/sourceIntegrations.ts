@@ -11,4 +11,9 @@ export async function createSourceIntegrationsTable(sql: SQL) {
       FOREIGN KEY (user_id) REFERENCES users(id)
     )
   `;
+
+  await sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_source_integrations_user_type
+    ON source_integrations(user_id, integration_type)
+  `;
 }

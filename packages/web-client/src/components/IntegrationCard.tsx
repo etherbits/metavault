@@ -1,5 +1,5 @@
 import { Eye, EyeOff } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 
 interface IntegrationCardProps {
@@ -8,8 +8,11 @@ interface IntegrationCardProps {
   queryFlag: string;
   apiKey?: string;
   enabled?: boolean;
-  onToggle?: (enabled: boolean) => void;
-  onSave?: (apiKey: string) => void;
+  isSaving?: boolean;
+  isLoading?: boolean;
+  errorMessage?: string | null;
+  onToggle?: (settings: { apiKey: string; enabled: boolean }) => void;
+  onSave?: (settings: { apiKey: string; enabled: boolean }) => void;
   onClear?: () => void;
 }
 
@@ -19,6 +22,9 @@ export function IntegrationCard({
   queryFlag,
   apiKey: initialKey = "",
   enabled: initialEnabled = false,
+  isSaving = false,
+  isLoading = false,
+  errorMessage = null,
   onToggle,
   onSave,
   onClear,
@@ -32,14 +38,22 @@ export function IntegrationCard({
     [name]
   );
 
+  useEffect(() => {
+    setApiKey(initialKey);
+  }, [initialKey]);
+
+  useEffect(() => {
+    setEnabled(initialEnabled);
+  }, [initialEnabled]);
+
   function handleToggle() {
     const next = !enabled;
     setEnabled(next);
-    onToggle?.(next);
+    onToggle?.({ apiKey, enabled: next });
   }
 
   function handleSave() {
-    onSave?.(apiKey);
+    onSave?.({ apiKey, enabled });
   }
 
   function handleClear() {
@@ -58,9 +72,10 @@ export function IntegrationCard({
             aria-checked={enabled}
             aria-label={`${enabled ? "Disable" : "Enable"} ${name}`}
             onClick={handleToggle}
+            disabled={isLoading || isSaving}
             className={`relative inline-flex h-[18px] w-[33px] shrink-0 items-center rounded-[12px] border-0 p-0 shadow-[0px_1px_2px_rgba(0,0,0,0.05)] transition-colors focus-visible:outline-none ${
               enabled ? "bg-[#FACC15]" : "bg-[#3F3F46]"
-            }`}
+            } disabled:cursor-not-allowed disabled:opacity-60`}
           >
             <span
               className={`absolute left-[1px] top-[1px] h-4 w-4 rounded-full transition-transform ${
@@ -97,35 +112,43 @@ export function IntegrationCard({
               type={showKey ? "text" : "password"}
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
+              disabled={isLoading || isSaving}
               placeholder="Enter your API key"
-              className="h-[39px] w-full rounded-[8px] border border-[#3F3F46] bg-white/5 px-3 pr-10 text-[16px] leading-6 text-[#FAFAFA] shadow-sm outline-none placeholder:text-[#A1A1AA] focus:border-[#52525B]"
+              className="h-[39px] w-full rounded-[8px] border border-[#3F3F46] bg-white/5 px-3 pr-10 text-[16px] leading-6 text-[#FAFAFA] shadow-sm outline-none placeholder:text-[#A1A1AA] focus:border-[#52525B] disabled:cursor-not-allowed disabled:opacity-60"
             />
 
             <button
               type="button"
               aria-label={showKey ? "Hide API key" : "Show API key"}
               onClick={() => setShowKey((prev) => !prev)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#A1A1AA] transition-colors hover:text-white"
+              disabled={isLoading || isSaving}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#A1A1AA] transition-colors hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
             >
               {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           </div>
         </div>
 
+        {errorMessage ? (
+          <p className="text-[13px] leading-5 text-[#FCA5A5]">{errorMessage}</p>
+        ) : null}
+
         <div className="flex flex-col gap-3 sm:flex-row">
           <Button
             type="button"
             variant="brand"
             onClick={handleSave}
+            disabled={isLoading || isSaving}
             className="h-10 flex-1 rounded-[8px] px-5 text-[14px] leading-5"
           >
-            Save
+            {isLoading ? "Loading" : isSaving ? "Saving" : "Save"}
           </Button>
 
           <Button
             type="button"
             variant="surface"
             onClick={handleClear}
+            disabled={isLoading || isSaving}
             className="h-10 flex-1 rounded-[8px] px-5 text-[14px] leading-5"
           >
             Clear

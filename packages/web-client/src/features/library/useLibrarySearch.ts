@@ -39,6 +39,19 @@ export function useLibrarySearch() {
     return ezqSearch.data ?? [];
   }, [override, ezqSearch.data]);
 
+  const canonicalPreview = useMemo(() => {
+    const trimmed = draft.trim();
+
+    try {
+      return { query: canonicalizeEzqQuery(trimmed), error: null };
+    } catch (error) {
+      return {
+        query: "",
+        error: error instanceof Error ? error.message : undefined,
+      };
+    }
+  }, [draft]);
+
   const queryAction = useMemo(() => parseDraftAction(draft), [draft]);
 
   const handleQueryChange = (value: string) => {
@@ -51,7 +64,7 @@ export function useLibrarySearch() {
     let canonical = "";
 
     try {
-      canonical = next === "" ? "" : canonicalizeEzqQuery(next);
+      canonical = canonicalizeEzqQuery(next);
     } catch (error) {
       setDraft(value);
       setOverride([]);
@@ -61,17 +74,20 @@ export function useLibrarySearch() {
       return;
     }
 
-    setDraft(canonical);
-    setExecutedQuery(canonical === "" ? "/search" : canonical);
-    submittedQueryRef.current = canonical;
+    setDraft(value);
+    setExecutedQuery(canonical);
+    if (canonical === executedQuery) {
+      void ezqSearch.refetch();
+    }
+    submittedQueryRef.current = next;
     setCanonicalError(null);
     setOverride(null);
     setSearchParams(
       (params) => {
-        if (canonical === "") {
+        if (next === "") {
           params.delete(QUERY_PARAM);
         } else {
-          params.set(QUERY_PARAM, canonical);
+          params.set(QUERY_PARAM, next);
         }
         return params;
       },
@@ -104,6 +120,8 @@ export function useLibrarySearch() {
     handleQueryChange,
     handleQuerySearch,
     isQueryExecuting: ezqSearch.isFetching,
+    canonicalQuery: canonicalPreview.query,
+    canonicalQueryError: canonicalPreview.error,
     query: draft,
     queryAction,
     queryError:

@@ -61,7 +61,7 @@ export function MediaCard({
   onAddToCollection,
   onViewDetails,
 }: MediaCardProps) {
-  const posterSrc = item.posterUrl || "/images.jpeg";
+  const posterSrc = item.posterUrl || "/image-placeholder.svg";
 
   function handleCardClick() {
     if (selectMode) {
@@ -72,22 +72,22 @@ export function MediaCard({
   return (
     <Card
       className={cn(
-        "relative h-full min-h-[300px] w-full overflow-visible rounded-[4px] border-none bg-[#27272A] py-0 text-white ring-0 shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)]",
+        "relative h-full min-h-[300px] w-full overflow-visible rounded-[4px] border-none bg-[#27272A] py-0 text-white ring-0 shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)] max-w-[420px] max-h-[300px]",
         selected && "ring-2 ring-[#FACC15]"
       )}
       onClick={handleCardClick}
     >
       <div className="flex h-full flex-col sm:flex-row">
-        <div className="h-52 w-full shrink-0 overflow-hidden rounded-t-[4px] bg-black shadow-[4px_0px_16px_rgba(164,37,36,0.18)] sm:h-auto sm:w-[200px] sm:rounded-l-[4px] sm:rounded-tr-none">
+        <div className="h-52 w-full shrink-0 overflow-hidden rounded-t-[4px] bg-black sm:h-auto sm:w-[200px] sm:rounded-l-[4px] sm:rounded-tr-none">
           <img
             src={posterSrc}
             alt={item.title}
-            className="h-full w-full object-cover"
+            className="h-[101%] w-full object-cover" // TODO: add glow and fix this
           />
         </div>
 
         <CardContent className="flex h-full w-full min-w-0 flex-1 flex-col gap-4 px-4 py-3">
-          <h3 className="line-clamp-2 text-lg font-medium leading-7 text-[#F4F4F5] sm:text-[20px]">
+          <h3 className="text-lg font-medium leading-7 text-[#F4F4F5] sm:text-[20px]">
             {item.title}
           </h3>
 
@@ -104,7 +104,7 @@ export function MediaCard({
             <div className="flex flex-col gap-2">
               <span className="inline-flex h-5 w-fit items-center gap-1 rounded-[8px] bg-[#3F3F46] px-2 text-[12px] font-semibold leading-4 text-[#FAFAFA]">
                 <Calendar size={12} />
-                {item.date}
+                {item.releasedAt}
               </span>
 
               <span className="inline-flex h-5 w-fit items-center gap-1 rounded-[8px] bg-[#3F3F46] px-2 text-[12px] font-semibold leading-4 text-[#FAFAFA]">
@@ -113,16 +113,30 @@ export function MediaCard({
               </span>
             </div>
           </div>
-
           <div className="flex flex-wrap gap-2">
-            {item.tags.map((tag) => (
-              <span
-                key={tag}
-                className="inline-flex h-5 items-center rounded-[8px] border border-[#3F3F46] bg-white/5 px-2 text-[12px] font-semibold leading-4 text-[#FAFAFA]"
-              >
-                {tag}
-              </span>
-            ))}
+            {item.tags
+              .filter((tag) => tag.weight === "major")
+              .map((tag) => (
+                <span
+                  key={tag.id}
+                  className="inline-flex h-5 items-center rounded-[8px] border border-[#3F3F46] bg-white/5 px-2 text-[12px] font-semibold leading-4 text-[#FAFAFA]"
+                >
+                  {tag.value}
+                </span>
+              ))}
+          </div>
+
+          <div className="flex flex-wrap gap-2 overflow-hidden">
+            {item.tags
+              .filter((tag) => tag.weight === "minor")
+              .map((tag) => (
+                <span
+                  key={tag.id}
+                  className="inline-flex h-5 items-center rounded-[8px] border border-[#3F3F46] bg-white/5 opacity-60 px-2 text-[12px] font-semibold leading-4 text-[#FAFAFA]"
+                >
+                  {tag.value}
+                </span>
+              ))}
           </div>
 
           <div className="mt-auto flex items-center justify-end gap-3">

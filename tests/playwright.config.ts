@@ -4,6 +4,7 @@ import path from "node:path";
 import { defineConfig } from "@playwright/test";
 
 const isCI = !!process.env.CI;
+const isHeadless = isCI || process.env.METAVAULT_E2E_HEADLESS === "1";
 const apiPort = process.env.METAVAULT_E2E_API_PORT ?? "3435";
 const webPort = process.env.METAVAULT_E2E_WEB_PORT ?? "3534";
 const apiBaseUrl = `http://localhost:${apiPort}`;
@@ -56,7 +57,7 @@ export default defineConfig({
   globalTeardown: "./e2e-global-teardown.ts",
   use: {
     baseURL: process.env.BASE_URL ?? apiBaseUrl,
-    headless: isCI,
+    headless: isHeadless,
     screenshot: "on",
     video: "retain-on-failure",
   },

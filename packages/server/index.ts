@@ -13,6 +13,7 @@ import { unexpectedErrorMiddleware } from "./middleware/error";
 import { loggerMiddleware } from "./middleware/logger";
 import { rateLimit } from "./middleware/rateLimit";
 import { MEDIA_ROOT } from "./storage/path.util";
+import { sourceIntegrationRouter } from "./source-integrations/source-integration.controller";
 import userRouter from "./user/user.controller";
 
 const app = express();
@@ -38,6 +39,7 @@ app.use("/auth", authRouter);
 app.use("/library", libraryRouter);
 app.use("/collections", collectionRouter);
 app.use("/content-nodes", contentNodeRouter);
+app.use("/source-integrations", sourceIntegrationRouter);
 app.use("/users", userRouter);
 app.use("/health", healthRouter);
 app.use(unexpectedErrorMiddleware);

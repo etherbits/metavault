@@ -50,7 +50,8 @@ bun test:e2e
 | `bun format`     | Format all source files          |
 | `bun type-check` | Type-check server and web client |
 | `bun test:unit`  | Run unit tests                   |
-| `bun test:e2e`   | Run end-to-end tests             |
+| `bun test:e2e`   | Run end-to-end tests with a visible browser |
+| `bun test:e2e:headless` | Run end-to-end tests headlessly |
 | `bun db:seed`    | Seed the database                |
 | `bun db:reset`   | Reset the database               |
 
@@ -60,7 +61,7 @@ bun test:e2e
 
 **Unit tests** (`tests/unit-tests/`) cover isolated logic — pure functions, utilities, and data transformations. Run with `bun test:unit`.
 
-**E2E tests** (`tests/e2e/`) use Playwright to test the full application through the browser. Playwright automatically starts the server before the suite runs. Run with `bun test:e2e`.
+**E2E tests** (`tests/e2e/`) use Playwright to test the full application through the browser. Playwright automatically starts the server before the suite runs. Run with `bun test:e2e` when you want to watch the browser, or `bun test:e2e:headless` for a quiet local run.
 
 **Rust tests** (`packages/ezq/`) are co-located with their modules using `#[cfg(test)]`. Run with `cargo test` inside `packages/ezq/`.
 

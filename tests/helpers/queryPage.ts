@@ -67,6 +67,25 @@ export async function expectQueryResult(page: Page, title: string) {
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
 }
 
+export async function expectQueryResultOnAnyPage(page: Page, title: string) {
+  const heading = page.getByRole("heading", { name: title });
+  const nextButton = page.getByRole("button", { name: "Next page" });
+
+  for (let pageIndex = 0; pageIndex < 25; pageIndex += 1) {
+    try {
+      await expect(heading).toBeVisible({ timeout: 500 });
+      return;
+    } catch {
+      if ((await nextButton.count()) === 0 || !(await nextButton.isEnabled())) {
+        break;
+      }
+      await nextButton.click();
+    }
+  }
+
+  await expect(heading).toBeVisible();
+}
+
 export async function expectNoQueryResult(page: Page, title: string) {
   await expect(page.getByRole("heading", { name: title })).toHaveCount(0);
 }
