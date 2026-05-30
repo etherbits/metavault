@@ -2,6 +2,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { beforeAll, describe, expect, it, mock } from "bun:test";
+import type { LibraryEntryWithTags } from "../../packages/server/ezq/ezq.schema";
 
 const testRoot = mkdtempSync(path.join(tmpdir(), "metavault-si-unit-"));
 process.env.NODE_ENV = "test";
@@ -172,7 +173,9 @@ async function createUser(suffix: string) {
   return userId;
 }
 
-function row(overrides = {}) {
+function row(
+  overrides: Partial<LibraryEntryWithTags> = {}
+): LibraryEntryWithTags {
   return {
     id: "entry-1",
     title: "Test Entry",

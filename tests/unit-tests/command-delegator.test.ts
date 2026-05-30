@@ -210,7 +210,7 @@ describe("EnrichmentService", () => {
     try {
       const service = new EnrichmentService();
       const result = await service.extendResponse({
-        command: { mode: "add" },
+        command: { sourceType: undefined, mode: "add" },
         rows: params.rows,
         userId: "user-1",
       });
@@ -309,7 +309,7 @@ describe("EnrichmentService", () => {
     ).getMappedData = getMappedData;
 
     const result = await service.extendResponse({
-      command: { mode: "add" },
+      command: { sourceType: undefined, mode: "add" },
       rows: [
         row({
           title: "Existing Attack",
@@ -343,7 +343,7 @@ describe("EnrichmentService", () => {
     ).getMappedData = getMappedData;
 
     const result = await service.extendResponse({
-      command: { mode: "override" },
+      command: { sourceType: undefined, mode: "override" },
       rows: [
         row({
           title: "Existing Attack",
