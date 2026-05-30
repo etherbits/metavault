@@ -3,6 +3,7 @@ import { signIn } from "../helpers/auth";
 import {
   executeQuery,
   expectQueryResult,
+  expectQueryResultOnAnyPage,
   openQueryPage,
 } from "../helpers/queryPage";
 
@@ -71,7 +72,7 @@ test("POST /ezq /s returns all of the user's entries", async ({
 
   await openQueryPage(page);
   await executeQuery(page, "/s");
-  await expectQueryResult(page, title);
+  await expectQueryResultOnAnyPage(page, title);
 });
 
 test("query page empty input searches all and matches /s", async ({

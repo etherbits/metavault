@@ -1,5 +1,5 @@
 import { Eye, EyeOff } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 
 interface IntegrationCardProps {
@@ -8,8 +8,9 @@ interface IntegrationCardProps {
   queryFlag: string;
   apiKey?: string;
   enabled?: boolean;
+  isSaving?: boolean;
   onToggle?: (enabled: boolean) => void;
-  onSave?: (apiKey: string) => void;
+  onSave?: (settings: { apiKey: string; enabled: boolean }) => void;
   onClear?: () => void;
 }
 
@@ -19,6 +20,7 @@ export function IntegrationCard({
   queryFlag,
   apiKey: initialKey = "",
   enabled: initialEnabled = false,
+  isSaving = false,
   onToggle,
   onSave,
   onClear,
@@ -32,6 +34,14 @@ export function IntegrationCard({
     [name]
   );
 
+  useEffect(() => {
+    setApiKey(initialKey);
+  }, [initialKey]);
+
+  useEffect(() => {
+    setEnabled(initialEnabled);
+  }, [initialEnabled]);
+
   function handleToggle() {
     const next = !enabled;
     setEnabled(next);
@@ -39,7 +49,7 @@ export function IntegrationCard({
   }
 
   function handleSave() {
-    onSave?.(apiKey);
+    onSave?.({ apiKey, enabled });
   }
 
   function handleClear() {
@@ -117,15 +127,17 @@ export function IntegrationCard({
             type="button"
             variant="brand"
             onClick={handleSave}
+            disabled={isSaving}
             className="h-10 flex-1 rounded-[8px] px-5 text-[14px] leading-5"
           >
-            Save
+            {isSaving ? "Saving" : "Save"}
           </Button>
 
           <Button
             type="button"
             variant="surface"
             onClick={handleClear}
+            disabled={isSaving}
             className="h-10 flex-1 rounded-[8px] px-5 text-[14px] leading-5"
           >
             Clear

@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "test:e2e": "playwright test",
+    "test:e2e:headless": "METAVAULT_E2E_HEADLESS=1 playwright test",
     "test:unit": "bun test unit-tests"
   },
   "devDependencies": {

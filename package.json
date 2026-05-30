@@ -16,6 +16,7 @@
     "lint": "biome lint .",
     "lint:fix": "biome lint --write .",
     "test:e2e": "playwright test --config tests/playwright.config.ts",
+    "test:e2e:headless": "METAVAULT_E2E_HEADLESS=1 playwright test --config tests/playwright.config.ts",
     "test:unit": "bun test tests/unit-tests",
     "type-check": "bun run --cwd packages/server type-check && bun run --cwd packages/web-client type-check",
     "db:seed": "bun --cwd packages/server run db:seed",

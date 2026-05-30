@@ -1,18 +1,20 @@
 import { sql } from "../db";
+import type { EntryMediaType, EntryStatus } from "../db/schema/libraryEntries";
 
 export type LibraryTagWeight = "major" | "minor";
+export type EnrichmentUpdateMode = "add" | "override";
 
 export interface LibraryEntry {
   id: string;
   user_id: string;
 
-  title: string | null;
+  title: string;
 
   media_id: string | null;
   source_id: string | null;
 
-  media_type: string | null;
-  status: string | null;
+  media_type: EntryMediaType | null;
+  status: EntryStatus | null;
 
   image_src: string | null;
 
@@ -38,8 +40,8 @@ export interface CreateLibraryEntryData {
   media_id?: string;
   source_id?: string;
 
-  media_type?: string;
-  status?: string;
+  media_type?: EntryMediaType;
+  status?: EntryStatus;
 
   image_src?: string;
 
@@ -55,8 +57,8 @@ export interface UpdateLibraryEntryData {
   media_id?: string;
   source_id?: string;
 
-  media_type?: string;
-  status?: string | null;
+  media_type?: EntryMediaType;
+  status?: EntryStatus | null;
 
   image_src?: string;
 
@@ -65,6 +67,37 @@ export interface UpdateLibraryEntryData {
 
   released_at?: string;
 }
+
+export interface EnrichedLibraryEntryUpdateData {
+  title?: string;
+
+  media_id?: string | null;
+  source_id?: string | null;
+  media_type?: EntryMediaType | null;
+  image_src?: string | null;
+
+  public_rating?: number | null;
+  released_at?: string | null;
+
+  tags?: Array<{ value: string; weight: LibraryTagWeight }>;
+}
+
+export type LibraryEntryWithTags = LibraryEntry & { tags: LibraryTag[] };
+
+type EnrichmentScalarColumn = keyof Omit<
+  EnrichedLibraryEntryUpdateData,
+  "tags"
+>;
+
+const ENRICHMENT_SCALAR_COLUMNS: EnrichmentScalarColumn[] = [
+  "title",
+  "media_id",
+  "source_id",
+  "media_type",
+  "image_src",
+  "public_rating",
+  "released_at",
+];
 
 class LibraryModel {
   async create(
@@ -246,6 +279,160 @@ class LibraryModel {
       VALUES (${entryId}, ${tagId})
       ON CONFLICT(library_entry_id, tag_id) DO NOTHING
     `;
+  }
+
+  async updateEntryFromEnrichment({
+    entryId,
+    userId,
+    data,
+    mode,
+  }: {
+    entryId: string;
+    userId: string;
+    data: EnrichedLibraryEntryUpdateData;
+    mode: EnrichmentUpdateMode;
+  }): Promise<LibraryEntryWithTags | null> {
+    const currentEntry = await this.getByIdWithTags(entryId, userId);
+    if (!currentEntry) return null;
+
+    const updates = this.getEnrichmentScalarUpdates(currentEntry, data, mode);
+    const columns = Object.keys(updates);
+    if (columns.length > 0) {
+      const setClause = columns
+        .map((column) => `${column} = ?`)
+        .concat("updated_at = CURRENT_TIMESTAMP")
+        .join(", ");
+
+      await sql.unsafe(
+        `UPDATE library_entries SET ${setClause} WHERE id = ? AND user_id = ?`,
+        [...Object.values(updates), entryId, userId]
+      );
+    }
+
+    if (data.tags) {
+      const updateTags =
+        mode === "override" ? this.replaceEntryTags : this.addEntryTags;
+      await updateTags.call(this, {
+        entryId,
+        userId,
+        tags: data.tags,
+      });
+    }
+
+    return this.getByIdWithTags(entryId, userId);
+  }
+
+  private getEnrichmentScalarUpdates(
+    currentEntry: LibraryEntry,
+    data: EnrichedLibraryEntryUpdateData,
+    mode: EnrichmentUpdateMode
+  ): Partial<Record<EnrichmentScalarColumn, unknown>> {
+    const updates: Partial<Record<EnrichmentScalarColumn, unknown>> = {};
+
+    for (const column of ENRICHMENT_SCALAR_COLUMNS) {
+      if (!Object.hasOwn(data, column)) continue;
+
+      const value = data[column];
+      if (mode === "add") {
+        if (!this.isMissingEnrichmentValue(currentEntry[column])) continue;
+        if (this.isMissingEnrichmentValue(value)) continue;
+      }
+
+      updates[column] = value ?? null;
+    }
+
+    return updates;
+  }
+
+  private isMissingEnrichmentValue(value: unknown): boolean {
+    return value === null || value === undefined || value === "";
+  }
+
+  async replaceEntryTags({
+    entryId,
+    userId,
+    tags,
+  }: {
+    entryId: string;
+    userId: string;
+    tags: Array<{ value: string; weight: LibraryTagWeight }>;
+  }): Promise<void> {
+    if (!(await this.userOwnsEntry(entryId, userId))) return;
+
+    await sql`
+      DELETE FROM library_entry_tags
+      WHERE library_entry_id = ${entryId}
+    `;
+
+    await this.addEntryTags({ entryId, userId, tags });
+  }
+
+  async addEntryTags({
+    entryId,
+    userId,
+    tags,
+  }: {
+    entryId: string;
+    userId: string;
+    tags: Array<{ value: string; weight: LibraryTagWeight }>;
+  }): Promise<void> {
+    if (!(await this.userOwnsEntry(entryId, userId))) return;
+
+    for (const tag of tags) {
+      const savedTag = await this.findOrCreateTag({
+        userId,
+        value: tag.value,
+        weight: tag.weight,
+      });
+      await this.linkTag(entryId, savedTag.id);
+    }
+  }
+
+  private async userOwnsEntry(
+    entryId: string,
+    userId: string
+  ): Promise<boolean> {
+    const result = await sql`
+      SELECT 1
+      FROM library_entries
+      WHERE id = ${entryId}
+      AND user_id = ${userId}
+      LIMIT 1
+    `;
+
+    return result.length > 0;
+  }
+
+  async getByIdWithTags(
+    entryId: string,
+    userId: string
+  ): Promise<LibraryEntryWithTags | null> {
+    const result = await sql`
+      SELECT
+        library_entries.*,
+        COALESCE((
+          SELECT json_group_array(json_object(
+            'id', tags.id,
+            'value', tags.value,
+            'weight', tags.weight
+          ))
+          FROM library_entry_tags
+          JOIN tags ON tags.id = library_entry_tags.tag_id
+          WHERE library_entry_tags.library_entry_id = library_entries.id
+        ), '[]') AS tags
+      FROM library_entries
+      WHERE library_entries.id = ${entryId}
+      AND library_entries.user_id = ${userId}
+      LIMIT 1
+    `;
+
+    const row = result[0] as (LibraryEntry & { tags: string }) | undefined;
+    if (!row) return null;
+
+    return {
+      ...row,
+      tags: JSON.parse(row.tags) as LibraryTag[],
+    };
   }
 }
 
