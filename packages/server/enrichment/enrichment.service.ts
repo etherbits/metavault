@@ -1,5 +1,6 @@
 import type { LibraryEntryWithTags } from "../ezq/ezq.schema";
 import { libraryModel } from "../library/library.model";
+import { logger } from "../logger";
 import { sourceIntegrationModel } from "../source-integrations/source-integration.model";
 import { sourceIntegrationRegistry } from "./source-integration-registry";
 import type {
@@ -20,10 +21,39 @@ export class EnrichmentService {
     rows: LibraryEntryWithTags[];
     userId: string | null;
   }): Promise<LibraryEntryWithTags[]> {
+    logger.info(
+      {
+        command,
+        rowCount: rows.length,
+      },
+      "Extending enrichment response"
+    );
+
     return Promise.all(
       rows.map(async (row) => {
         const enrichment = await this.getMappedData(row, command, userId);
-        if (!enrichment) return row;
+        if (!enrichment) {
+          logger.info(
+            {
+              command,
+              rowId: row.id,
+              title: row.title,
+              mediaType: row.media_type,
+            },
+            "No response enrichment available for row"
+          );
+          return row;
+        }
+
+        logger.info(
+          {
+            command,
+            rowId: row.id,
+            title: row.title,
+            mediaType: row.media_type,
+          },
+          "Response enrichment applied to row"
+        );
         return this.mergeRow(row, enrichment, command.mode);
       })
     );
@@ -38,7 +68,24 @@ export class EnrichmentService {
     rows: LibraryEntryWithTags[];
     userId: string | null;
   }): Promise<LibraryEntryWithTags[]> {
-    if (!userId) return rows;
+    logger.info(
+      {
+        command,
+        rowCount: rows.length,
+      },
+      "Persisting enrichment updates"
+    );
+
+    if (!userId) {
+      logger.info(
+        {
+          command,
+          rowCount: rows.length,
+        },
+        "Enrichment persistence skipped because user is anonymous"
+      );
+      return rows;
+    }
 
     const nextRows: LibraryEntryWithTags[] = [];
 
@@ -51,7 +98,18 @@ export class EnrichmentService {
       const batchRows = await Promise.all(
         batch.map(async (row) => {
           const enrichment = await this.getMappedData(row, command, userId);
-          if (!enrichment) return row;
+          if (!enrichment) {
+            logger.info(
+              {
+                command,
+                rowId: row.id,
+                title: row.title,
+                mediaType: row.media_type,
+              },
+              "No persisted enrichment available for row"
+            );
+            return row;
+          }
 
           const updatedRow = await libraryModel.updateEntryFromEnrichment({
             entryId: row.id,
@@ -59,6 +117,16 @@ export class EnrichmentService {
             data: enrichment,
             mode: command.mode,
           });
+          logger.info(
+            {
+              command,
+              rowId: row.id,
+              title: row.title,
+              mediaType: row.media_type,
+              updated: Boolean(updatedRow),
+            },
+            "Persisted enrichment update completed for row"
+          );
           return updatedRow ?? row;
         })
       );
@@ -77,22 +145,101 @@ export class EnrichmentService {
       row,
       command.sourceType
     );
-    if (!integration || !userId) return null;
+    if (!integration) {
+      logger.info(
+        {
+          command,
+          rowId: row.id,
+          title: row.title,
+          mediaType: row.media_type,
+        },
+        "No source integration supports row"
+      );
+      return null;
+    }
+
+    logger.info(
+      {
+        command,
+        rowId: row.id,
+        title: row.title,
+        mediaType: row.media_type,
+        sourceType: integration.sourceType,
+      },
+      "Source integration selected for row"
+    );
+
+    if (!userId) return null;
 
     const sourceIntegration = await sourceIntegrationModel.getByUserAndType(
       userId,
       integration.sourceType
     );
-    if (!sourceIntegration || sourceIntegration.is_active !== 1) return null;
+    if (!sourceIntegration) {
+      logger.info(
+        {
+          command,
+          rowId: row.id,
+          title: row.title,
+          mediaType: row.media_type,
+          sourceType: integration.sourceType,
+        },
+        "Source integration settings are missing for user"
+      );
+      return null;
+    }
+
+    if (sourceIntegration.is_active !== 1) {
+      logger.info(
+        {
+          command,
+          rowId: row.id,
+          title: row.title,
+          mediaType: row.media_type,
+          sourceType: integration.sourceType,
+        },
+        "Source integration is inactive for user"
+      );
+      return null;
+    }
 
     const config = integration.configSchema.parse(
       this.parseConfigJson(sourceIntegration.config_json)
     );
-    const context: SourceIntegrationContext = { command, userId, config };
+    const context: SourceIntegrationContext = {
+      command,
+      userId,
+      config,
+      sourceIntegrationId: sourceIntegration.id,
+    };
     const sourceData = await integration.getEnrichmentData(row, context);
-    if (!sourceData) return null;
+    if (!sourceData) {
+      logger.info(
+        {
+          command,
+          rowId: row.id,
+          title: row.title,
+          mediaType: row.media_type,
+          sourceType: integration.sourceType,
+        },
+        "Source integration returned no enrichment data"
+      );
+      return null;
+    }
 
-    return integration.mapToLibraryEntry(sourceData, row);
+    const mappedData = integration.mapToLibraryEntry(sourceData, row);
+    logger.info(
+      {
+        command,
+        rowId: row.id,
+        title: row.title,
+        mediaType: row.media_type,
+        sourceType: integration.sourceType,
+        mapped: Boolean(mappedData),
+      },
+      "Source integration mapping completed"
+    );
+    return mappedData;
   }
 
   private parseConfigJson(configJson: string | null): Record<string, unknown> {

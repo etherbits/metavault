@@ -60,7 +60,7 @@ export function mapServerEntryToMediaItem(
     status: entry.status ? serverToUiStatus[entry.status] : undefined,
     releasedAt,
     rating,
-    tags: entry.tags.map((tag) => tag.value),
+    tags: entry.tags,
     posterUrl: entry.image_src ?? undefined,
   };
 }
@@ -85,11 +85,7 @@ export function mapMediaItemToServerEntry(
     released_at: item.releasedAt === "-" ? null : item.releasedAt,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
-    tags: item.tags.map((tag, index) => ({
-      id: `${item.id}-tag-${index + 1}`,
-      value: tag,
-      weight: "major",
-    })),
+    tags: item.tags,
   };
 }
 

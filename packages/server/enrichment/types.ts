@@ -1,6 +1,6 @@
+import type { z } from "zod";
 import type { LibraryEntryWithTags } from "../ezq/ezq.schema";
 import type { LibraryTagWeight } from "../library/library.model";
-import type { z } from "zod";
 import type { EnrichmentCommandSchema } from "./enrichment-command.schema";
 
 export type EnrichmentCommand = EnrichmentCommandSchema;
@@ -28,6 +28,7 @@ export type SourceIntegrationContext = {
   command: EnrichmentCommand;
   userId: string | null;
   config: SourceIntegrationConfig;
+  sourceIntegrationId?: string;
 };
 
 export interface SourceIntegration<SourceData = unknown> {

@@ -1,7 +1,7 @@
+import { beforeAll, describe, expect, it, mock } from "bun:test";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { beforeAll, describe, expect, it, mock } from "bun:test";
 import type { LibraryEntryWithTags } from "../../packages/server/ezq/ezq.schema";
 
 const testRoot = mkdtempSync(path.join(tmpdir(), "metavault-si-unit-"));
@@ -12,7 +12,9 @@ process.env.DATABASE_URL = `sqlite://${path.join(testRoot, "db.sqlite")}`;
 let sourceIntegrationService: typeof import("../../packages/server/source-integrations/source-integration.service").sourceIntegrationService;
 let sourceIntegrationRegistry: typeof import("../../packages/server/enrichment/source-integration-registry").sourceIntegrationRegistry;
 let EnrichmentService: typeof import("../../packages/server/enrichment/enrichment.service").EnrichmentService;
+let AniListSourceIntegration: typeof import("../../packages/server/enrichment/source-integrations").AniListSourceIntegration;
 let sql: typeof import("../../packages/server/db").sql;
+const originalFetch = globalThis.fetch;
 
 beforeAll(async () => {
   const db = await import("../../packages/server/db");
@@ -25,11 +27,15 @@ beforeAll(async () => {
   const enrichment = await import(
     "../../packages/server/enrichment/enrichment.service"
   );
+  const sourceIntegrations = await import(
+    "../../packages/server/enrichment/source-integrations"
+  );
 
   sql = db.sql;
   sourceIntegrationService = service.sourceIntegrationService;
   sourceIntegrationRegistry = registry.sourceIntegrationRegistry;
   EnrichmentService = enrichment.EnrichmentService;
+  AniListSourceIntegration = sourceIntegrations.AniListSourceIntegration;
 
   await db.applySchema();
 });
@@ -163,6 +169,227 @@ describe("SourceIntegrationService", () => {
   });
 });
 
+describe("AniListSourceIntegration", () => {
+  it("supports anime and manga entries", () => {
+    const integration = new AniListSourceIntegration();
+
+    expect(integration.supportsEntry(row({ media_type: "anime" }))).toBe(true);
+    expect(integration.supportsEntry(row({ media_type: "manga" }))).toBe(true);
+    expect(integration.supportsEntry(row({ media_type: "book" }))).toBe(false);
+  });
+
+  it("searches AniList with the entry title, media type, and optional bearer token", async () => {
+    const integration = new AniListSourceIntegration();
+    const fetchMock = mock(
+      async () => new Response(JSON.stringify(anilistResponse()))
+    );
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    try {
+      await integration.getEnrichmentData(row({ media_type: "anime" }), {
+        command: { sourceType: "anilist", mode: "add" },
+        userId: "user-1",
+        config: { apiKey: "token-1" },
+        sourceIntegrationId: "si-1",
+      });
+
+      const [url, init] = fetchMock.mock.calls[0] ?? [];
+      const body = JSON.parse(String((init as RequestInit).body));
+
+      expect(url).toBe("https://graphql.anilist.co");
+      expect((init as RequestInit).method).toBe("POST");
+      expect((init as RequestInit).headers).toMatchObject({
+        Authorization: "Bearer token-1",
+      });
+      expect(body.variables).toEqual({
+        search: "Test Entry",
+        type: "ANIME",
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("searches manga rows as MANGA without an Authorization header", async () => {
+    const integration = new AniListSourceIntegration();
+    const fetchMock = mock(
+      async () => new Response(JSON.stringify(anilistResponse()))
+    );
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    try {
+      await integration.getEnrichmentData(row({ media_type: "manga" }), {
+        command: { sourceType: "anilist", mode: "add" },
+        userId: "user-1",
+        config: {},
+      });
+
+      const [, init] = fetchMock.mock.calls[0] ?? [];
+      const body = JSON.parse(String((init as RequestInit).body));
+
+      expect((init as RequestInit).headers).not.toHaveProperty("Authorization");
+      expect(body.variables.type).toBe("MANGA");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("maps AniList media into library enrichment data", () => {
+    const integration = new AniListSourceIntegration();
+    const mapped = integration.mapToLibraryEntry(
+      {
+        media: anilistMedia(),
+        sourceIntegrationId: "si-1",
+      },
+      row({ title: "Local Title" })
+    );
+
+    expect(mapped).toEqual({
+      title: "English Title",
+      media_id: "101",
+      source_id: "si-1",
+      media_type: "anime",
+      image_src: "https://img.test/extra.jpg",
+      public_rating: 8.7,
+      released_at: "2024-04-05",
+      tags: [
+        { value: "Action", weight: "major" },
+        { value: "Drama", weight: "major" },
+        { value: "Spoiler Tag", weight: "minor" },
+        { value: "Adult Tag", weight: "minor" },
+      ],
+    });
+  });
+
+  it("falls back across title, cover, and partial date values", () => {
+    const integration = new AniListSourceIntegration();
+    const mapped = integration.mapToLibraryEntry(
+      {
+        media: anilistMedia({
+          title: {
+            english: null,
+            romaji: null,
+            userPreferred: "Preferred Title",
+            native: "Native Title",
+          },
+          coverImage: {
+            extraLarge: null,
+            large: "https://img.test/large.jpg",
+            medium: "https://img.test/medium.jpg",
+          },
+          startDate: { year: 2024, month: null, day: null },
+        }),
+      },
+      row({ title: "Local Title" })
+    );
+
+    expect(mapped?.title).toBe("Preferred Title");
+    expect(mapped?.image_src).toBe("https://img.test/large.jpg");
+    expect(mapped?.released_at).toBeNull();
+  });
+
+  it("returns null when AniList has no usable media or the request fails", async () => {
+    const integration = new AniListSourceIntegration();
+    const fetchMock = mock(async () => new Response(JSON.stringify({})));
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    try {
+      const emptyResult = await integration.getEnrichmentData(
+        row({ media_type: "anime" }),
+        {
+          command: { sourceType: "anilist", mode: "add" },
+          userId: "user-1",
+          config: {},
+        }
+      );
+      expect(emptyResult).toBeNull();
+
+      fetchMock.mockImplementationOnce(
+        async () => new Response("error", { status: 500 })
+      );
+      const errorResult = await integration.getEnrichmentData(
+        row({ media_type: "anime" }),
+        {
+          command: { sourceType: "anilist", mode: "add" },
+          userId: "user-1",
+          config: {},
+        }
+      );
+      expect(errorResult).toBeNull();
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("extends search rows and persists update rows through active AniList settings", async () => {
+    const userId = await createUser("anilist-real");
+    await sourceIntegrationService.updateSettings({
+      userId,
+      integrationType: "anilist",
+      body: { is_active: true, config: {} },
+    });
+    const sourceRows = await sql`
+      SELECT id
+      FROM source_integrations
+      WHERE user_id = ${userId}
+      AND integration_type = 'anilist'
+      LIMIT 1
+    `;
+    const sourceIntegrationId = (sourceRows[0] as { id: string }).id;
+    const entry = await insertLibraryEntry({
+      id: "anilist-entry-1",
+      userId,
+      title: "Attack on Titan",
+      mediaType: "anime",
+    });
+    const fetchMock = mock(
+      async () => new Response(JSON.stringify(anilistResponse()))
+    );
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    try {
+      const service = new EnrichmentService();
+      const searchResult = await service.extendResponse({
+        command: { sourceType: "anilist", mode: "override" },
+        rows: [entry],
+        userId,
+      });
+      const updateResult = await service.updateEntry({
+        command: { sourceType: "anilist", mode: "override" },
+        rows: [entry],
+        userId,
+      });
+
+      expect(searchResult[0]).toMatchObject({
+        title: "English Title",
+        media_id: "101",
+        source_id: sourceIntegrationId,
+        image_src: "https://img.test/extra.jpg",
+        public_rating: 8.7,
+        released_at: "2024-04-05",
+      });
+      expect(updateResult[0]).toMatchObject({
+        title: "English Title",
+        media_id: "101",
+        source_id: sourceIntegrationId,
+        image_src: "https://img.test/extra.jpg",
+        public_rating: 8.7,
+        released_at: "2024-04-05",
+      });
+      expect(
+        updateResult[0]?.tags.map((tag) => `${tag.weight}:${tag.value}`).sort()
+      ).toEqual([
+        "major:Action",
+        "major:Drama",
+        "minor:Adult Tag",
+        "minor:Spoiler Tag",
+      ]);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
+
 async function createUser(suffix: string) {
   const userId = `unit-source-${suffix}`;
   await sql`
@@ -191,6 +418,63 @@ function row(
     created_at: "2026-01-01 00:00:00",
     updated_at: "2026-01-01 00:00:00",
     tags: [],
+    ...overrides,
+  };
+}
+
+async function insertLibraryEntry({
+  id,
+  userId,
+  title,
+  mediaType,
+}: {
+  id: string;
+  userId: string;
+  title: string;
+  mediaType: NonNullable<LibraryEntryWithTags["media_type"]>;
+}) {
+  await sql`
+    INSERT INTO library_entries (id, user_id, title, media_type, status)
+    VALUES (${id}, ${userId}, ${title}, ${mediaType}, 'planning')
+  `;
+
+  return {
+    ...row({ id, user_id: userId, title, media_type: mediaType }),
+    tags: [],
+  };
+}
+
+function anilistResponse(media = anilistMedia()) {
+  return {
+    data: {
+      Media: media,
+    },
+  };
+}
+
+function anilistMedia(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 101,
+    title: {
+      english: "English Title",
+      romaji: "Romaji Title",
+      userPreferred: "Preferred Title",
+      native: "Native Title",
+    },
+    type: "ANIME",
+    startDate: {
+      year: 2024,
+      month: 4,
+      day: 5,
+    },
+    coverImage: {
+      extraLarge: "https://img.test/extra.jpg",
+      large: "https://img.test/large.jpg",
+      medium: "https://img.test/medium.jpg",
+    },
+    averageScore: 87,
+    genres: ["Action", "Drama"],
+    tags: [{ name: "Spoiler Tag" }, { name: "Adult Tag" }],
     ...overrides,
   };
 }

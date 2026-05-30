@@ -14,18 +14,37 @@ export class CommandDelegator {
     let rows = params.rows;
 
     for (const command of commands) {
+      logger.info(
+        {
+          action: params.action,
+          command,
+          rowCount: rows.length,
+        },
+        "Delegating command"
+      );
+
       const executor = this.getExecutor(command);
       if (!executor) {
         logger.info(
           {
             action: params.action,
             command,
-            rowIds: rows.map((row) => row.id),
+            rowCount: rows.length,
           },
-          "EZQ command ignored because no executor matched"
+          "Command skipped because no executor matched"
         );
         continue;
       }
+
+      logger.info(
+        {
+          action: params.action,
+          command,
+          executor: executor.constructor.name,
+          rowCount: rows.length,
+        },
+        "Command executor selected"
+      );
 
       const result = await executor.execute({
         ...params,
@@ -33,6 +52,16 @@ export class CommandDelegator {
         rows,
       });
       rows = result.rows;
+
+      logger.info(
+        {
+          action: params.action,
+          command,
+          executor: executor.constructor.name,
+          rowCount: rows.length,
+        },
+        "Command delegation completed"
+      );
     }
 
     return { rows };

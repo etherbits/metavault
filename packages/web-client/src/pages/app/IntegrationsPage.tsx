@@ -1,14 +1,15 @@
 import { ChevronUp, Home } from "lucide-react";
 import { IntegrationCard } from "@/components/IntegrationCard";
 import { Button } from "@/components/ui/button";
-import {
-  useSourceIntegrations,
-  useUpdateSourceIntegration,
-} from "@/features/source-integrations/hooks";
 import type {
   SourceIntegrationSettings,
   SourceIntegrationType,
 } from "@/features/source-integrations/contracts";
+import {
+  useSourceIntegrations,
+  useUpdateSourceIntegration,
+} from "@/features/source-integrations/hooks";
+import { ApiError } from "@/shared/api/client";
 
 const SOURCE_INTEGRATION_CARDS: Array<{
   type: SourceIntegrationType;
@@ -75,6 +76,18 @@ export function IntegrationsPage() {
     });
   }
 
+  function getSaveError(type: SourceIntegrationType) {
+    if (!updateSourceIntegration.isError) return null;
+    if (updateSourceIntegration.variables?.type !== type) return null;
+
+    const error = updateSourceIntegration.error;
+    if (error instanceof ApiError || error instanceof Error) {
+      return error.message;
+    }
+
+    return "Unable to save integration";
+  }
+
   return (
     <div className="mx-auto flex w-full max-w-[1488px] flex-col gap-12">
       <div className="flex items-center gap-3">
@@ -87,6 +100,13 @@ export function IntegrationsPage() {
       <IntegrationSection
         title="Source Integrations"
         count={`${activeCount}/${SOURCE_INTEGRATION_CARDS.length} Integrations active`}
+        error={
+          sourceIntegrations.isError
+            ? sourceIntegrations.error instanceof Error
+              ? sourceIntegrations.error.message
+              : "Unable to load source integrations"
+            : null
+        }
       >
         {SOURCE_INTEGRATION_CARDS.map((card) => {
           const settings = getSourceSettings(card.type);
@@ -99,10 +119,15 @@ export function IntegrationsPage() {
               key={card.type}
               name={card.name}
               description={card.description}
-              queryFlag={`#enrich:${card.type}`}
+              queryFlag={`#enrich:add:${card.type}`}
               apiKey={getApiKey(settings)}
               enabled={settings?.is_active ?? false}
+              isLoading={sourceIntegrations.isPending}
               isSaving={isSaving}
+              errorMessage={getSaveError(card.type)}
+              onToggle={({ apiKey, enabled }) =>
+                saveSourceIntegration({ type: card.type, apiKey, enabled })
+              }
               onSave={({ apiKey, enabled }) =>
                 saveSourceIntegration({ type: card.type, apiKey, enabled })
               }
@@ -138,10 +163,12 @@ export function IntegrationsPage() {
 function IntegrationSection({
   title,
   count,
+  error,
   children,
 }: {
   title: string;
   count: string;
+  error?: string | null;
   children: React.ReactNode;
 }) {
   return (
@@ -163,6 +190,12 @@ function IntegrationSection({
           <ChevronUp size={16} />
         </Button>
       </div>
+
+      {error ? (
+        <div className="rounded-[8px] border border-[#7F1D1D] bg-[#450A0A]/40 px-4 py-3 text-[14px] leading-5 text-[#FCA5A5]">
+          {error}
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
         {children}

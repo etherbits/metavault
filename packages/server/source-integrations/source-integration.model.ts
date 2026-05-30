@@ -50,7 +50,21 @@ class SourceIntegrationModel {
     isActive: boolean;
     config: Record<string, unknown>;
   }): Promise<SourceIntegrationRow> {
-    const rows = await sql`
+    const updatedRows = await sql`
+      UPDATE source_integrations
+      SET
+        is_active = ${data.isActive ? 1 : 0},
+        config_json = ${JSON.stringify(data.config)}
+      WHERE user_id = ${data.userId}
+      AND integration_type = ${data.integrationType}
+      RETURNING *
+    `;
+
+    if (updatedRows[0]) {
+      return updatedRows[0] as SourceIntegrationRow;
+    }
+
+    const insertedRows = await sql`
       INSERT INTO source_integrations (
         id,
         user_id,
@@ -65,13 +79,10 @@ class SourceIntegrationModel {
         ${data.isActive ? 1 : 0},
         ${JSON.stringify(data.config)}
       )
-      ON CONFLICT(user_id, integration_type) DO UPDATE SET
-        is_active = excluded.is_active,
-        config_json = excluded.config_json
       RETURNING *
     `;
 
-    return rows[0] as SourceIntegrationRow;
+    return insertedRows[0] as SourceIntegrationRow;
   }
 }
 
