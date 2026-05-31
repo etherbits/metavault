@@ -3,9 +3,10 @@ import type {
   CommandExecutionResult,
   CommandExecutor,
 } from "../commands/command-executor";
+import { parseCommandUnion } from "../commands/command-schema";
 import { logger } from "../logger";
 import { EnrichmentService } from "./enrichment.service";
-import { enrichmentCommandSchema } from "./enrichment-command.schema";
+import { enrichmentCommandSchemas } from "./enrichment-command.schema";
 import type { EnrichmentCommand } from "./types";
 
 export class EnrichmentCommandExecutor implements CommandExecutor {
@@ -77,13 +78,10 @@ export class EnrichmentCommandExecutor implements CommandExecutor {
   }
 
   canExecute(command: string): boolean {
-    return enrichmentCommandSchema.safeParse(command.split(":")).success;
+    return this.parseCommand(command) !== null;
   }
 
   private parseCommand(command: string): EnrichmentCommand | null {
-    const parsed = enrichmentCommandSchema.safeParse(command.split(":"));
-    if (!parsed.success) return null;
-
-    return parsed.data;
+    return parseCommandUnion(enrichmentCommandSchemas, command);
   }
 }

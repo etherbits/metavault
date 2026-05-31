@@ -1,10 +1,7 @@
 import { ChevronUp, Home } from "lucide-react";
 import { IntegrationCard } from "@/components/IntegrationCard";
 import { Button } from "@/components/ui/button";
-import type {
-  SourceIntegrationSettings,
-  SourceIntegrationType,
-} from "@/features/source-integrations/contracts";
+import type { SourceIntegrationType } from "@/features/source-integrations/contracts";
 import {
   useSourceIntegrations,
   useUpdateSourceIntegration,
@@ -52,26 +49,20 @@ export function IntegrationsPage() {
     return sourceSettings.find((item) => item.integration_type === type);
   }
 
-  function getApiKey(settings: SourceIntegrationSettings | undefined) {
-    return typeof settings?.config.apiKey === "string"
-      ? settings.config.apiKey
-      : "";
-  }
-
   function saveSourceIntegration({
     type,
-    apiKey,
+    config,
     enabled,
   }: {
     type: SourceIntegrationType;
-    apiKey: string;
+    config: Record<string, string>;
     enabled: boolean;
   }) {
     updateSourceIntegration.mutate({
       type,
       body: {
         is_active: enabled,
-        config: apiKey ? { apiKey } : {},
+        config: removeEmptyConfigValues(config),
       },
     });
   }
@@ -120,21 +111,22 @@ export function IntegrationsPage() {
               name={card.name}
               description={card.description}
               queryFlag={`#enrich:add:${card.type}`}
-              apiKey={getApiKey(settings)}
+              config={settings?.config ?? {}}
+              configFields={settings?.config_fields ?? []}
               enabled={settings?.is_active ?? false}
               isLoading={sourceIntegrations.isPending}
               isSaving={isSaving}
               errorMessage={getSaveError(card.type)}
-              onToggle={({ apiKey, enabled }) =>
-                saveSourceIntegration({ type: card.type, apiKey, enabled })
+              onToggle={({ config, enabled }) =>
+                saveSourceIntegration({ type: card.type, config, enabled })
               }
-              onSave={({ apiKey, enabled }) =>
-                saveSourceIntegration({ type: card.type, apiKey, enabled })
+              onSave={({ config, enabled }) =>
+                saveSourceIntegration({ type: card.type, config, enabled })
               }
               onClear={() =>
                 saveSourceIntegration({
                   type: card.type,
-                  apiKey: "",
+                  config: {},
                   enabled: false,
                 })
               }
@@ -152,11 +144,17 @@ export function IntegrationsPage() {
           description="Use the assistant overlay to summarize result sets and help write structured queries."
           queryFlag="source_integration:enrich"
           enabled
-          onSave={(settings) => console.log("save ai key", settings.apiKey)}
+          onSave={(settings) => console.log("save ai config", settings.config)}
           onClear={() => console.log("clear ai")}
         />
       </IntegrationSection>
     </div>
+  );
+}
+
+function removeEmptyConfigValues(config: Record<string, string>) {
+  return Object.fromEntries(
+    Object.entries(config).filter(([, value]) => value.trim().length > 0)
   );
 }
 

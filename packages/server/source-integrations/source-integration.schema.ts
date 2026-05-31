@@ -24,6 +24,16 @@ export const sourceIntegrationSettingsSchema = z.object({
   integration_type: sourceIntegrationTypeSchema,
   is_active: z.boolean(),
   config: z.record(z.string(), z.unknown()),
+  config_fields: z.array(
+    z.object({
+      key: z.string(),
+      label: z.string(),
+      secret: z.boolean(),
+      required: z.boolean(),
+      defaultValue: z.string().optional(),
+      placeholder: z.string().optional(),
+    })
+  ),
 });
 
 export const sourceIntegrationSettingsListSchema =

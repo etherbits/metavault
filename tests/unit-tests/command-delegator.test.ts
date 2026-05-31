@@ -1,17 +1,54 @@
-import { describe, expect, it, mock } from "bun:test";
+import { beforeAll, describe, expect, it, mock } from "bun:test";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { z } from "zod";
 import { CommandDelegator } from "../../packages/server/commands/command-delegator";
 import type {
   CommandExecutionParams,
   CommandExecutor,
 } from "../../packages/server/commands/command-executor";
-import { EnrichmentCommandExecutor } from "../../packages/server/enrichment/enrichment-command-executor";
-import { EnrichmentService } from "../../packages/server/enrichment/enrichment.service";
-import { SourceIntegrationRegistry } from "../../packages/server/enrichment/source-integration-registry";
+import {
+  getFuzzyCandidates,
+  normalizeCommandSegments,
+  parseCommandUnion,
+  parseCommandWithSchema,
+  unwrapCommandSegmentSchema,
+} from "../../packages/server/commands/command-schema";
 import type {
   EnrichedLibraryEntryData,
   SourceIntegration,
 } from "../../packages/server/enrichment/types";
+
+process.env.JWT_SECRET ??= "unit-secret";
+process.env.DATABASE_URL ??= `sqlite://${path.join(
+  mkdtempSync(path.join(tmpdir(), "metavault-command-unit-")),
+  "db.sqlite"
+)}`;
+
+let EnrichmentCommandExecutor: typeof import("../../packages/server/enrichment/enrichment-command-executor").EnrichmentCommandExecutor;
+let EnrichmentService: typeof import("../../packages/server/enrichment/enrichment.service").EnrichmentService;
+let SourceIntegrationRegistry: typeof import("../../packages/server/enrichment/source-integration-registry").SourceIntegrationRegistry;
+
+beforeAll(async () => {
+  const db = await import("../../packages/server/db");
+  const commandExecutor = await import(
+    "../../packages/server/enrichment/enrichment-command-executor"
+  );
+  const enrichmentService = await import(
+    "../../packages/server/enrichment/enrichment.service"
+  );
+  const sourceIntegrationRegistry = await import(
+    "../../packages/server/enrichment/source-integration-registry"
+  );
+
+  EnrichmentCommandExecutor = commandExecutor.EnrichmentCommandExecutor;
+  EnrichmentService = enrichmentService.EnrichmentService;
+  SourceIntegrationRegistry =
+    sourceIntegrationRegistry.SourceIntegrationRegistry;
+
+  await db.applySchema();
+});
 
 function row(overrides = {}) {
   return {
@@ -54,6 +91,87 @@ const params: Omit<CommandExecutionParams, "command"> = {
   userId: "user-1",
   rows: [row()],
 };
+
+describe("command schema parser", () => {
+  const commandSchema = z
+    .tuple([
+      z.literal("enrich"),
+      z.enum(["add", "override"]).default("add"),
+      z.enum(["anilist", "tmdb", "igdb", "openlibrary"]).optional(),
+    ])
+    .transform(([, mode, sourceType]) => ({ mode, sourceType }));
+
+  it("extracts fuzzy candidates from literals and enums", () => {
+    expect(getFuzzyCandidates(z.literal("enrich"))).toEqual(["enrich"]);
+    expect(getFuzzyCandidates(z.enum(["add", "override"]))).toEqual([
+      "add",
+      "override",
+    ]);
+  });
+
+  it("unwraps optional and default segment schemas for candidate lookup", () => {
+    const schema = z.enum(["add", "override"]).optional().default("add");
+
+    expect(
+      unwrapCommandSegmentSchema(schema).safeParse("override").success
+    ).toBe(true);
+    expect(getFuzzyCandidates(schema)).toEqual(["add", "override"]);
+  });
+
+  it("skips fuzzy matching for unsupported segment schemas", () => {
+    const schema = z.tuple([z.literal("set"), z.number()]);
+
+    expect(getFuzzyCandidates(z.number())).toBe(null);
+    expect(normalizeCommandSegments(schema, "set:42")).toEqual(["set", "42"]);
+    expect(parseCommandWithSchema(schema, "set:42")).toBe(null);
+  });
+
+  it("normalizes exact, fuzzy, defaulted, and empty command segments", () => {
+    expect(parseCommandWithSchema(commandSchema, "enrich")).toEqual({
+      mode: "add",
+      sourceType: undefined,
+    });
+    expect(parseCommandWithSchema(commandSchema, "enr")).toEqual({
+      mode: "add",
+      sourceType: undefined,
+    });
+    expect(parseCommandWithSchema(commandSchema, "enr:ovr:ani")).toEqual({
+      mode: "override",
+      sourceType: "anilist",
+    });
+    expect(parseCommandWithSchema(commandSchema, "en:add:openlib")).toEqual({
+      mode: "add",
+      sourceType: "openlibrary",
+    });
+    expect(parseCommandWithSchema(commandSchema, "enrich::tmdb")).toEqual({
+      mode: "add",
+      sourceType: "tmdb",
+    });
+  });
+
+  it("parses command unions in order", () => {
+    const fallbackSchema = z
+      .tuple([z.literal("fallback")])
+      .transform(() => ({ mode: "fallback" }));
+
+    expect(
+      parseCommandUnion([commandSchema, fallbackSchema], "fallback")
+    ).toEqual({ mode: "fallback" });
+  });
+
+  it("rejects unsupported command names and segments", () => {
+    expect(parseCommandWithSchema(commandSchema, "foo")).toBe(null);
+    expect(parseCommandWithSchema(commandSchema, "zzzz")).toBe(null);
+    expect(parseCommandWithSchema(commandSchema, "enrich:unknown")).toBe(null);
+    expect(parseCommandWithSchema(commandSchema, "enrich:anilist")).toBe(null);
+    expect(parseCommandWithSchema(commandSchema, "enrich:full:anilist")).toBe(
+      null
+    );
+    expect(parseCommandWithSchema(commandSchema, "enrich:add:unknown")).toBe(
+      null
+    );
+  });
+});
 
 describe("CommandDelegator", () => {
   it("delegates a supported command to the matching executor", async () => {
@@ -129,10 +247,20 @@ describe("EnrichmentCommandExecutor", () => {
     expect(executor.canExecute("enrich::anilist")).toBe(true);
   });
 
+  it("accepts fuzzy enrich commands", () => {
+    const executor = new EnrichmentCommandExecutor();
+
+    expect(executor.canExecute("enr")).toBe(true);
+    expect(executor.canExecute("enr:ovr:ani")).toBe(true);
+    expect(executor.canExecute("en:add:openlib")).toBe(true);
+    expect(executor.canExecute("enrich::tm")).toBe(true);
+  });
+
   it("rejects unrelated or unsupported enrich commands", () => {
     const executor = new EnrichmentCommandExecutor();
 
     expect(executor.canExecute("foo")).toBe(false);
+    expect(executor.canExecute("zzzz")).toBe(false);
     expect(executor.canExecute("enrich:unknown")).toBe(false);
     expect(executor.canExecute("enrich:anilist")).toBe(false);
     expect(executor.canExecute("enrich:full:anilist")).toBe(false);
@@ -154,7 +282,7 @@ describe("EnrichmentCommandExecutor", () => {
       const result = await executor.execute({
         ...params,
         action: "search",
-        command: "enrich",
+        command: "enr",
       });
 
       expect(result.rows[0]?.title).toBe("Enriched Search");
@@ -184,7 +312,7 @@ describe("EnrichmentCommandExecutor", () => {
       const executor = new EnrichmentCommandExecutor();
       const result = await executor.execute({
         ...params,
-        command: "enrich:override",
+        command: "enr:ovr",
       });
 
       expect(result.rows[0]?.title).toBe("Saved Enrichment");

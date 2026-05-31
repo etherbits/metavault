@@ -1,4 +1,4 @@
-import type { z } from "zod";
+import type { ZodType, z } from "zod";
 import type { LibraryEntryWithTags } from "../ezq/ezq.schema";
 import type { LibraryTagWeight } from "../library/library.model";
 import type { EnrichmentCommandSchema } from "./enrichment-command.schema";
@@ -7,6 +7,22 @@ export type EnrichmentCommand = EnrichmentCommandSchema;
 export type EnrichmentSourceType = NonNullable<EnrichmentCommand["sourceType"]>;
 export type EnrichmentMode = EnrichmentCommand["mode"];
 export type SourceIntegrationConfig = Record<string, unknown>;
+
+export type SourceIntegrationConfigField = {
+  label: string;
+  schema: ZodType;
+  secret: boolean;
+  required: boolean;
+  defaultValue?: string;
+  placeholder?: string;
+};
+
+export type SourceIntegrationConfigFieldMetadata = Omit<
+  SourceIntegrationConfigField,
+  "schema"
+> & {
+  key: string;
+};
 
 export type EnrichedLibraryTagData = {
   value: string;
@@ -34,6 +50,7 @@ export type SourceIntegrationContext = {
 export interface SourceIntegration<SourceData = unknown> {
   sourceType: EnrichmentSourceType;
   configSchema: z.ZodType<SourceIntegrationConfig>;
+  configFields: SourceIntegrationConfigFieldMetadata[];
   supportsEntry(row: LibraryEntryWithTags): boolean;
   getEnrichmentData(
     row: LibraryEntryWithTags,

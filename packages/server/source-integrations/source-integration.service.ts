@@ -1,8 +1,8 @@
 import { sourceIntegrationRegistry } from "../enrichment/source-integration-registry";
 import { err, ok, type Result } from "../utils/result";
 import {
-  sourceIntegrationModel,
   type SourceIntegrationRow,
+  sourceIntegrationModel,
 } from "./source-integration.model";
 import type {
   SourceIntegrationSettings,
@@ -23,9 +23,8 @@ class SourceIntegrationService {
         return {
           integration_type: integration.sourceType,
           is_active: row?.is_active === 1,
-          config: row
-            ? this.parseConfig(integration.sourceType, row)
-            : integration.configSchema.parse({}),
+          config: row ? this.parseConfig(integration.sourceType, row) : {},
+          config_fields: integration.configFields,
         };
       })
     );
@@ -58,6 +57,9 @@ class SourceIntegrationService {
       integration_type: integrationType,
       is_active: row.is_active === 1,
       config: this.parseConfig(integrationType, row),
+      config_fields:
+        sourceIntegrationRegistry.getKnownIntegration(integrationType)
+          ?.configFields ?? [],
     });
   }
 
