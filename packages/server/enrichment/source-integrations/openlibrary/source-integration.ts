@@ -1,10 +1,8 @@
 import type { LibraryEntryWithTags } from "../../../ezq/ezq.schema";
 import { logger } from "../../../logger";
-import { getTrimmedString } from "../../../utils/string";
 import {
   SourceIntegrationResponseCache,
   toSourceCacheKeyPart,
-  toSourceCredentialCacheKeyPart,
 } from "../../source-integration-response-cache";
 import { dedupeEnrichedTags } from "../../source-integration-utils";
 import type {
@@ -49,7 +47,6 @@ export class OpenLibrarySourceIntegration
           rowId: row.id,
           title: row.title,
           mediaType: row.media_type,
-          hasApiKey: Boolean(getTrimmedString(context.config.apiKey)),
         },
         "OpenLibrary enrichment request started"
       );
@@ -72,13 +69,7 @@ export class OpenLibrarySourceIntegration
       );
 
       const parsedData = await this.responseCache.get({
-        key: [
-          "book-search",
-          toSourceCacheKeyPart(row.title),
-          toSourceCredentialCacheKeyPart(
-            getTrimmedString(context.config.apiKey)
-          ),
-        ].join(":"),
+        key: ["book-search", toSourceCacheKeyPart(row.title)].join(":"),
         label: "book_search",
         load: async () => {
           const response = await fetch(url);

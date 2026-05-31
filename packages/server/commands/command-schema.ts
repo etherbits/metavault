@@ -1,5 +1,5 @@
 import { fuzzy_match } from "@etherbits/ezq-node";
-import type z from "zod";
+import type { z } from "zod";
 
 type ZodDef = {
   type?: string;

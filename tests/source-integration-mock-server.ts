@@ -4,7 +4,6 @@ const port = Number(Bun.argv[2] ?? 3636);
 const app = express();
 
 app.use(express.json());
-app.use(express.text({ type: "*/*" }));
 
 app.get("/health", (_req, res) => {
   res.json({ ok: true });
@@ -84,7 +83,7 @@ app.get("/tmdb/3/genre/tv/list", (_req, res) => {
   });
 });
 
-app.post("/igdb/v4/games", (req, res) => {
+app.post("/igdb/v4/games", express.text({ type: "*/*" }), (req, res) => {
   const body = typeof req.body === "string" ? req.body : "";
   const match = body.match(/search "(.+?)"/);
   const search = match?.[1]?.replace(/\\"/g, '"') ?? "IGDB Entry";

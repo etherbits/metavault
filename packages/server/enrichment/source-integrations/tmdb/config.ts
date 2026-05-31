@@ -1,3 +1,4 @@
+import { parsedEnv } from "../../../env";
 import { defineConfig, requiredString } from "../config";
 
 export const tmdbConfig = defineConfig({
@@ -9,7 +10,5 @@ export const tmdbConfig = defineConfig({
   },
 });
 
-export const TMDB_API_BASE_URL =
-  Bun.env.METAVAULT_TMDB_API_BASE_URL ?? "https://api.themoviedb.org/3";
-export const TMDB_IMAGE_BASE_URL =
-  Bun.env.METAVAULT_TMDB_IMAGE_BASE_URL ?? "https://image.tmdb.org/t/p/w500";
+export const TMDB_API_BASE_URL = parsedEnv.METAVAULT_TMDB_API_BASE_URL;
+export const TMDB_IMAGE_BASE_URL = parsedEnv.METAVAULT_TMDB_IMAGE_BASE_URL;

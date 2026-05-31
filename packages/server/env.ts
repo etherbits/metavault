@@ -14,6 +14,30 @@ const envSchema = z
     AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(20),
     RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
     MEDIA_ROOT: z.string().default("media"),
+    METAVAULT_ANILIST_GRAPHQL_ENDPOINT: z
+      .string()
+      .url()
+      .default("https://graphql.anilist.co"),
+    METAVAULT_TMDB_API_BASE_URL: z
+      .string()
+      .url()
+      .default("https://api.themoviedb.org/3"),
+    METAVAULT_TMDB_IMAGE_BASE_URL: z
+      .string()
+      .url()
+      .default("https://image.tmdb.org/t/p/w500"),
+    METAVAULT_IGDB_GAMES_ENDPOINT: z
+      .string()
+      .url()
+      .default("https://api.igdb.com/v4/games"),
+    METAVAULT_OPEN_LIBRARY_SEARCH_ENDPOINT: z
+      .string()
+      .url()
+      .default("https://openlibrary.org/search.json"),
+    METAVAULT_OPEN_LIBRARY_COVER_BASE_URL: z
+      .string()
+      .url()
+      .default("https://covers.openlibrary.org/b/id"),
     EMAIL_HOST: z.string().optional(),
     EMAIL_PORT: z.coerce.number().int().positive().default(587),
     EMAIL_USER: z.string().optional(),

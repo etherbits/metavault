@@ -1,3 +1,4 @@
+import { parsedEnv } from "../../../env";
 import { defineConfig, optionalString } from "../config";
 
 export const anilistConfig = defineConfig({
@@ -10,7 +11,7 @@ export const anilistConfig = defineConfig({
 });
 
 export const ANILIST_GRAPHQL_ENDPOINT =
-  Bun.env.METAVAULT_ANILIST_GRAPHQL_ENDPOINT ?? "https://graphql.anilist.co";
+  parsedEnv.METAVAULT_ANILIST_GRAPHQL_ENDPOINT;
 
 // AniList GraphQL requests and Media search arguments:
 // https://docs.anilist.co/guide/graphql

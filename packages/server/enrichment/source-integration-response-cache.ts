@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { logger } from "../logger";
 import type { EnrichmentSourceType } from "./types";
 
@@ -33,6 +34,9 @@ export class SourceIntegrationResponseCache {
         "Source integration response cache hit"
       );
       return cached.value as T;
+    }
+    if (cached) {
+      this.entries.delete(key);
     }
 
     const pending = this.inFlight.get(key);
@@ -71,5 +75,8 @@ export function toSourceCacheKeyPart(value: string): string {
 export function toSourceCredentialCacheKeyPart(
   value: string | null | undefined
 ): string {
-  return value?.trim() ?? "";
+  const credential = value?.trim();
+  if (!credential) return "";
+
+  return createHash("sha256").update(credential).digest("hex").slice(0, 16);
 }

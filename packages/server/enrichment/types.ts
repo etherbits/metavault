@@ -49,7 +49,7 @@ export type SourceIntegrationContext = {
 
 export interface SourceIntegration<SourceData = unknown> {
   sourceType: EnrichmentSourceType;
-  configSchema: z.ZodType<SourceIntegrationConfig>;
+  configSchema: z.ZodObject<Record<string, z.ZodType>>;
   configFields: SourceIntegrationConfigFieldMetadata[];
   supportsEntry(row: LibraryEntryWithTags): boolean;
   getEnrichmentData(

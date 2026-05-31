@@ -9,8 +9,13 @@ type SourceIntegrationConfigDefinition = Record<
   SourceIntegrationConfigField
 >;
 
-export const requiredString = z.string().min(1).max(256);
-export const optionalString = z.string().optional();
+export const requiredString = z.string().trim().min(1).max(256);
+export const optionalString = z
+  .string()
+  .trim()
+  .max(256)
+  .transform((value) => value || undefined)
+  .optional();
 
 export function defineConfig(definition: SourceIntegrationConfigDefinition): {
   schema: z.ZodObject<Record<string, z.ZodType>>;

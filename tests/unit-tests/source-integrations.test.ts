@@ -135,6 +135,79 @@ describe.serial("SourceIntegrationService", () => {
     ]);
   });
 
+  it.serial("returns no config fields for OpenLibrary", async () => {
+    const userId = await createUser("openlibrary-config-fields");
+
+    const result = await sourceIntegrationService.getSettings(userId);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(
+      result.data.find((item) => item.integration_type === "openlibrary")
+        ?.config_fields
+    ).toEqual([]);
+  });
+
+  it.serial(
+    "allows inactive integrations to clear required config fields",
+    async () => {
+      const userId = await createUser("inactive-required-config");
+
+      const result = await sourceIntegrationService.updateSettings({
+        userId,
+        integrationType: "tmdb",
+        body: { is_active: false, config: {} },
+      });
+
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.data.config).toEqual({});
+      expect(result.data.is_active).toBe(false);
+    }
+  );
+
+  it.serial("rejects invalid active config fields", async () => {
+    const userId = await createUser("invalid-active-config");
+
+    const result = await sourceIntegrationService.updateSettings({
+      userId,
+      integrationType: "tmdb",
+      body: { is_active: true, config: { apiKey: "   " } },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.status).toBe(400);
+  });
+
+  it.serial("does not fail settings reads for malformed config", async () => {
+    const userId = await createUser("malformed-config");
+    await sql`
+      INSERT INTO source_integrations (
+        id,
+        user_id,
+        integration_type,
+        is_active,
+        config_json
+      )
+      VALUES (
+        ${crypto.randomUUID()},
+        ${userId},
+        ${"tmdb"},
+        ${0},
+        ${"not-json"}
+      )
+    `;
+
+    const result = await sourceIntegrationService.getSettings(userId);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(
+      result.data.find((item) => item.integration_type === "tmdb")?.config
+    ).toEqual({});
+  });
+
   it.serial(
     "registry selects OpenLibrary for book entries without user state",
     () => {

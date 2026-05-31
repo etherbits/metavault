@@ -1,3 +1,4 @@
+import { parsedEnv } from "../../../env";
 import { defineConfig, requiredString } from "../config";
 
 export const igdbConfig = defineConfig({
@@ -15,5 +16,4 @@ export const igdbConfig = defineConfig({
   },
 });
 
-export const IGDB_GAMES_ENDPOINT =
-  Bun.env.METAVAULT_IGDB_GAMES_ENDPOINT ?? "https://api.igdb.com/v4/games";
+export const IGDB_GAMES_ENDPOINT = parsedEnv.METAVAULT_IGDB_GAMES_ENDPOINT;
