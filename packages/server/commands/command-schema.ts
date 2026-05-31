@@ -1,4 +1,3 @@
-import { fuzzy_match } from "@etherbits/ezq-node";
 import type z from "zod";
 
 type ZodDef = {
@@ -66,7 +65,7 @@ export function normalizeCommandSegments(
     }
 
     try {
-      normalized.push(fuzzy_match(rawSegment, candidates));
+      normalized.push(fuzzyMatch(rawSegment, candidates));
     } catch {
       return null;
     }
@@ -146,4 +145,74 @@ function getLiteralCandidates(schema: ZodSchemaWithDef, def: ZodDef) {
 
 function getDef(schema: ZodSchemaWithDef) {
   return schema.def ?? schema._def;
+}
+
+function fuzzyMatch(input: string, candidates: readonly string[]): string {
+  const normalizedInput = normalizeFuzzyText(input);
+  let best: { candidate: string; score: number } | null = null;
+
+  for (const candidate of candidates) {
+    const score = scoreFuzzyCandidate(
+      normalizedInput,
+      normalizeFuzzyText(candidate)
+    );
+
+    if (!best || score > best.score) {
+      best = { candidate, score };
+    }
+  }
+
+  if (!best || best.score < 0.6) {
+    throw new Error(`No confident fuzzy match for ${input}`);
+  }
+
+  return best.candidate;
+}
+
+function scoreFuzzyCandidate(input: string, candidate: string) {
+  if (!input || !candidate) return 0;
+  if (input === candidate) return 1;
+  if (candidate.startsWith(input)) return 0.9;
+  if (input === getAcronym(candidate)) return 0.85;
+
+  return scoreSubsequence(input, candidate);
+}
+
+function scoreSubsequence(input: string, candidate: string) {
+  let searchIndex = 0;
+  let firstMatch = -1;
+  let lastMatch = -1;
+  let currentRun = 0;
+  let longestRun = 0;
+
+  for (const character of input) {
+    const matchIndex = candidate.indexOf(character, searchIndex);
+    if (matchIndex === -1) return 0;
+
+    if (firstMatch === -1) firstMatch = matchIndex;
+    currentRun = matchIndex === lastMatch + 1 ? currentRun + 1 : 1;
+    longestRun = Math.max(longestRun, currentRun);
+    lastMatch = matchIndex;
+    searchIndex = matchIndex + 1;
+  }
+
+  const span = lastMatch - firstMatch + 1;
+  const coverage = input.length / candidate.length;
+  const tightness = input.length / span;
+  const startBonus = firstMatch === 0 ? 0.15 : 0;
+  const runBonus = (longestRun / input.length) * 0.15;
+
+  return coverage * 0.45 + tightness * 0.4 + startBonus + runBonus;
+}
+
+function normalizeFuzzyText(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function getAcronym(value: string) {
+  return value
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join("");
 }
