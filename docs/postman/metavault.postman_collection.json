@@ -570,6 +570,100 @@
           }
         }
       ]
+    },
+    {
+      "name": "Content Nodes",
+      "item": [
+        {
+          "name": "POST /content-nodes Create By Entry ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created content node', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "if (body.id) pm.environment.set('contentNodeId', body.id);",
+                  "if (body.library_entry_id) pm.environment.set('contentNodeLibraryEntryId', body.library_entry_id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Postman Content Node 1\",\n  \"link\": \"https://example.com/watch/postman-1\",\n  \"library_entry_id\": \"{{libraryEntryId}}\"\n}"
+            },
+            "url": "{{baseUrl}}/content-nodes"
+          }
+        },
+        {
+          "name": "POST /content-nodes Create By Entry Title",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Postman Content Node 2\",\n  \"link\": \"https://example.com/read/postman-2\",\n  \"library_entry_title\": \"Postman Library Entry\"\n}"
+            },
+            "url": "{{baseUrl}}/content-nodes"
+          }
+        },
+        {
+          "name": "GET /content-nodes/:id",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/content-nodes/{{contentNodeId}}"
+          }
+        },
+        {
+          "name": "GET /content-nodes/library-entry/:id",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/content-nodes/library-entry/{{libraryEntryId}}"
+          }
+        },
+        {
+          "name": "PATCH /content-nodes/:id",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Postman Content Node Updated\",\n  \"link\": \"https://example.com/watch/postman-updated\",\n  \"order_index\": 3\n}"
+            },
+            "url": "{{baseUrl}}/content-nodes/{{contentNodeId}}"
+          }
+        },
+        {
+          "name": "DELETE /content-nodes/:id",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/content-nodes/{{contentNodeId}}"
+          }
+        }
+      ]
     }
   ],
   "variable": [
