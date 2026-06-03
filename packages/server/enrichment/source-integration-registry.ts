@@ -1,10 +1,8 @@
 import type { LibraryEntryWithTags } from "../ezq/ezq.schema";
-import {
-  AniListSourceIntegration,
-  IgdbSourceIntegration,
-  OpenLibrarySourceIntegration,
-  TmdbSourceIntegration,
-} from "./source-integrations";
+import { AniListSourceIntegration } from "./source-integrations/anilist/source-integration";
+import { IgdbSourceIntegration } from "./source-integrations/igdb/source-integration";
+import { OpenLibrarySourceIntegration } from "./source-integrations/openlibrary/source-integration";
+import { TmdbSourceIntegration } from "./source-integrations/tmdb/source-integration";
 import type { EnrichmentSourceType, SourceIntegration } from "./types";
 
 export class SourceIntegrationRegistry {
@@ -33,7 +31,7 @@ export class SourceIntegrationRegistry {
     });
   }
 
-  private getKnownIntegration(sourceType: unknown) {
+  getKnownIntegration(sourceType: unknown) {
     return this.integrations.find(
       (integration) => integration.sourceType === sourceType
     );

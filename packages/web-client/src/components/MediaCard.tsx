@@ -8,6 +8,7 @@ import {
   Star,
   Tv,
 } from "lucide-react";
+import { Popover } from "radix-ui";
 import { StatusBadge } from "@/components/Badges";
 import { MediaCardMenu } from "@/components/MediaCardMenu";
 import { Button } from "@/components/ui/button";
@@ -49,6 +50,74 @@ function getTypeIcon(type: MediaType) {
   }
 }
 
+function TagPill({ value, muted = false }: { value: string; muted?: boolean }) {
+  return (
+    <span
+      title={value}
+      className={cn(
+        "inline-flex h-5 max-w-full items-center rounded-[8px] border border-[#3F3F46] bg-white/5 px-2 text-[12px] font-semibold leading-4 text-[#FAFAFA]",
+        muted && "opacity-60"
+      )}
+    >
+      <span className="truncate">{value}</span>
+    </span>
+  );
+}
+
+function MoreTagsPill({
+  count,
+  tags,
+}: {
+  count: number;
+  tags: MediaItem["tags"];
+}) {
+  if (count <= 0) return null;
+
+  return (
+    <Popover.Root>
+      <Popover.Trigger asChild>
+        <button
+          type="button"
+          className="inline-flex h-5 items-center rounded-[8px] border border-[#3F3F46] bg-[#3F3F46]/70 px-2 text-[12px] font-semibold leading-4 text-[#D4D4D8] transition-colors hover:bg-[#52525B] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FACC15]"
+          onClick={(event) => event.stopPropagation()}
+        >
+          +{count}
+        </button>
+      </Popover.Trigger>
+
+      <Popover.Portal>
+        <Popover.Content
+          align="end"
+          side="bottom"
+          sideOffset={8}
+          collisionPadding={12}
+          className="z-50 max-h-[260px] w-[min(320px,calc(100vw-32px))] overflow-y-auto rounded-[8px] border border-[#3F3F46] bg-[#18181B] p-3 shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.25),0px_4px_6px_-4px_rgba(0,0,0,0.2)]"
+          onClick={(event) => event.stopPropagation()}
+          onOpenAutoFocus={(event) => event.preventDefault()}
+          onCloseAutoFocus={(event) => event.preventDefault()}
+        >
+          <div className="flex flex-wrap gap-2">
+            {sortTagsForDisplay(tags).map((tag) => (
+              <TagPill
+                key={tag.id}
+                muted={tag.weight === "minor"}
+                value={tag.value}
+              />
+            ))}
+          </div>
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
+  );
+}
+
+function sortTagsForDisplay(tags: MediaItem["tags"]) {
+  return [
+    ...tags.filter((tag) => tag.weight === "major"),
+    ...tags.filter((tag) => tag.weight === "minor"),
+  ];
+}
+
 export function MediaCard({
   item,
   selectMode = false,
@@ -62,6 +131,16 @@ export function MediaCard({
   onViewDetails,
 }: MediaCardProps) {
   const posterSrc = item.posterUrl || "/image-placeholder.svg";
+  const sortedTags = sortTagsForDisplay(item.tags);
+  const majorTags = sortedTags.filter((tag) => tag.weight === "major");
+  const minorTags = sortedTags.filter((tag) => tag.weight === "minor");
+  const visibleMajorTags = majorTags.slice(0, 6);
+  const visibleMinorTags = minorTags.slice(0, 3);
+  const hiddenTagCount =
+    majorTags.length -
+    visibleMajorTags.length +
+    minorTags.length -
+    visibleMinorTags.length;
 
   function handleCardClick() {
     if (selectMode) {
@@ -72,22 +151,30 @@ export function MediaCard({
   return (
     <Card
       className={cn(
-        "relative h-full min-h-[300px] w-full overflow-visible rounded-[4px] border-none bg-[#27272A] py-0 text-white ring-0 shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)] max-w-[420px] max-h-[300px]",
+        "relative h-full min-h-[300px] w-full overflow-visible rounded-[4px] border-none bg-[#27272A] py-0 text-white ring-0 shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)]",
         selected && "ring-2 ring-[#FACC15]"
       )}
       onClick={handleCardClick}
     >
-      <div className="flex h-full flex-col sm:flex-row">
-        <div className="h-52 w-full shrink-0 overflow-hidden rounded-t-[4px] bg-black sm:h-auto sm:w-[200px] sm:rounded-l-[4px] sm:rounded-tr-none">
+      <div className="flex h-full min-w-0 flex-col sm:flex-row">
+        <div className="relative isolate aspect-[2/3] w-full shrink-0 overflow-visible rounded-t-[4px] sm:h-auto sm:w-[42%] sm:max-w-[200px] sm:rounded-l-[4px] sm:rounded-tr-none">
           <img
             src={posterSrc}
-            alt={item.title}
-            className="h-[101%] w-full object-cover" // TODO: add glow and fix this
+            alt=""
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 z-0 h-full w-full scale-105 rounded-t-[4px] object-cover opacity-25 blur-xl sm:rounded-l-[4px] sm:rounded-tr-none"
           />
+          <div className="relative z-10 h-full w-full overflow-hidden rounded-t-[4px] bg-[#27272A] sm:rounded-l-[4px] sm:rounded-tr-none">
+            <img
+              src={posterSrc}
+              alt={item.title}
+              className="block h-full w-full object-cover"
+            />
+          </div>
         </div>
 
-        <CardContent className="flex h-full w-full min-w-0 flex-1 flex-col gap-4 px-4 py-3">
-          <h3 className="text-lg font-medium leading-7 text-[#F4F4F5] sm:text-[20px]">
+        <CardContent className="flex min-h-[300px] w-full min-w-0 flex-1 flex-col gap-3 px-4 py-3">
+          <h3 className="line-clamp-3 text-lg font-medium leading-7 text-[#F4F4F5] sm:text-[20px]">
             {item.title}
           </h3>
 
@@ -113,33 +200,18 @@ export function MediaCard({
               </span>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {item.tags
-              .filter((tag) => tag.weight === "major")
-              .map((tag) => (
-                <span
-                  key={tag.id}
-                  className="inline-flex h-5 items-center rounded-[8px] border border-[#3F3F46] bg-white/5 px-2 text-[12px] font-semibold leading-4 text-[#FAFAFA]"
-                >
-                  {tag.value}
-                </span>
-              ))}
+
+          <div className="flex min-w-0 flex-wrap gap-2 overflow-hidden">
+            {visibleMajorTags.map((tag) => (
+              <TagPill key={tag.id} value={tag.value} />
+            ))}
+            {visibleMinorTags.map((tag) => (
+              <TagPill key={tag.id} muted value={tag.value} />
+            ))}
+            <MoreTagsPill count={hiddenTagCount} tags={item.tags} />
           </div>
 
-          <div className="flex flex-wrap gap-2 overflow-hidden">
-            {item.tags
-              .filter((tag) => tag.weight === "minor")
-              .map((tag) => (
-                <span
-                  key={tag.id}
-                  className="inline-flex h-5 items-center rounded-[8px] border border-[#3F3F46] bg-white/5 opacity-60 px-2 text-[12px] font-semibold leading-4 text-[#FAFAFA]"
-                >
-                  {tag.value}
-                </span>
-              ))}
-          </div>
-
-          <div className="mt-auto flex items-center justify-end gap-3">
+          <div className="mt-auto flex flex-wrap items-center justify-end gap-3 pt-1">
             <MediaCardMenu
               selectMode={selectMode}
               currentStatus={item.status}

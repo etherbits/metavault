@@ -17,10 +17,16 @@ impl SemanticParser {
         }
     }
 
+    #[cfg(test)]
     fn parse_action(&self, action: &str) -> String {
+        self.try_parse_action(action).unwrap()
+    }
+
+    fn try_parse_action(&self, action: &str) -> Result<String, ParseError> {
         let action = action.strip_prefix("/").unwrap_or(action);
-        let parsed_action = self.matcher.fuzzy_match(action, &ACTION_KEYWORDS);
-        parsed_action
+        self.matcher
+            .fuzzy_match_confident(action, &ACTION_KEYWORDS)
+            .map_err(|error| ParseError::InvalidFuzzyMatch(error.to_string()))
     }
 
     fn parse_qualifiers(&self, expr: ASTExpr) -> Result<ASTExpr, ParseError> {
@@ -49,7 +55,8 @@ impl SemanticParser {
 
     fn parse_qualifier(&self, qualifier: String) -> Result<String, ParseError> {
         let qualifier_segments = qualifier.split(":").collect::<Vec<&str>>();
-        let qualifier_prefix = self.resolve_qualifier_prefix(qualifier_segments.first().unwrap());
+        let qualifier_prefix =
+            self.resolve_qualifier_prefix(qualifier_segments.first().unwrap())?;
 
         let qualifier_semantic_rules = QUALIFIER_SEMANTICS
             .iter()
@@ -72,21 +79,23 @@ impl SemanticParser {
         Ok(parsed_segments.join(":"))
     }
 
-    fn resolve_qualifier_prefix(&self, input: &str) -> String {
-        self.matcher.fuzzy_match(
-            input,
-            QUALIFIER_SEMANTICS
-                .iter()
-                .map(|q| {
-                    let Single(prefix) = q.first().unwrap() else {
-                        unreachable!("Something went wrong getting qualifier prefix rule")
-                    };
+    fn resolve_qualifier_prefix(&self, input: &str) -> Result<String, ParseError> {
+        self.matcher
+            .fuzzy_match_confident(
+                input,
+                QUALIFIER_SEMANTICS
+                    .iter()
+                    .map(|q| {
+                        let Single(prefix) = q.first().unwrap() else {
+                            unreachable!("Something went wrong getting qualifier prefix rule")
+                        };
 
-                    *prefix
-                })
-                .collect::<Vec<&str>>()
-                .as_slice(),
-        )
+                        *prefix
+                    })
+                    .collect::<Vec<&str>>()
+                    .as_slice(),
+            )
+            .map_err(|error| ParseError::InvalidFuzzyMatch(error.to_string()))
     }
 
     fn parse_qualifier_rule(
@@ -104,9 +113,14 @@ impl SemanticParser {
         };
 
         match rule {
-            FuzzyList(options) => Ok(self.matcher.fuzzy_match(segment, options)),
+            FuzzyList(options) => self
+                .matcher
+                .fuzzy_match_confident(segment, options)
+                .map_err(|error| ParseError::InvalidFuzzyMatch(error.to_string())),
             FuzzyListWithDefault(options, default) => Ok(if segment.len() > 0 {
-                self.matcher.fuzzy_match(segment, options)
+                self.matcher
+                    .fuzzy_match_confident(segment, options)
+                    .map_err(|error| ParseError::InvalidFuzzyMatch(error.to_string()))?
             } else {
                 default.to_string()
             }),
@@ -188,7 +202,7 @@ impl SemanticParser {
                 expression,
                 commands,
             } => Ok(ASTExpr::Root {
-                action: self.parse_action(&action),
+                action: self.try_parse_action(&action)?,
                 expression: Box::new(self.parse_token_tree(*expression)?),
                 commands,
             }),
@@ -203,6 +217,8 @@ pub enum ParseError {
     UnsupportedExpression,
     #[error("Invalid qualifier semantics")]
     InvalidQualifierSemantics(String),
+    #[error("Invalid fuzzy match")]
+    InvalidFuzzyMatch(String),
 }
 
 #[derive(Debug, serde::Serialize, tsify_next::Tsify)]
@@ -278,6 +294,12 @@ mod tests {
         assert_eq!(parser().parse_action("upd"), "update");
         assert_eq!(parser().parse_action("del"), "delete");
         assert_eq!(parser().parse_action("sea"), "search");
+    }
+
+    #[test]
+    fn action_rejects_low_confidence_match() {
+        let err = parser().try_parse_action("zzzz").unwrap_err();
+        assert!(matches!(err, ParseError::InvalidFuzzyMatch(_)));
     }
 
     // === parse_qualifier ===
@@ -459,6 +481,18 @@ mod tests {
             .parse_qualifier("created_at:not-a-date".into())
             .unwrap_err();
         assert!(matches!(err, ParseError::InvalidQualifierSemantics(_)));
+    }
+
+    #[test]
+    fn qualifier_rejects_low_confidence_prefix_match() {
+        let err = parser().parse_qualifier("zzzz:value".into()).unwrap_err();
+        assert!(matches!(err, ParseError::InvalidFuzzyMatch(_)));
+    }
+
+    #[test]
+    fn qualifier_rejects_low_confidence_fuzzy_value_match() {
+        let err = parser().parse_qualifier("status:zzzz".into()).unwrap_err();
+        assert!(matches!(err, ParseError::InvalidFuzzyMatch(_)));
     }
 
     // === construct_title ===
