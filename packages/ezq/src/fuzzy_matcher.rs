@@ -13,13 +13,45 @@ impl FuzzyMatcher {
     }
 
     pub fn fuzzy_match(&self, input: &str, candidates: &[&str]) -> String {
+        self.best_match(input, candidates).0.to_string()
+    }
+
+    pub fn fuzzy_match_confident(
+        &self,
+        input: &str,
+        candidates: &[&str],
+    ) -> Result<String, FuzzyMatchError> {
+        if candidates.is_empty() {
+            return Err(FuzzyMatchError {
+                input: input.to_string(),
+                candidates: vec![],
+            });
+        }
+
+        let (candidate, score) = self.best_match(input, candidates);
+        if score.is_confident(input) {
+            Ok(candidate.to_string())
+        } else {
+            Err(FuzzyMatchError {
+                input: input.to_string(),
+                candidates: candidates
+                    .iter()
+                    .map(|candidate| candidate.to_string())
+                    .collect(),
+            })
+        }
+    }
+
+    fn best_match<'a>(&self, input: &str, candidates: &'a [&'a str]) -> (&'a str, MatchScore) {
+        debug_assert!(!candidates.is_empty());
+
         let mut candidate_scores: Vec<(&str, MatchScore)> = candidates
             .iter()
             .map(|candidate| (*candidate, self.get_match_score(input, candidate)))
             .collect();
 
         candidate_scores.sort_by(|a, b| b.1.cmp(&a.1));
-        candidate_scores[0].0.to_string()
+        candidate_scores[0]
     }
 
     fn get_match_score(&self, input: &str, candidate: &str) -> MatchScore {
@@ -56,6 +88,22 @@ impl FuzzyMatcher {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct FuzzyMatchError {
+    input: String,
+    candidates: Vec<String>,
+}
+
+impl std::fmt::Display for FuzzyMatchError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "The provided value: {} did not confidently match any possible option {:?}",
+            self.input, self.candidates
+        )
+    }
+}
+
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 struct MatchScore {
     exact_match: bool,
@@ -68,6 +116,19 @@ struct MatchScore {
 }
 
 impl MatchScore {
+    fn is_confident(&self, input: &str) -> bool {
+        let normalized_input = input.replace(KEYWORD_SPACE, "").to_lowercase();
+        if normalized_input.is_empty() {
+            return false;
+        }
+
+        self.exact_match
+            || self.exact_acronym_match
+            || self.prefix_match_len == normalized_input.len()
+            || self.fuzzy_score > i64::MIN
+            || self.acronym_fuzzy_score > i64::MIN
+    }
+
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         (
             self.exact_match,
@@ -149,6 +210,47 @@ mod tests {
         assert_eq!(
             FuzzyMatcher::new().fuzzy_match("progress", &candidates),
             "in_progress",
+        );
+    }
+
+    #[test]
+    fn confident_match_accepts_native_ezq_shortcuts() {
+        let matcher = FuzzyMatcher::new();
+        assert_eq!(
+            matcher
+                .fuzzy_match_confident("c", &["search", "create", "delete", "update"])
+                .unwrap(),
+            "create"
+        );
+        assert_eq!(
+            matcher
+                .fuzzy_match_confident("pub", &["public_rating", "personal_rating"])
+                .unwrap(),
+            "public_rating"
+        );
+        assert_eq!(
+            matcher
+                .fuzzy_match_confident("ovr", &["add", "override"])
+                .unwrap(),
+            "override"
+        );
+        assert_eq!(
+            matcher
+                .fuzzy_match_confident("ani", &["anilist", "tmdb", "igdb", "openlibrary"])
+                .unwrap(),
+            "anilist"
+        );
+    }
+
+    #[test]
+    fn confident_match_rejects_values_with_no_fuzzy_signal() {
+        let err = FuzzyMatcher::new()
+            .fuzzy_match_confident("zzzz", &["enrich"])
+            .unwrap_err();
+
+        assert_eq!(
+            err.to_string(),
+            "The provided value: zzzz did not confidently match any possible option [\"enrich\"]"
         );
     }
 }

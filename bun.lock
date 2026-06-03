@@ -184,9 +184,9 @@
 
     "@emnapi/wasi-threads": ["@emnapi/wasi-threads@1.2.1", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-uTII7OYF+/Mes/MrcIOYp5yOtSMLBWSIoLPpcgwipoiKbli6k322tcoFsxoIIxPDqW01SQGAgko4EzZi2BNv2w=="],
 
-    "@etherbits/ezq-node": ["@etherbits/ezq-node@0.1.6", "", {}, "sha512-/3IaS5Gv2tFIeln6oiBylDdvN/RMC/E6edRPmYP1Fh3d7RztUlKwHcWQlQagfAc6sekXWZ+4zYNAUlP9PCqRew=="],
+    "@etherbits/ezq-node": ["@etherbits/ezq-node@0.1.9", "", {}, "sha512-jjAt7McvB2Ils+g8K//eLzxBKe8SO5nkzAQWqVb9RweG4p8rjAyLjInatTaWi88RnYrXTmpe3tITkEcQ2PL+Cw=="],
 
-    "@etherbits/ezq-web": ["@etherbits/ezq-web@0.1.6", "", {}, "sha512-b/Tt0kuBdiie6k+P2BH4aPGtimblLV9arwMhvfyljVzInSuswMUEPT0ep+iFUxIk9WrJhOuvPLmA1ux6nxg0Zw=="],
+    "@etherbits/ezq-web": ["@etherbits/ezq-web@0.1.9", "", {}, "sha512-A1A4CLSh8fkZY7OLLXoZmcRLdWPQk5m7wpIAbdGQK7BWKdNNaBLwx3kdqqudBER0dYnoTAbWXObJm1yIqKlOog=="],
 
     "@floating-ui/core": ["@floating-ui/core@1.7.5", "", { "dependencies": { "@floating-ui/utils": "^0.2.11" } }, "sha512-1Ih4WTWyw0+lKyFMcBHGbb5U5FtuHJuujoyyr5zTaWS5EYMeT6Jb2AuDeftsCsEuchO+mM2ij5+q9crhydzLhQ=="],
 

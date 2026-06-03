@@ -20,7 +20,7 @@ export async function createTagsTable(sql: SQL) {
   await sql`
     CREATE TABLE IF NOT EXISTS tags (
       id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
-      user_id TEXT NOT NULL,
+      user_id TEXT NOT NULL COLLATE NOCASE,
       value TEXT NOT NULL,
       weight TEXT NOT NULL,
       FOREIGN KEY (user_id) REFERENCES users(id)

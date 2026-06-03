@@ -366,9 +366,10 @@ impl Tokenizer {
             .collect::<Vec<_>>();
 
         if expanded_commands.iter().any(|command| {
-            command
-                .split(':')
-                .any(|segment| segment.is_empty() || !is_valid_command_segment(segment))
+            command.split(':').enumerate().any(|(index, segment)| {
+                (index == 0 && segment.is_empty())
+                    || (!segment.is_empty() && !is_valid_command_segment(segment))
+            })
         }) {
             return None;
         }
@@ -382,7 +383,11 @@ impl Tokenizer {
             return Err(TokenizerError::EmptyInput);
         }
 
-        let (query_without_commands, commands) = self.extract_commands(input_query);
+        let (mut query_without_commands, commands) = self.extract_commands(input_query);
+        if query_without_commands.is_empty() && !commands.is_empty() {
+            query_without_commands = "/s".to_string();
+        }
+
         if query_without_commands.is_empty() {
             return Err(TokenizerError::EmptyInput);
         }
@@ -526,6 +531,21 @@ mod tests {
                 "c",
                 leaf("something"),
                 vec!["enrich:a:full", "enrich:b:full"]
+            )
+        );
+    }
+
+    #[test]
+    fn extracts_command_tokens_with_empty_non_name_segments() {
+        let ast = tk()
+            .tokenize("/c something #e::anilist #enrich:override:")
+            .unwrap();
+        assert_eq!(
+            ast,
+            root_with_commands(
+                "c",
+                leaf("something"),
+                vec!["e::anilist", "enrich:override:"]
             )
         );
     }
@@ -699,6 +719,12 @@ mod tests {
                 vec!["enrich:a:full", "enrich:b:full"]
             )
         );
+    }
+
+    #[test]
+    fn command_only_input_defaults_to_empty_search() {
+        let ast = tk().tokenize("#enrich").unwrap();
+        assert_eq!(ast, root_with_commands("s", and(vec![]), vec!["enrich"]));
     }
 
     #[test]

@@ -1,5 +1,6 @@
 use crate::{
     ezq::Ezq,
+    fuzzy_matcher::FuzzyMatcher,
     sql_generator::{Extras, EzqSqlStep},
     tokenizer::ASTExpr,
 };
@@ -23,4 +24,13 @@ pub fn generate_sql(ast: ASTExpr, extras: Option<Extras>) -> Result<Vec<EzqSqlSt
     let ezq = Ezq::new();
 
     ezq.generate_sql(ast, extras).map_err(|e| e.to_string())
+}
+
+#[wasm_bindgen]
+pub fn fuzzy_match(input: &str, candidates: Vec<String>) -> Result<String, String> {
+    let candidate_refs = candidates.iter().map(String::as_str).collect::<Vec<&str>>();
+
+    FuzzyMatcher::new()
+        .fuzzy_match_confident(input, candidate_refs.as_slice())
+        .map_err(|e| e.to_string())
 }
