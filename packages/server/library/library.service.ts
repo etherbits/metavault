@@ -41,6 +41,7 @@ type CsvLibraryRow = {
   source_id: string | null;
   media_type: string | null;
   status: string | null;
+  adult: boolean | number | null;
   image_src: string | null;
   released_at: string | null;
   public_rating: number | null;
@@ -80,6 +81,7 @@ const CSV_HEADERS: (keyof CsvLibraryRow)[] = [
   "source_id",
   "media_type",
   "status",
+  "adult",
   "image_src",
   "released_at",
   "public_rating",
@@ -101,7 +103,7 @@ function escapeCsvCell(value: string): string {
   return normalizedValue;
 }
 
-function toCsvValue(value: string | number | null): string {
+function toCsvValue(value: string | number | boolean | null): string {
   if (value === null || value === undefined) {
     return "";
   }
@@ -270,6 +272,7 @@ function toCsvRow(entry: LibraryEntry, tags: LibraryTag[] = []): CsvLibraryRow {
     source_id: entry.source_id,
     media_type: entry.media_type,
     status: entry.status,
+    adult: entry.adult,
     image_src: entry.image_src,
     released_at: entry.released_at,
     public_rating: entry.public_rating,
@@ -301,6 +304,7 @@ class LibraryService {
       source_id: body.source_id,
       media_type: body.media_type,
       status: body.status,
+      adult: body.adult,
       released_at: body.released_at,
       public_rating: body.public_rating,
       personal_rating: body.personal_rating,
@@ -590,6 +594,7 @@ class LibraryService {
         source_id: row.source_id || undefined,
         media_type: row.media_type || undefined,
         status: row.status || undefined,
+        adult: row.adult ?? "",
         released_at: row.released_at || undefined,
         public_rating: row.public_rating ?? "",
         personal_rating: row.personal_rating ?? "",
@@ -613,6 +618,7 @@ class LibraryService {
           source_id: parsed.data.source_id,
           media_type: parsed.data.media_type,
           status: parsed.data.status,
+          adult: parsed.data.adult,
           released_at: parsed.data.released_at,
           image_src: initialImageSrc,
           public_rating: parsed.data.public_rating,

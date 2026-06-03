@@ -1,6 +1,8 @@
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
+import { aiIntegrationRouter } from "./ai-integrations/ai-integration.controller";
+import { assistantRouter } from "./assistant/assistant.controller";
 import authRouter from "./auth/auth.controller";
 import { parsedEnv } from "./env";
 import { ezqRouter } from "./ezq/ezq.controller";
@@ -38,6 +40,8 @@ app.use("/auth", authRouter);
 app.use("/library", libraryRouter);
 app.use("/collections", collectionRouter);
 app.use("/source-integrations", sourceIntegrationRouter);
+app.use("/ai-integrations", aiIntegrationRouter);
+app.use("/assistant", assistantRouter);
 app.use("/users", userRouter);
 app.use("/health", healthRouter);
 app.use(unexpectedErrorMiddleware);

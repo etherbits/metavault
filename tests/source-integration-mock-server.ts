@@ -9,6 +9,23 @@ app.get("/health", (_req, res) => {
   res.json({ ok: true });
 });
 
+app.post("/openai/v1/chat/completions", (req, res) => {
+  res.json({
+    id: "chatcmpl-test",
+    object: "chat.completion",
+    choices: [
+      {
+        index: 0,
+        message: {
+          role: "assistant",
+          content: `Mock assistant used ${req.body?.model ?? "unknown-model"} with ${req.body?.messages?.length ?? 0} messages.`,
+        },
+        finish_reason: "stop",
+      },
+    ],
+  });
+});
+
 app.post("/anilist", (req, res) => {
   const variables = req.body?.variables ?? {};
   const search = String(variables.search ?? "AniList Entry");
@@ -31,6 +48,7 @@ app.post("/anilist", (req, res) => {
           large: null,
           medium: null,
         },
+        isAdult: search.toLowerCase().includes("adult"),
         averageScore: 87,
         genres: ["Action"],
         tags: [{ name: "Adaptation" }],
@@ -49,6 +67,7 @@ app.get("/tmdb/3/search/movie", (req, res) => {
         poster_path: "/tmdb-poster.jpg",
         vote_average: 8.4,
         release_date: "2024-02-03",
+        adult: search.toLowerCase().includes("adult"),
         genre_ids: [28],
       },
     ],

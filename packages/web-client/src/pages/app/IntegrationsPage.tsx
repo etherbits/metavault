@@ -1,6 +1,11 @@
 import { ChevronUp, Home } from "lucide-react";
 import { IntegrationCard } from "@/components/IntegrationCard";
 import { Button } from "@/components/ui/button";
+import type { AiIntegrationType } from "@/features/ai-integrations/contracts";
+import {
+  useAiIntegrations,
+  useUpdateAiIntegration,
+} from "@/features/ai-integrations/hooks";
 import type { SourceIntegrationType } from "@/features/source-integrations/contracts";
 import {
   useSourceIntegrations,
@@ -39,14 +44,39 @@ const SOURCE_INTEGRATION_CARDS: Array<{
   },
 ];
 
+// TODO: these should come from API
+const AI_INTEGRATION_CARDS: Array<{
+  type: AiIntegrationType;
+  name: string;
+  description: string;
+}> = [
+  {
+    type: "openai_compatible",
+    name: "OpenAI Compatible",
+    description:
+      "Configure an OpenAI-compatible chat endpoint for the floating assistant, including OpenAI and LM Studio servers.",
+  },
+];
+
+const EMPTY_CONFIG: Record<string, unknown> = {};
+const EMPTY_CONFIG_FIELDS: never[] = [];
+
 export function IntegrationsPage() {
   const sourceIntegrations = useSourceIntegrations();
   const updateSourceIntegration = useUpdateSourceIntegration();
+  const aiIntegrations = useAiIntegrations();
+  const updateAiIntegration = useUpdateAiIntegration();
   const sourceSettings = sourceIntegrations.data ?? [];
+  const aiSettings = aiIntegrations.data ?? [];
   const activeCount = sourceSettings.filter((item) => item.is_active).length;
+  const activeAiCount = aiSettings.filter((item) => item.is_active).length;
 
   function getSourceSettings(type: SourceIntegrationType) {
     return sourceSettings.find((item) => item.integration_type === type);
+  }
+
+  function getAiSettings(type: AiIntegrationType) {
+    return aiSettings.find((item) => item.integration_type === type);
   }
 
   function saveSourceIntegration({
@@ -67,6 +97,32 @@ export function IntegrationsPage() {
     });
   }
 
+  function saveAiIntegration({
+    type,
+    config,
+    enabled,
+  }: {
+    type: AiIntegrationType;
+    config: Record<string, string>;
+    enabled: boolean;
+  }) {
+    const cleanedConfig = removeEmptyConfigValues(config);
+
+    updateAiIntegration.mutate({
+      type,
+      body: enabled
+        ? {
+            is_active: true,
+            config: {
+              baseUrl: cleanedConfig.baseUrl,
+              apiKey: cleanedConfig.apiKey,
+              model: cleanedConfig.model,
+            },
+          }
+        : { is_active: false },
+    });
+  }
+
   function getSaveError(type: SourceIntegrationType) {
     if (!updateSourceIntegration.isError) return null;
     if (updateSourceIntegration.variables?.type !== type) return null;
@@ -77,6 +133,18 @@ export function IntegrationsPage() {
     }
 
     return "Unable to save integration";
+  }
+
+  function getAiSaveError(type: AiIntegrationType) {
+    if (!updateAiIntegration.isError) return null;
+    if (updateAiIntegration.variables?.type !== type) return null;
+
+    const error = updateAiIntegration.error;
+    if (error instanceof ApiError || error instanceof Error) {
+      return error.message;
+    }
+
+    return "Unable to save AI integration";
   }
 
   return (
@@ -111,8 +179,8 @@ export function IntegrationsPage() {
               name={card.name}
               description={card.description}
               queryFlag={`#enrich:add:${card.type}`}
-              config={settings?.config ?? {}}
-              configFields={settings?.config_fields ?? []}
+              config={settings?.config ?? EMPTY_CONFIG}
+              configFields={settings?.config_fields ?? EMPTY_CONFIG_FIELDS}
               enabled={settings?.is_active ?? false}
               isLoading={sourceIntegrations.isPending}
               isSaving={isSaving}
@@ -137,16 +205,49 @@ export function IntegrationsPage() {
 
       <IntegrationSection
         title="AI Integrations"
-        count="1/1 Integrations active"
+        count={`${activeAiCount}/${AI_INTEGRATION_CARDS.length} Integrations active`}
+        error={
+          aiIntegrations.isError
+            ? aiIntegrations.error instanceof Error
+              ? aiIntegrations.error.message
+              : "Unable to load AI integrations"
+            : null
+        }
       >
-        <IntegrationCard
-          name="AI Floating Chat"
-          description="Use the assistant overlay to summarize result sets and help write structured queries."
-          queryFlag="source_integration:enrich"
-          enabled
-          onSave={(settings) => console.log("save ai config", settings.config)}
-          onClear={() => console.log("clear ai")}
-        />
+        {AI_INTEGRATION_CARDS.map((card) => {
+          const settings = getAiSettings(card.type);
+          const isSaving =
+            updateAiIntegration.isPending &&
+            updateAiIntegration.variables?.type === card.type;
+
+          return (
+            <IntegrationCard
+              key={card.type}
+              name={card.name}
+              typeLabel="AI Integration"
+              description={card.description}
+              config={settings?.config ?? EMPTY_CONFIG}
+              configFields={settings?.config_fields ?? EMPTY_CONFIG_FIELDS}
+              enabled={settings?.is_active ?? false}
+              isLoading={aiIntegrations.isPending}
+              isSaving={isSaving}
+              errorMessage={getAiSaveError(card.type)}
+              onToggle={({ config, enabled }) =>
+                saveAiIntegration({ type: card.type, config, enabled })
+              }
+              onSave={({ config, enabled }) =>
+                saveAiIntegration({ type: card.type, config, enabled })
+              }
+              onClear={() =>
+                saveAiIntegration({
+                  type: card.type,
+                  config: {},
+                  enabled: false,
+                })
+              }
+            />
+          );
+        })}
       </IntegrationSection>
     </div>
   );

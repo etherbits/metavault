@@ -41,6 +41,7 @@ export function normalizeImportedItems(raw: unknown): Omit<MediaItem, "id">[] {
       type: entry.type && isMediaType(entry.type) ? entry.type : "Other",
       status:
         entry.status && isMediaStatus(entry.status) ? entry.status : undefined,
+      adult: false,
       releasedAt: entry.date ?? "-",
       rating: entry.rating ?? "-",
       tags: entry.tags ?? [],

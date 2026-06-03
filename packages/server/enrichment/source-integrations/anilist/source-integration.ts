@@ -198,6 +198,7 @@ export class AniListSourceIntegration
       media_id: String(data.media.id),
       source_id: data.sourceIntegrationId,
       media_type: data.media.type === "ANIME" ? "anime" : "manga",
+      adult: data.media.isAdult === true,
       image_src:
         data.media.coverImage?.extraLarge ||
         data.media.coverImage?.large ||

@@ -409,6 +409,13 @@ impl SqlGenerator {
                     let value = first_segment(&segments, leaf)?;
                     upsert_scalar_col(&mut scalar_cols, prefix, value.to_string());
                 }
+                "adult" => {
+                    if item.remove {
+                        return Err(SqlGenerateError::UnsupportedUpdateWriteShape);
+                    }
+                    let value = first_segment(&segments, leaf)?;
+                    upsert_scalar_col(&mut scalar_cols, prefix, bool_sql_value(value)?.to_string());
+                }
                 "public_rating" | "personal_rating" => {
                     if item.remove {
                         return Err(SqlGenerateError::UnsupportedUpdateWriteShape);
@@ -484,6 +491,11 @@ impl SqlGenerator {
             "media_type" => {
                 params.push(first_segment(&segments, leaf)?.to_string());
                 Ok("library_entries.media_type = ?".to_string())
+            }
+            "adult" => {
+                let value = first_segment(&segments, leaf)?;
+                params.push(bool_sql_value(value)?.to_string());
+                Ok("library_entries.adult = ?".to_string())
             }
             "public_rating" | "personal_rating" => {
                 let value = first_segment(&segments, leaf)?;
@@ -639,6 +651,14 @@ fn upsert_scalar_col(cols: &mut Vec<(String, String)>, name: &str, value: String
     cols.push((name.to_string(), value));
 }
 
+fn bool_sql_value(value: &str) -> Result<i32, SqlGenerateError> {
+    match value {
+        "true" => Ok(1),
+        "false" => Ok(0),
+        _ => Err(SqlGenerateError::InvalidBoolean(value.to_string())),
+    }
+}
+
 struct WriteParts {
     scalar_cols: Vec<(String, String)>,
     tag_values: Vec<TagWrite>,
@@ -667,6 +687,7 @@ const SORTABLE_COLUMNS: &[&str] = &[
     "title",
     "status",
     "media_type",
+    "adult",
     "public_rating",
     "personal_rating",
     "released_at",
@@ -777,6 +798,8 @@ pub enum SqlGenerateError {
     InvalidSortColumn(String),
     #[error("invalid sort direction `{0}`")]
     InvalidSortDirection(String),
+    #[error("invalid boolean value `{0}`")]
+    InvalidBoolean(String),
 }
 
 #[cfg(test)]

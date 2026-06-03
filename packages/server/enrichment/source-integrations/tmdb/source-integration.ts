@@ -178,6 +178,7 @@ export class TmdbSourceIntegration
       media_id: String(data.media.id),
       source_id: data.sourceIntegrationId,
       media_type: data.mediaType === "movie" ? "movie" : "tv_show",
+      adult: data.media.adult === true,
       image_src: data.media.poster_path
         ? `${TMDB_IMAGE_BASE_URL}${data.media.poster_path}`
         : null,

@@ -25,6 +25,7 @@ export interface MediaItem {
   title: string;
   type: MediaType;
   status?: MediaStatus;
+  adult: boolean;
   releasedAt: string;
   rating: string;
   tags: LibraryEntryWithTags["tags"];

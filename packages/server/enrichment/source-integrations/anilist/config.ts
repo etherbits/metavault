@@ -37,6 +37,7 @@ export const ANILIST_MEDIA_SEARCH_QUERY = `
         large
         medium
       }
+      isAdult
       averageScore
       genres
       tags {

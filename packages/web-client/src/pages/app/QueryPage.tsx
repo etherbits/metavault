@@ -6,7 +6,12 @@ import { MediaCard } from "@/components/MediaCard";
 import { Pagination } from "@/components/Pagination";
 import { QueryInput } from "@/components/QueryInput";
 import { Button } from "@/components/ui/button";
-import { AssistantPanel } from "@/features/assistant/AssistantPanel";
+import {
+  AssistantPanel,
+  type AssistantMessage,
+  type AssistantSession,
+} from "@/features/assistant/AssistantPanel";
+import { useAssistantChat } from "@/features/assistant/hooks";
 import {
   useAddToCollection,
   useCollections,
@@ -17,6 +22,7 @@ import {
   useImportLibraryEntries,
   useUpdateLibraryEntry,
 } from "@/features/library/hooks";
+import { toServerMediaType, toServerStatus } from "@/features/library/mappers";
 import { paginateItems } from "@/features/library/pagination";
 import type { MediaItem, MediaStatus } from "@/features/library/types";
 import { useLibrarySearch } from "@/features/library/useLibrarySearch";
@@ -24,6 +30,7 @@ import { useLibrarySelection } from "@/features/library/useLibrarySelection";
 import { pickZipFile, saveBlobFile } from "@/shared/browser/files";
 
 const QUERY_PAGE_SIZE = 9;
+const INITIAL_ASSISTANT_SESSION_ID = "initial-assistant-session";
 
 export function QueryPage() {
   const navigate = useNavigate();
@@ -32,6 +39,7 @@ export function QueryPage() {
   const importEntries = useImportLibraryEntries();
   const exportEntries = useExportLibraryEntries();
   const addToCollection = useAddToCollection();
+  const assistantChat = useAssistantChat();
 
   const search = useLibrarySearch();
   const selection = useLibrarySelection(search.queryResults);
@@ -39,6 +47,18 @@ export function QueryPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [assistantDraft, setAssistantDraft] = useState("");
+  const [assistantSessions, setAssistantSessions] = useState<
+    AssistantSession[]
+  >([
+    {
+      id: INITIAL_ASSISTANT_SESSION_ID,
+      title: "New chat",
+      messages: [],
+    },
+  ]);
+  const [activeAssistantSessionId, setActiveAssistantSessionId] = useState(
+    INITIAL_ASSISTANT_SESSION_ID
+  );
   const [collectionDialogOpen, setCollectionDialogOpen] = useState(false);
   const [pendingCollectionIds, setPendingCollectionIds] = useState<string[]>(
     []
@@ -151,6 +171,85 @@ export function QueryPage() {
     currentPage,
     QUERY_PAGE_SIZE
   );
+  const activeAssistantSession =
+    assistantSessions.find(
+      (session) => session.id === activeAssistantSessionId
+    ) ?? assistantSessions[0];
+
+  const handleNewAssistantSession = () => {
+    const session: AssistantSession = {
+      id: crypto.randomUUID(),
+      title: "New chat",
+      messages: [],
+    };
+
+    setAssistantSessions((previous) => [session, ...previous]);
+    setActiveAssistantSessionId(session.id);
+    setAssistantDraft("");
+    assistantChat.reset();
+  };
+
+  const handleAssistantSubmit = async () => {
+    const message = assistantDraft.trim();
+    if (!message || assistantChat.isPending || !activeAssistantSession) return;
+
+    const userMessage: AssistantMessage = {
+      id: crypto.randomUUID(),
+      role: "user",
+      content: message,
+    };
+    const previousMessages = activeAssistantSession.messages;
+
+    setAssistantSessions((previous) =>
+      previous.map((session) =>
+        session.id === activeAssistantSession.id
+          ? {
+              ...session,
+              title:
+                session.messages.length === 0
+                  ? createAssistantSessionTitle(message)
+                  : session.title,
+              messages: [...session.messages, userMessage],
+            }
+          : session
+      )
+    );
+    setAssistantDraft("");
+
+    try {
+      const response = await assistantChat.mutateAsync({
+        message,
+        history: previousMessages.map(({ role, content }) => ({
+          role,
+          content,
+        })),
+        context: {
+          currentQuery: search.query || undefined,
+          canonicalQuery: search.canonicalQuery || undefined,
+          visibleResults: pagination.items.map(toAssistantVisibleResult), // TODO: no need for mapping this, we can include all fields
+        },
+      });
+
+      const assistantMessage: AssistantMessage = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: response.message,
+      };
+
+      setAssistantSessions((previous) =>
+        previous.map((session) =>
+          session.id === activeAssistantSession.id
+            ? {
+                ...session,
+                messages: [...session.messages, assistantMessage],
+              }
+            : session
+        )
+      );
+    } catch {
+      // Error state is rendered from the mutation below.
+    }
+  };
 
   useEffect(() => {
     if (currentPage !== pagination.currentPage) {
@@ -280,7 +379,23 @@ export function QueryPage() {
       {assistantOpen ? (
         <AssistantPanel
           draft={assistantDraft}
+          sessions={assistantSessions}
+          activeSessionId={activeAssistantSessionId}
+          isSending={assistantChat.isPending}
+          errorMessage={
+            assistantChat.isError
+              ? assistantChat.error instanceof Error
+                ? assistantChat.error.message
+                : "Unable to send assistant message"
+              : null
+          }
+          onSelectSession={(id) => {
+            setActiveAssistantSessionId(id);
+            assistantChat.reset();
+          }}
+          onNewSession={handleNewAssistantSession}
           onDraftChange={setAssistantDraft}
+          onSubmit={handleAssistantSubmit}
         />
       ) : null}
 
@@ -310,4 +425,33 @@ export function QueryPage() {
       />
     </>
   );
+}
+
+function toAssistantVisibleResult(item: MediaItem) {
+  return {
+    id: item.id,
+    title: item.title,
+    media_type: toServerMediaType(item.type),
+    status: item.status ? toServerStatus(item.status) : null,
+    adult: item.adult,
+    public_rating: parseDisplayRating(item.rating),
+    personal_rating: null,
+    tags: item.tags,
+  };
+}
+
+function parseDisplayRating(rating: string) {
+  const value = Number.parseFloat(rating.split("/")[0]?.trim() ?? "");
+  return Number.isFinite(value) ? value : null;
+}
+
+function createAssistantSessionTitle(message: string) {
+  const words = message
+    .replace(/[^\p{L}\p{N}\s-]/gu, "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 5);
+
+  return words.length > 0 ? words.join(" ") : "New chat";
 }

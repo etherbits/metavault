@@ -14,4 +14,7 @@ export const queryKeys = {
   sourceIntegrations: {
     all: ["source-integrations"] as const,
   },
+  aiIntegrations: {
+    all: ["ai-integrations"] as const,
+  },
 } as const;

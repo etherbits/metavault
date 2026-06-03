@@ -5,6 +5,13 @@ const optionalRatingSchema = z.preprocess(
   z.coerce.number().min(0).max(10).optional()
 );
 
+const optionalBooleanSchema = z.preprocess((value) => {
+  if (value === "" || value === undefined) return undefined;
+  if (value === "true" || value === "1") return true;
+  if (value === "false" || value === "0") return false;
+  return value;
+}, z.boolean().optional());
+
 const libraryEntryFieldsSchema = z.object({
   title: z.string().min(1),
 
@@ -18,6 +25,8 @@ const libraryEntryFieldsSchema = z.object({
   status: z
     .enum(["in_progress", "dropped", "planning", "on_hold", "finished"])
     .optional(),
+
+  adult: optionalBooleanSchema,
 
   released_at: z.string().optional(),
 

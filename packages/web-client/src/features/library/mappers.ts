@@ -58,6 +58,7 @@ export function mapServerEntryToMediaItem(
     title: entry.title,
     type: entry.media_type ? serverToUiType[entry.media_type] : "Other",
     status: entry.status ? serverToUiStatus[entry.status] : undefined,
+    adult: entry.adult,
     releasedAt,
     rating,
     tags: entry.tags,
@@ -80,6 +81,7 @@ export function mapMediaItemToServerEntry(
     image_src: item.posterUrl ?? null,
     media_type: uiToServerType[item.type],
     status: item.status ? uiToServerStatus[item.status] : null,
+    adult: item.adult,
     public_rating: Number.isFinite(numericRating) ? numericRating : null,
     personal_rating: null,
     released_at: item.releasedAt === "-" ? null : item.releasedAt,
@@ -91,6 +93,14 @@ export function mapMediaItemToServerEntry(
 
 export function mapServerEntriesToMediaItems(entries: LibraryEntryWithTags[]) {
   return entries.map(mapServerEntryToMediaItem);
+}
+
+export function toServerMediaType(type: MediaType): ServerMediaType {
+  return uiToServerType[type];
+}
+
+export function toServerStatus(status: MediaStatus): ServerEntryStatus {
+  return uiToServerStatus[status];
 }
 
 export function isMediaStatus(value: string): value is MediaStatus {

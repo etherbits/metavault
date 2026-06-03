@@ -32,6 +32,7 @@ export const anilistMediaSchema = z.object({
     .nullable()
     .optional(),
   averageScore: z.number().nullable().optional(),
+  isAdult: z.boolean().nullable().optional(),
   genres: z.array(z.string()).nullable().optional(),
   tags: z
     .array(
