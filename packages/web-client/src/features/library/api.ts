@@ -76,6 +76,21 @@ export async function importLibraryEntries(file: File) {
   return fetchLibraryEntries();
 }
 
+export async function uploadLibraryEntryImage(payload: {
+  id: string;
+  file: File;
+}) {
+  const form = new FormData();
+  form.append("image", payload.file);
+
+  await apiFormRequest(`/library/${payload.id}`, {
+    method: "PATCH",
+    body: form,
+  });
+
+  return fetchLibraryEntries();
+}
+
 export async function exportLibraryEntries(ids: string[]) {
   return apiBlobRequest("/library/export/bundle", {
     method: "POST",

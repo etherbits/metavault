@@ -12,6 +12,7 @@ await sql`DROP TABLE IF EXISTS collections`;
 await sql`DROP TABLE IF EXISTS otp_codes`;
 await sql`DROP TABLE IF EXISTS library_entries`;
 await sql`DROP TABLE IF EXISTS users`;
+await sql`DROP TABLE IF EXISTS schema_migrations`;
 await sql`PRAGMA foreign_keys = ON`;
 
 await applySchema();

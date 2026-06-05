@@ -6,6 +6,7 @@ import type {
   ServerEntryStatus,
   ServerMediaType,
 } from "@/features/library/types";
+import { API_BASE_URL } from "@/shared/api/client";
 
 const serverToUiType: Record<ServerMediaType, MediaType> = {
   movie: "Movie",
@@ -62,7 +63,7 @@ export function mapServerEntryToMediaItem(
     releasedAt,
     rating,
     tags: entry.tags,
-    posterUrl: entry.image_src ?? undefined,
+    posterUrl: toDisplayImageSrc(entry.image_src),
   };
 }
 
@@ -113,4 +114,14 @@ export function isMediaType(value: string): value is MediaType {
   return Object.values(uiToServerType).some(
     (serverType) => serverToUiType[serverType] === value
   );
+}
+
+function toDisplayImageSrc(imageSrc: string | null) {
+  if (!imageSrc) return undefined;
+
+  if (imageSrc.startsWith("/media/")) {
+    return `${API_BASE_URL}${imageSrc}`;
+  }
+
+  return imageSrc;
 }

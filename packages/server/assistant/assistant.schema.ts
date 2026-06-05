@@ -5,6 +5,8 @@ import {
 } from "../db/schema/libraryEntries";
 import { EmbeddedTagSchema } from "../db/schema/tags";
 
+export const ASSISTANT_MESSAGE_MAX_LENGTH = 4000;
+
 export const assistantVisibleResultSchema = z.object({
   id: z.string(),
   title: z.string(),
@@ -18,11 +20,34 @@ export const assistantVisibleResultSchema = z.object({
 
 export const assistantMessageSchema = z.object({
   role: z.enum(["user", "assistant"]),
-  content: z.string().trim().min(1).max(4000),
+  content: z.string().trim().min(1).max(ASSISTANT_MESSAGE_MAX_LENGTH),
+});
+
+export const assistantStoredMessageSchema = assistantMessageSchema.extend({
+  id: z.string(),
+});
+
+export const assistantSessionSchema = z.object({
+  id: z.string(),
+  title: z.string().trim().min(1).max(80),
+  messages: z.array(assistantStoredMessageSchema).max(60),
+  created_at: z.string().optional(),
+  updated_at: z.string().optional(),
+});
+
+export const assistantSessionsResponseSchema = z.array(assistantSessionSchema);
+
+export const assistantSessionParamsSchema = z.object({
+  id: z.string().min(1),
+});
+
+export const upsertAssistantSessionSchema = z.object({
+  title: z.string().trim().min(1).max(80),
+  messages: z.array(assistantStoredMessageSchema).max(60),
 });
 
 export const assistantChatSchema = z.object({
-  message: z.string().trim().min(1).max(4000),
+  message: z.string().trim().min(1).max(ASSISTANT_MESSAGE_MAX_LENGTH),
   history: z.array(assistantMessageSchema).max(30).optional(),
   context: z
     .object({
@@ -39,3 +64,7 @@ export const assistantChatResponseSchema = z.object({
 
 export type AssistantChatInput = z.infer<typeof assistantChatSchema>;
 export type AssistantChatResponse = z.infer<typeof assistantChatResponseSchema>;
+export type AssistantSession = z.infer<typeof assistantSessionSchema>;
+export type UpsertAssistantSessionInput = z.infer<
+  typeof upsertAssistantSessionSchema
+>;

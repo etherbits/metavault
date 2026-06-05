@@ -12,6 +12,7 @@ pub const QUALIFIER_SEMANTICS: &[&[QualifierSegmentRule]] = &[
         NonEmpty,
         FuzzyListWithDefault(&["major", "minor"], "major"),
     ],
+    &[Single("collection"), NonEmpty],
     &[
         Single("status"),
         FuzzyList(&["in_progress", "dropped", "planning", "on_hold", "finished"]),

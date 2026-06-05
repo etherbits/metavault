@@ -1,9 +1,24 @@
-import { ArrowUp, Check, ChevronDown, MessageSquarePlus } from "lucide-react";
+import {
+  ArrowUp,
+  Check,
+  ChevronDown,
+  Maximize2,
+  MessageSquarePlus,
+  Minimize2,
+  X,
+} from "lucide-react";
 import { DropdownMenu } from "radix-ui";
-import { useEffect, useRef } from "react";
+import {
+  type KeyboardEvent as ReactKeyboardEvent,
+  useEffect,
+  useRef,
+} from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { ASSISTANT_MESSAGE_MAX_LENGTH } from "../../../../server/assistant/assistant.schema";
 
 interface AssistantPanelProps {
   draft: string;
@@ -11,10 +26,13 @@ interface AssistantPanelProps {
   activeSessionId: string;
   isSending?: boolean;
   errorMessage?: string | null;
+  fullscreen?: boolean;
   onSelectSession: (id: string) => void;
   onNewSession: () => void;
+  onToggleFullscreen: () => void;
   onDraftChange: (value: string) => void;
   onSubmit: () => void;
+  onClose: () => void;
 }
 
 export type AssistantMessage = {
@@ -35,16 +53,20 @@ export function AssistantPanel({
   activeSessionId,
   isSending = false,
   errorMessage = null,
+  fullscreen = false,
   onSelectSession,
   onNewSession,
+  onToggleFullscreen,
   onDraftChange,
   onSubmit,
+  onClose,
 }: AssistantPanelProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const activeSession = sessions.find(
     (session) => session.id === activeSessionId
   );
   const messages = activeSession?.messages ?? [];
+  const draftLength = draft.length;
 
   useEffect(() => {
     scrollRef.current?.scrollTo({
@@ -53,11 +75,49 @@ export function AssistantPanel({
     });
   });
 
+  useEffect(() => {
+    const handleKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
+  const handleDraftKeyDown = (
+    event: ReactKeyboardEvent<HTMLTextAreaElement>
+  ) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      onSubmit();
+      return;
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      onClose();
+    }
+  };
+
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-[#18181B]/[0.82] backdrop-blur-[1px]" />
+      <button
+        type="button"
+        aria-label="Close assistant chat"
+        onClick={onClose}
+        className="fixed inset-0 z-40 cursor-default bg-[linear-gradient(135deg,rgba(24,24,27,0.04)_0%,rgba(24,24,27,0.08)_20%,rgba(24,24,27,0.16)_42%,rgba(24,24,27,0.34)_66%,rgba(24,24,27,0.56)_84%,rgba(24,24,27,0.76)_100%)] backdrop-blur-[1px]"
+      />
 
-      <section className="fixed bottom-12 right-4 z-50 flex h-[560px] w-[calc(100vw-2rem)] max-w-[540px] flex-col overflow-hidden rounded-[8px] border border-[#27272A] bg-[#18181B] shadow-[0px_24px_60px_rgba(0,0,0,0.42)] sm:right-12">
+      <section
+        className={cn(
+          "fixed z-50 flex flex-col overflow-hidden rounded-[8px] border border-[#27272A] bg-[#18181B] shadow-[0px_24px_60px_rgba(0,0,0,0.42)]",
+          fullscreen
+            ? "inset-3 sm:inset-6"
+            : "bottom-12 right-4 h-[560px] w-[calc(100vw-2rem)] max-w-[540px] sm:right-12"
+        )}
+      >
         <div className="flex min-h-14 min-w-0 items-center gap-3 border-b border-[#27272A] px-5">
           <div className="min-w-0 flex-1">
             <h3 className="truncate text-[18px] font-semibold leading-6 text-[#F4F4F5]">
@@ -116,12 +176,41 @@ export function AssistantPanel({
           >
             <MessageSquarePlus size={16} />
           </Button>
+
+          <Button
+            type="button"
+            variant="surface"
+            size="icon"
+            onClick={onToggleFullscreen}
+            className="h-8 w-8"
+            aria-label={
+              fullscreen
+                ? "Exit fullscreen assistant chat"
+                : "Fullscreen assistant chat"
+            }
+          >
+            {fullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+          </Button>
+
+          <Button
+            type="button"
+            variant="surface"
+            size="icon"
+            onClick={onClose}
+            className="h-8 w-8"
+            aria-label="Close assistant chat"
+          >
+            <X size={16} />
+          </Button>
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col">
           <div
             ref={scrollRef}
-            className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 py-5"
+            className={cn(
+              "flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 py-5",
+              fullscreen && "mx-auto w-full max-w-[960px]"
+            )}
           >
             {messages.length === 0 ? (
               <div className="flex flex-1 items-center justify-center">
@@ -133,16 +222,28 @@ export function AssistantPanel({
               messages.map((message) =>
                 message.role === "user" ? (
                   <div key={message.id} className="flex justify-end">
-                    <div className="max-w-[82%] rounded-[8px] bg-[#27272A] px-3 py-2 text-[15px] leading-6 text-[#F4F4F5] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                      {message.content}
+                    <div
+                      className={cn(
+                        "assistant-markdown rounded-[8px] bg-[#27272A] px-3 py-2 text-[15px] leading-6 text-[#F4F4F5] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
+                        fullscreen ? "max-w-[70%]" : "max-w-[82%]"
+                      )}
+                    >
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {message.content}
+                      </ReactMarkdown>
                     </div>
                   </div>
                 ) : (
                   <div
                     key={message.id}
-                    className="max-w-[92%] whitespace-pre-wrap text-[15px] leading-6 text-[#D4D4D8]"
+                    className={cn(
+                      "assistant-markdown text-[15px] leading-6 text-[#D4D4D8]",
+                      fullscreen ? "max-w-[78%]" : "max-w-[92%]"
+                    )}
                   >
-                    {message.content}
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {message.content}
+                    </ReactMarkdown>
                   </div>
                 )
               )
@@ -162,13 +263,33 @@ export function AssistantPanel({
           </div>
 
           <div className="border-t border-[#27272A] p-4">
-            <div className="relative">
+            <div
+              className={cn(
+                "relative",
+                fullscreen && "mx-auto w-full max-w-[960px]"
+              )}
+            >
               <Textarea
                 value={draft}
                 onChange={(event) => onDraftChange(event.target.value)}
-                className="h-[104px] pr-12"
+                onKeyDown={handleDraftKeyDown}
+                maxLength={ASSISTANT_MESSAGE_MAX_LENGTH}
+                className={cn(
+                  "resize-none pr-28",
+                  fullscreen ? "h-[128px]" : "h-[104px]"
+                )}
                 placeholder="Could you give me a recommendation, based on the current results"
               />
+
+              <span
+                className={cn(
+                  "pointer-events-none absolute bottom-3.5 right-12 text-[12px] leading-8 text-[#71717A]",
+                  draftLength > ASSISTANT_MESSAGE_MAX_LENGTH * 0.9 &&
+                    "text-[#A1A1AA]"
+                )}
+              >
+                {draftLength}/{ASSISTANT_MESSAGE_MAX_LENGTH}
+              </span>
 
               <Button
                 type="button"
@@ -176,9 +297,10 @@ export function AssistantPanel({
                 size="icon"
                 onClick={onSubmit}
                 disabled={isSending || draft.trim().length === 0}
-                className="absolute bottom-2 right-2 h-9 w-9"
+                className="absolute bottom-3.5 right-3.5 h-8 w-8 rounded-[8px] border border-[#FDE047]/20 bg-[#B99A20] text-[#09090B] shadow-[0_8px_18px_rgba(0,0,0,0.24)] transition-all hover:bg-[#FACC15] hover:shadow-[0_10px_22px_rgba(250,204,21,0.18)] disabled:border-transparent disabled:bg-[#3F3F46] disabled:text-[#71717A] disabled:shadow-none"
+                aria-label="Send assistant message"
               >
-                <ArrowUp size={20} />
+                <ArrowUp size={16} strokeWidth={2.4} />
               </Button>
             </div>
           </div>

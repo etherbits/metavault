@@ -7,6 +7,7 @@ import {
   fetchLibraryEntry,
   importLibraryEntries,
   updateLibraryEntryStatus,
+  uploadLibraryEntryImage,
 } from "@/features/library/api";
 import { mapServerEntriesToMediaItems } from "@/features/library/mappers";
 import type { MediaItem } from "@/features/library/types";
@@ -58,6 +59,18 @@ export function useImportLibraryEntries() {
     mutationFn: importLibraryEntries,
     onSuccess: (items) => {
       queryClient.setQueryData(queryKeys.library.entries(), items);
+    },
+  });
+}
+
+export function useUploadLibraryEntryImage() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: uploadLibraryEntryImage,
+    onSuccess: (items) => {
+      queryClient.setQueryData(queryKeys.library.entries(), items);
+      queryClient.invalidateQueries({ queryKey: queryKeys.library.all });
     },
   });
 }

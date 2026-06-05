@@ -17,4 +17,7 @@ export const queryKeys = {
   aiIntegrations: {
     all: ["ai-integrations"] as const,
   },
+  assistant: {
+    sessions: ["assistant", "sessions"] as const,
+  },
 } as const;

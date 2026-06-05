@@ -1,0 +1,52 @@
+import type { SQL } from "bun";
+import { logger } from "../../logger";
+import { initialSchemaMigration } from "./001_initial_schema";
+import { assistantSessionsMigration } from "./002_assistant_sessions";
+import { aiIntegrationProfilesMigration } from "./003_ai_integration_profiles";
+import { backfillAiIntegrationTimestampsMigration } from "./004_backfill_ai_integration_timestamps";
+import type { Migration } from "./types";
+
+const migrations: Migration[] = [
+  initialSchemaMigration,
+  assistantSessionsMigration,
+  aiIntegrationProfilesMigration,
+  backfillAiIntegrationTimestampsMigration,
+];
+
+export async function migrate(sql: SQL) {
+  await sql`PRAGMA journal_mode = WAL`;
+  await sql`PRAGMA foreign_keys = ON`;
+  await createSchemaMigrationsTable(sql);
+
+  const appliedRows = (await sql`
+    SELECT id
+    FROM schema_migrations
+  `) as Array<{ id: string }>;
+  const appliedIds = new Set(appliedRows.map((row) => row.id));
+
+  for (const migration of migrations) {
+    if (appliedIds.has(migration.id)) {
+      continue;
+    }
+
+    await migration.up(sql);
+    await sql`
+      INSERT INTO schema_migrations (id, name)
+      VALUES (${migration.id}, ${migration.name})
+    `;
+    logger.info(
+      { migration: `${migration.id}_${migration.name}` },
+      "Database migration applied"
+    );
+  }
+}
+
+async function createSchemaMigrationsTable(sql: SQL) {
+  await sql`
+    CREATE TABLE IF NOT EXISTS schema_migrations (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `;
+}

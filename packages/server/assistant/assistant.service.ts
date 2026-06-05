@@ -5,7 +5,10 @@ import { err, ok, type Result } from "../utils/result";
 import type {
   AssistantChatInput,
   AssistantChatResponse,
+  AssistantSession,
+  UpsertAssistantSessionInput,
 } from "./assistant.schema";
+import { assistantModel } from "./assistant.model";
 
 // TODO: add markdown support with lib
 
@@ -14,6 +17,21 @@ const chatCompletionResponseSchema = z.object({
     .array(
       z.object({
         message: z
+          .object({
+            content: z.string().nullable().optional(),
+          })
+          .nullable()
+          .optional(),
+      })
+    )
+    .optional(),
+});
+
+const chatCompletionStreamChunkSchema = z.object({
+  choices: z
+    .array(
+      z.object({
+        delta: z
           .object({
             content: z.string().nullable().optional(),
           })
@@ -35,6 +53,29 @@ const SYSTEM_PROMPT = [
 ].join(" ");
 
 class AssistantService {
+  async getSessions(userId: string): Promise<Result<AssistantSession[]>> {
+    return ok(await assistantModel.getSessionsByUser(userId));
+  }
+
+  async upsertSession({
+    id,
+    userId,
+    input,
+  }: {
+    id: string;
+    userId: string;
+    input: UpsertAssistantSessionInput;
+  }): Promise<Result<AssistantSession>> {
+    const session = await assistantModel.upsertSession({
+      id,
+      userId,
+      title: input.title,
+      messages: input.messages,
+    });
+
+    return ok(session);
+  }
+
   async chat({
     userId,
     input,
@@ -42,31 +83,10 @@ class AssistantService {
     userId: string;
     input: AssistantChatInput;
   }): Promise<Result<AssistantChatResponse>> {
-    const configResult =
-      await aiIntegrationService.getActiveOpenAiCompatibleConfig(userId);
-    if (!configResult.ok) {
-      return configResult;
-    }
+    const requestResult = await this.buildChatCompletionRequest(userId, input);
+    if (!requestResult.ok) return requestResult;
 
-    const config = configResult.data;
-    const url = new URL(
-      "chat/completions",
-      `${config.baseUrl.replace(/\/+$/, "")}/`
-    );
-
-    const contextText = this.formatContext(input.context);
-    const messages = [
-      { role: "system", content: SYSTEM_PROMPT },
-      ...(contextText ? [{ role: "system", content: contextText }] : []),
-      ...(input.history ?? []).map((message) => ({
-        role: message.role,
-        content: message.content,
-      })),
-      {
-        role: "user",
-        content: input.message,
-      },
-    ];
+    const { config, messages, url } = requestResult.data;
 
     try {
       const response = await fetch(url, {
@@ -112,6 +132,123 @@ class AssistantService {
     }
   }
 
+  async streamChat({
+    userId,
+    input,
+    onDelta,
+  }: {
+    userId: string;
+    input: AssistantChatInput;
+    onDelta: (delta: string) => void | Promise<void>;
+  }): Promise<Result<{ message: string }>> {
+    const requestResult = await this.buildChatCompletionRequest(userId, input);
+    if (!requestResult.ok) return requestResult;
+
+    const { config, messages, url } = requestResult.data;
+
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${config.apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: config.model,
+          messages,
+          stream: true,
+        }),
+      });
+
+      if (!response.ok || !response.body) {
+        logger.warn(
+          { status: response.status },
+          "OpenAI-compatible streaming chat completion request failed"
+        );
+        return err(response.status || 502, "AI assistant request failed");
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let message = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split(/\r?\n/);
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith("data:")) continue;
+
+          const data = trimmed.slice("data:".length).trim();
+          if (data === "[DONE]") {
+            return ok({ message });
+          }
+
+          const parsedJson = safeJsonParse(data);
+          const parsed = chatCompletionStreamChunkSchema.safeParse(parsedJson);
+          if (!parsed.success) continue;
+
+          const delta = parsed.data.choices?.[0]?.delta?.content;
+          if (!delta) continue;
+
+          message += delta;
+          await onDelta(delta);
+        }
+      }
+
+      if (!message.trim()) {
+        return err(502, "AI assistant returned an empty response");
+      }
+
+      return ok({ message });
+    } catch (error) {
+      logger.warn(
+        { error },
+        "OpenAI-compatible streaming chat completion request threw"
+      );
+      return err(502, "AI assistant request failed");
+    }
+  }
+
+  private async buildChatCompletionRequest(
+    userId: string,
+    input: AssistantChatInput
+  ) {
+    const configResult =
+      await aiIntegrationService.getActiveOpenAiCompatibleConfig(userId);
+    if (!configResult.ok) {
+      return configResult;
+    }
+
+    const config = configResult.data;
+    const url = new URL(
+      "chat/completions",
+      `${config.baseUrl.replace(/\/+$/, "")}/`
+    );
+
+    const contextText = this.formatContext(input.context);
+    const messages = [
+      { role: "system", content: SYSTEM_PROMPT },
+      ...(contextText ? [{ role: "system", content: contextText }] : []),
+      ...(input.history ?? []).map((message) => ({
+        role: message.role,
+        content: message.content,
+      })),
+      {
+        role: "user",
+        content: input.message,
+      },
+    ];
+
+    return ok({ config, messages, url });
+  }
+
   private formatContext(context: AssistantChatInput["context"]): string {
     if (!context) return "";
 
@@ -139,3 +276,11 @@ class AssistantService {
 }
 
 export const assistantService = new AssistantService();
+
+function safeJsonParse(value: string) {
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return null;
+  }
+}

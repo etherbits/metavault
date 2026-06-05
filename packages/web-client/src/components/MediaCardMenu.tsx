@@ -1,4 +1,4 @@
-import { ChevronLeft, MoreHorizontal } from "lucide-react";
+import { ChevronLeft, ImagePlus, MoreHorizontal } from "lucide-react";
 import { DropdownMenu } from "radix-ui";
 import { Button } from "@/components/ui/button";
 import type { MediaStatus } from "@/features/library/types";
@@ -10,6 +10,7 @@ interface MediaCardMenuProps {
   onSelect?: () => void;
   onChangeStatus: (status: MediaStatus) => void;
   onAddToCollection?: () => void;
+  onUploadImage?: () => void;
   onDelete?: () => void;
   onRemoveStatus?: () => void;
 }
@@ -34,6 +35,7 @@ export function MediaCardMenu({
   onSelect,
   onChangeStatus,
   onAddToCollection,
+  onUploadImage,
   onDelete,
   onRemoveStatus,
 }: MediaCardMenuProps) {
@@ -116,6 +118,16 @@ export function MediaCardMenu({
           >
             Add to collection
           </DropdownMenu.Item>
+
+          {onUploadImage ? (
+            <DropdownMenu.Item
+              className={cn(menuItemClass, "gap-2")}
+              onSelect={() => onUploadImage()}
+            >
+              <ImagePlus size={16} className="text-[#A1A1AA]" />
+              <span>Add image</span>
+            </DropdownMenu.Item>
+          ) : null}
 
           <DropdownMenu.Separator className="my-1 h-px bg-[#3F3F46]" />
 

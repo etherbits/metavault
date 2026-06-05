@@ -9,6 +9,7 @@ import { ezqRouter } from "./ezq/ezq.controller";
 import { healthRouter } from "./health/health.controller";
 import libraryRouter from "./library/library.controller";
 import collectionRouter from "./collection/collection.controller";
+import { applySchema } from "./db";
 import { logger } from "./logger";
 import { unexpectedErrorMiddleware } from "./middleware/error";
 import { loggerMiddleware } from "./middleware/logger";
@@ -45,6 +46,8 @@ app.use("/assistant", assistantRouter);
 app.use("/users", userRouter);
 app.use("/health", healthRouter);
 app.use(unexpectedErrorMiddleware);
+
+await applySchema();
 
 app.listen(parsedEnv.PORT, () => {
   logger.info({ port: parsedEnv.PORT }, "Server started");

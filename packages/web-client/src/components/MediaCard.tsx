@@ -30,6 +30,7 @@ interface MediaCardProps {
   onRemoveStatus?: (id: string) => void;
   onDelete?: (id: string) => void;
   onAddToCollection?: (id: string) => void;
+  onUploadImage?: (id: string) => void;
   onViewDetails?: (item: MediaItem) => void;
 }
 
@@ -128,6 +129,7 @@ export function MediaCard({
   onRemoveStatus,
   onDelete,
   onAddToCollection,
+  onUploadImage,
   onViewDetails,
 }: MediaCardProps) {
   const posterSrc = item.posterUrl || "/image-placeholder.svg";
@@ -218,6 +220,9 @@ export function MediaCard({
               onSelect={() => onEnterSelectMode?.(item.id)}
               onChangeStatus={(status) => onChangeStatus?.(item.id, status)}
               onAddToCollection={() => onAddToCollection?.(item.id)}
+              onUploadImage={
+                onUploadImage ? () => onUploadImage(item.id) : undefined
+              }
               onDelete={() => onDelete?.(item.id)}
               onRemoveStatus={() => onRemoveStatus?.(item.id)}
             />
