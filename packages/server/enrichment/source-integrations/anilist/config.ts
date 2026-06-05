@@ -46,3 +46,38 @@ export const ANILIST_MEDIA_SEARCH_QUERY = `
     }
   }
 `;
+
+export const ANILIST_POPULAR_MEDIA_QUERY = `
+  query CatalogueTopMedia($page: Int!, $perPage: Int!, $type: MediaType!) {
+    Page(page: $page, perPage: $perPage) {
+      media(type: $type, sort: POPULARITY_DESC) {
+        id
+        title {
+          english
+          romaji
+          userPreferred
+          native
+        }
+        type
+        description
+        startDate {
+          year
+          month
+          day
+        }
+        coverImage {
+          extraLarge
+          large
+          medium
+        }
+        isAdult
+        averageScore
+        popularity
+        genres
+        tags {
+          name
+        }
+      }
+    }
+  }
+`;

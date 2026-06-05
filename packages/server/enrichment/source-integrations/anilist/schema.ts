@@ -32,6 +32,8 @@ export const anilistMediaSchema = z.object({
     .nullable()
     .optional(),
   averageScore: z.number().nullable().optional(),
+  popularity: z.number().nullable().optional(),
+  description: z.string().nullable().optional(),
   isAdult: z.boolean().nullable().optional(),
   genres: z.array(z.string()).nullable().optional(),
   tags: z
@@ -60,3 +62,18 @@ export type AniListMediaWithContext = {
   media: AniListMedia;
   sourceIntegrationId?: string;
 };
+
+export const anilistPopularMediaResponseSchema = z.object({
+  data: z
+    .object({
+      Page: z
+        .object({
+          media: z.array(anilistMediaSchema).nullable().optional(),
+        })
+        .nullable()
+        .optional(),
+    })
+    .nullable()
+    .optional(),
+  errors: z.array(z.unknown()).optional(),
+});

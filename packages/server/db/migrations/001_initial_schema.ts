@@ -6,6 +6,7 @@ import { createContentNodesTable } from "../schema/contentNodes";
 import { createLibraryEntriesTable } from "../schema/libraryEntries";
 import { createLibraryEntryTagsTable } from "../schema/libraryEntryTags";
 import { createOtpCodesTable } from "../schema/otpCodes";
+import { createCatalogueTables } from "../schema/catalogue";
 import { createSourceIntegrationsTable } from "../schema/sourceIntegrations";
 import { createTagsTable } from "../schema/tags";
 import { createUsersTable } from "../schema/users";
@@ -26,5 +27,6 @@ export const initialSchemaMigration: Migration = {
     await createContentNodesTable(sql);
     await createCollectionEntriesTable(sql);
     await createOtpCodesTable(sql);
+    await createCatalogueTables(sql);
   },
 };

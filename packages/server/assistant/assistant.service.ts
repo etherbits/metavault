@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { aiIntegrationService } from "../ai-integrations/ai-integration.service";
 import { logger } from "../logger";
+import { recommendationService } from "../recommendations/recommendation.service";
+import { generateRecommendationsSchema } from "../recommendations/recommendation.schema";
 import { err, ok, type Result } from "../utils/result";
 import type {
   AssistantChatInput,
@@ -19,6 +21,18 @@ const chatCompletionResponseSchema = z.object({
         message: z
           .object({
             content: z.string().nullable().optional(),
+            tool_calls: z
+              .array(
+                z.object({
+                  id: z.string(),
+                  type: z.literal("function"),
+                  function: z.object({
+                    name: z.string(),
+                    arguments: z.string(),
+                  }),
+                })
+              )
+              .optional(),
           })
           .nullable()
           .optional(),
@@ -48,9 +62,88 @@ const SYSTEM_PROMPT = [
   "You are the Metavault assistant.",
   "Help users understand their current library query results, explain entries, and write EZQ queries.",
   "Use only the provided current query context when discussing visible results.",
-  "If the user asks for recommendations, explain that recommendations are not enabled yet.", // TODO: update this later
+  "When the user asks for recommendations, call the generate_recommendations tool instead of inventing recommendations.",
+  "After recommendation tool results are available, explain why the user may like the strongest matches.",
   "Keep answers concise and practical.",
 ].join(" ");
+
+const RECOMMENDATION_TOOL = {
+  type: "function",
+  function: {
+    name: "generate_recommendations",
+    description:
+      "Generate Metavault recommendations from the catalogue using the user's prompt and structured filters.",
+    parameters: {
+      type: "object",
+      additionalProperties: false,
+      required: ["prompt"],
+      properties: {
+        prompt: {
+          type: "string",
+          description:
+            "Natural-language recommendation intent, including mood and preferences.",
+        },
+        count: {
+          type: "integer",
+          minimum: 1,
+          maximum: 50,
+          default: 10,
+        },
+        filters: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            excludedMediaTypes: {
+              type: "array",
+              items: {
+                type: "string",
+                enum: [
+                  "movie",
+                  "tv_show",
+                  "anime",
+                  "game",
+                  "book",
+                  "manga",
+                  "other",
+                ],
+              },
+            },
+            adult: {
+              type: "string",
+              enum: ["exclude", "include", "only"],
+              default: "exclude",
+            },
+            releaseYearFrom: { type: "integer" },
+            releaseYearTo: { type: "integer" },
+            minPublicRating: {
+              type: "number",
+              minimum: 0,
+              maximum: 10,
+            },
+            excludeExistingLibrary: {
+              type: "boolean",
+              default: true,
+            },
+          },
+        },
+      },
+    },
+  },
+} as const;
+
+type ChatCompletionMessage = {
+  role: "system" | "user" | "assistant" | "tool";
+  content: string | null;
+  tool_call_id?: string;
+  tool_calls?: Array<{
+    id: string;
+    type: "function";
+    function: {
+      name: string;
+      arguments: string;
+    };
+  }>;
+};
 
 class AssistantService {
   async getSessions(userId: string): Promise<Result<AssistantSession[]>> {
@@ -89,38 +182,24 @@ class AssistantService {
     const { config, messages, url } = requestResult.data;
 
     try {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${config.apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: config.model,
-          messages,
-        }),
+      const firstResult = await this.requestChatCompletion({
+        config,
+        messages,
+        url,
+        tools: [RECOMMENDATION_TOOL],
       });
+      if (!firstResult.ok) return firstResult;
 
-      if (!response.ok) {
-        logger.warn(
-          { status: response.status },
-          "OpenAI-compatible chat completion request failed"
-        );
-        return err(response.status, "AI assistant request failed");
-      }
+      const finalResult = await this.resolveRecommendationToolCalls({
+        userId,
+        config,
+        url,
+        messages,
+        assistantMessage: firstResult.data,
+      });
+      if (!finalResult.ok) return finalResult;
 
-      const parsed = chatCompletionResponseSchema.safeParse(
-        await response.json()
-      );
-      if (!parsed.success) {
-        logger.warn(
-          { error: parsed.error },
-          "OpenAI-compatible chat completion response was invalid"
-        );
-        return err(502, "AI assistant response was invalid");
-      }
-
-      const message = parsed.data.choices?.[0]?.message?.content?.trim();
+      const message = finalResult.data.content?.trim();
       if (!message) {
         return err(502, "AI assistant returned an empty response");
       }
@@ -147,6 +226,39 @@ class AssistantService {
     const { config, messages, url } = requestResult.data;
 
     try {
+      const firstResult = await this.requestChatCompletion({
+        config,
+        messages,
+        url,
+        tools: [RECOMMENDATION_TOOL],
+      });
+      if (!firstResult.ok) return firstResult;
+
+      const toolMessagesResult = await this.buildRecommendationToolMessages({
+        userId,
+        assistantMessage: firstResult.data,
+      });
+      if (!toolMessagesResult.ok) return toolMessagesResult;
+
+      if (toolMessagesResult.data.length === 0) {
+        const content = firstResult.data.content?.trim();
+        if (!content) {
+          return err(502, "AI assistant returned an empty response");
+        }
+        await onDelta(content);
+        return ok({ message: content });
+      }
+
+      const finalMessages = [
+        ...messages,
+        {
+          role: "assistant" as const,
+          content: firstResult.data.content ?? null,
+          tool_calls: firstResult.data.tool_calls,
+        },
+        ...toolMessagesResult.data,
+      ];
+
       const response = await fetch(url, {
         method: "POST",
         headers: {
@@ -155,7 +267,7 @@ class AssistantService {
         },
         body: JSON.stringify({
           model: config.model,
-          messages,
+          messages: finalMessages,
           stream: true,
         }),
       });
@@ -233,13 +345,20 @@ class AssistantService {
     );
 
     const contextText = this.formatContext(input.context);
-    const messages = [
+    const messages: ChatCompletionMessage[] = [
       { role: "system", content: SYSTEM_PROMPT },
-      ...(contextText ? [{ role: "system", content: contextText }] : []),
-      ...(input.history ?? []).map((message) => ({
-        role: message.role,
-        content: message.content,
-      })),
+      ...(contextText
+        ? ([
+            { role: "system", content: contextText },
+          ] satisfies ChatCompletionMessage[])
+        : []),
+      ...(input.history ?? []).map(
+        (message) =>
+          ({
+            role: message.role,
+            content: message.content,
+          }) satisfies ChatCompletionMessage
+      ),
       {
         role: "user",
         content: input.message,
@@ -247,6 +366,129 @@ class AssistantService {
     ];
 
     return ok({ config, messages, url });
+  }
+
+  private async requestChatCompletion({
+    config,
+    messages,
+    url,
+    tools,
+  }: {
+    config: { apiKey: string; model: string };
+    messages: ChatCompletionMessage[];
+    url: URL;
+    tools?: unknown[];
+  }): Promise<Result<ChatCompletionMessage>> {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${config.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages,
+        ...(tools ? { tools, tool_choice: "auto" } : {}),
+      }),
+    });
+
+    if (!response.ok) {
+      logger.warn(
+        { status: response.status },
+        "OpenAI-compatible chat completion request failed"
+      );
+      return err(response.status, "AI assistant request failed");
+    }
+
+    const parsed = chatCompletionResponseSchema.safeParse(
+      await response.json()
+    );
+    if (!parsed.success) {
+      logger.warn(
+        { error: parsed.error },
+        "OpenAI-compatible chat completion response was invalid"
+      );
+      return err(502, "AI assistant response was invalid");
+    }
+
+    const message = parsed.data.choices?.[0]?.message;
+    if (!message) {
+      return err(502, "AI assistant returned an empty response");
+    }
+
+    return ok({
+      role: "assistant",
+      content: message.content ?? null,
+      tool_calls: message.tool_calls,
+    });
+  }
+
+  private async resolveRecommendationToolCalls(input: {
+    userId: string;
+    config: { apiKey: string; model: string };
+    url: URL;
+    messages: ChatCompletionMessage[];
+    assistantMessage: ChatCompletionMessage;
+  }): Promise<Result<ChatCompletionMessage>> {
+    const toolMessagesResult = await this.buildRecommendationToolMessages({
+      userId: input.userId,
+      assistantMessage: input.assistantMessage,
+    });
+    if (!toolMessagesResult.ok) return toolMessagesResult;
+
+    if (toolMessagesResult.data.length === 0) {
+      return ok(input.assistantMessage);
+    }
+
+    return this.requestChatCompletion({
+      config: input.config,
+      url: input.url,
+      messages: [
+        ...input.messages,
+        input.assistantMessage,
+        ...toolMessagesResult.data,
+      ],
+    });
+  }
+
+  private async buildRecommendationToolMessages(input: {
+    userId: string;
+    assistantMessage: ChatCompletionMessage;
+  }): Promise<Result<ChatCompletionMessage[]>> {
+    const toolCalls =
+      input.assistantMessage.tool_calls?.filter(
+        (toolCall) => toolCall.function.name === "generate_recommendations"
+      ) ?? [];
+
+    const messages: ChatCompletionMessage[] = [];
+    for (const toolCall of toolCalls) {
+      const args = safeJsonParse(toolCall.function.arguments);
+      const parsed = generateRecommendationsSchema.safeParse(args);
+      if (!parsed.success) {
+        messages.push({
+          role: "tool",
+          tool_call_id: toolCall.id,
+          content: JSON.stringify({
+            error: "Invalid recommendation tool arguments",
+          }),
+        });
+        continue;
+      }
+
+      const result = await recommendationService.generate({
+        userId: input.userId,
+        input: parsed.data,
+      });
+      messages.push({
+        role: "tool",
+        tool_call_id: toolCall.id,
+        content: JSON.stringify(
+          result.ok ? result.data : { error: result.error.message }
+        ),
+      });
+    }
+
+    return ok(messages);
   }
 
   private formatContext(context: AssistantChatInput["context"]): string {

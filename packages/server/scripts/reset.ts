@@ -5,6 +5,8 @@ await sql`DROP TABLE IF EXISTS library_entry_tags`;
 await sql`DROP TABLE IF EXISTS tags`;
 await sql`DROP TABLE IF EXISTS collection_entries`;
 await sql`DROP TABLE IF EXISTS content_nodes`;
+await sql`DROP TABLE IF EXISTS catalogue_embeddings`;
+await sql`DROP TABLE IF EXISTS catalogue_entries`;
 await sql`DROP TABLE IF EXISTS source_integrations`;
 await sql`DROP TABLE IF EXISTS ai_integrations`;
 await sql`DROP TABLE IF EXISTS alias_mappings`;

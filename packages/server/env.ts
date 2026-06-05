@@ -38,6 +38,39 @@ const envSchema = z
       .string()
       .url()
       .default("https://covers.openlibrary.org/b/id"),
+    METAVAULT_CATALOGUE_REFRESH_KEY: z.string().optional(),
+    METAVAULT_CATALOGUE_REFRESH_CRON: z.string().default("0 3 * * 0"),
+    METAVAULT_CATALOGUE_AI_BASE_URL: z
+      .string()
+      .url()
+      .default("https://api.openai.com/v1"),
+    METAVAULT_CATALOGUE_AI_API_KEY: z.string().optional(),
+    METAVAULT_CATALOGUE_EMBEDDING_MODEL: z
+      .string()
+      .trim()
+      .min(1)
+      .default("text-embedding-3-small"),
+    METAVAULT_CATALOGUE_ANILIST_TOP_N: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(200),
+    METAVAULT_CATALOGUE_REFRESH_WINDOW_MS: z.coerce
+      .number()
+      .int()
+      .min(0)
+      .default(3_600_000),
+    METAVAULT_CATALOGUE_EMBEDDING_BATCH_SIZE: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(100),
+    METAVAULT_CATALOGUE_ANILIST_PAGE_SIZE: z.coerce
+      .number()
+      .int()
+      .positive()
+      .max(50)
+      .default(50),
     EMAIL_HOST: z.string().optional(),
     EMAIL_PORT: z.coerce.number().int().positive().default(587),
     EMAIL_USER: z.string().optional(),

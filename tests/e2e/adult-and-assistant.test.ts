@@ -81,3 +81,112 @@ test("assistant chat uses OpenAI-compatible integration config", async ({
   expect(body.message).toContain("mock-gpt");
   expect(body.message).toContain("4 messages");
 });
+
+test("catalogue refresh requires the private refresh key", async ({
+  request,
+}) => {
+  await signIn(request);
+
+  const refreshResponse = await request.post("/catalogue/refresh", {
+    data: { refreshWindowMs: 0 },
+  });
+
+  expect(refreshResponse.status()).toBe(401);
+});
+
+test("recommendations refresh catalogue and rank by cosine similarity", async ({
+  request,
+}) => {
+  await signIn(request);
+  await configureMockAi(request);
+
+  const refreshResponse = await refreshCatalogue(request);
+  expect(refreshResponse.ok()).toBeTruthy();
+  const refreshBody = await refreshResponse.json();
+  expect(refreshBody).toMatchObject({
+    source_type: "anilist",
+    status: "completed",
+    fetched_count: 4,
+  });
+  expect(refreshBody.embedded_count).toBeGreaterThan(0);
+
+  const recommendationResponse = await request.post(
+    "/recommendations/generate",
+    {
+      data: {
+        prompt: "I want a cozy friendship anime with a warm mood",
+        count: 2,
+        debug: true,
+        filters: {
+          adult: "exclude",
+          excludedMediaTypes: ["manga"],
+          releaseYearFrom: 2020,
+          minPublicRating: 8,
+        },
+      },
+    }
+  );
+  expect(recommendationResponse.ok()).toBeTruthy();
+
+  const body = await recommendationResponse.json();
+  expect(body.items[0]).toMatchObject({
+    title: "Cozy Friendship Anime",
+    source_type: "anilist",
+    source_media_id: "1001",
+    media_type: "anime",
+    adult: false,
+  });
+  expect(body.items[0].cosine_score).toBeGreaterThan(0);
+  expect(body.items[0].debug.embedding_model).toBe("text-embedding-3-small");
+  expect(body.items.map((item: { title: string }) => item.title)).not.toContain(
+    "Dark Horror Anime"
+  );
+});
+
+test("assistant can call the recommendation tool", async ({ request }) => {
+  await signIn(request);
+  await configureMockAi(request);
+
+  const refreshResponse = await refreshCatalogue(request);
+  expect(refreshResponse.ok()).toBeTruthy();
+
+  const chatResponse = await request.post("/assistant/chat", {
+    data: {
+      message: "Could you recommend me a cozy friendship anime?",
+    },
+  });
+  expect(chatResponse.ok()).toBeTruthy();
+
+  const body = await chatResponse.json();
+  expect(body.message).toContain("Cozy Friendship Anime");
+});
+
+async function configureMockAi(request: Parameters<typeof signIn>[0]) {
+  const sourceMockPort = process.env.METAVAULT_E2E_SOURCE_MOCK_PORT ?? "3636";
+  const baseUrl = `http://localhost:${sourceMockPort}/openai/v1`;
+
+  const configResponse = await request.put(
+    "/ai-integrations/openai_compatible",
+    {
+      data: {
+        is_active: true,
+        config: {
+          baseUrl,
+          apiKey: "test-key",
+          model: "mock-gpt",
+        },
+      },
+    }
+  );
+  expect(configResponse.ok()).toBeTruthy();
+}
+
+function refreshCatalogue(request: Parameters<typeof signIn>[0]) {
+  return request.post("/catalogue/refresh", {
+    headers: {
+      "x-metavault-catalogue-key":
+        process.env.METAVAULT_CATALOGUE_REFRESH_KEY ?? "catalogue-test-key",
+    },
+    data: { refreshWindowMs: 0 },
+  });
+}

@@ -4,6 +4,7 @@ import { initialSchemaMigration } from "./001_initial_schema";
 import { assistantSessionsMigration } from "./002_assistant_sessions";
 import { aiIntegrationProfilesMigration } from "./003_ai_integration_profiles";
 import { backfillAiIntegrationTimestampsMigration } from "./004_backfill_ai_integration_timestamps";
+import { catalogueMigration } from "./005_catalogue";
 import type { Migration } from "./types";
 
 const migrations: Migration[] = [
@@ -11,6 +12,7 @@ const migrations: Migration[] = [
   assistantSessionsMigration,
   aiIntegrationProfilesMigration,
   backfillAiIntegrationTimestampsMigration,
+  catalogueMigration,
 ];
 
 export async function migrate(sql: SQL) {

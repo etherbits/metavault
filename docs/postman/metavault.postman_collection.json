@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "4c3b31a3-d4ef-4635-a709-f0ee06acb23d",
     "name": "MetaVault API",
-    "description": "Local API checks for auth, EZQ, and library import/export. Start with Auth / Sign In Seeded User so Postman stores the access_token cookie for protected requests. For sign-up verification, copy the OTP from server logs or the database into the otpCode environment variable.",
+    "description": "Local API checks for auth, EZQ, library import/export, catalogue refresh, and recommendations. Start with Auth / Sign In Seeded User so Postman stores the access_token cookie for protected requests. For recommendations, run Catalogue / POST /catalogue/refresh AniList before POST /recommendations/generate. For sign-up verification, copy the OTP from server logs or the database into the otpCode environment variable.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "event": [
@@ -560,6 +560,111 @@
       ]
     },
     {
+      "name": "Catalogue",
+      "description": "Global catalogue maintenance endpoints. POST /catalogue/refresh requires METAVAULT_CATALOGUE_REFRESH_KEY on the server to match the catalogueRefreshKey environment variable. The default refresh body uses refreshWindowMs 0 for quick local testing.",
+      "item": [
+        {
+          "name": "POST /catalogue/refresh AniList",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('catalogue refresh completed', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().status).to.eql('completed');",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "pm.environment.set('catalogueFetchedCount', String(body.fetched_count || 0));",
+                  "pm.environment.set('catalogueEmbeddedCount', String(body.embedded_count || 0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "x-metavault-catalogue-key",
+                "value": "{{catalogueRefreshKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshWindowMs\": {{catalogueRefreshWindowMs}}\n}"
+            },
+            "url": "{{baseUrl}}/catalogue/refresh"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recommendations",
+      "description": "Recommendation endpoints. Run Auth / Sign In Seeded User first, then Catalogue / POST /catalogue/refresh AniList so there are embedded catalogue entries to rank.",
+      "item": [
+        {
+          "name": "POST /recommendations/generate Cozy Anime",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('recommendations generated', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().items).to.be.an('array');",
+                  "});",
+                  "",
+                  "const items = pm.response.json().items || [];",
+                  "if (items[0]) {",
+                  "  pm.environment.set('recommendationItemId', items[0].catalogue_entry_id);",
+                  "  pm.environment.set('recommendationTitle', items[0].title);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"prompt\": \"{{recommendationPrompt}}\",\n  \"count\": {{recommendationCount}},\n  \"debug\": true,\n  \"filters\": {\n    \"adult\": \"exclude\",\n    \"excludeExistingLibrary\": false\n  }\n}"
+            },
+            "url": "{{baseUrl}}/recommendations/generate"
+          }
+        },
+        {
+          "name": "POST /recommendations/generate Reading Mood",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"prompt\": \"I want something to read with adventure, emotion, and strong characters\",\n  \"count\": 5,\n  \"debug\": false,\n  \"filters\": {\n    \"adult\": \"exclude\",\n    \"excludedMediaTypes\": [\"anime\"],\n    \"excludeExistingLibrary\": false\n  }\n}"
+            },
+            "url": "{{baseUrl}}/recommendations/generate"
+          }
+        }
+      ]
+    },
+    {
       "name": "Users",
       "item": [
         {
@@ -576,6 +681,38 @@
     {
       "key": "baseUrl",
       "value": "http://localhost:3435"
+    },
+    {
+      "key": "catalogueRefreshKey",
+      "value": "dev"
+    },
+    {
+      "key": "catalogueRefreshWindowMs",
+      "value": "0"
+    },
+    {
+      "key": "catalogueFetchedCount",
+      "value": ""
+    },
+    {
+      "key": "catalogueEmbeddedCount",
+      "value": ""
+    },
+    {
+      "key": "recommendationPrompt",
+      "value": "I want a cozy anime with friendship, warmth, and a hopeful mood"
+    },
+    {
+      "key": "recommendationCount",
+      "value": "5"
+    },
+    {
+      "key": "recommendationItemId",
+      "value": ""
+    },
+    {
+      "key": "recommendationTitle",
+      "value": ""
     }
   ]
 }

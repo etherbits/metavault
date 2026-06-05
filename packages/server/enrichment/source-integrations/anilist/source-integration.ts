@@ -1,4 +1,9 @@
 import type { LibraryEntryWithTags } from "../../../ezq/ezq.schema";
+import type { CatalogueEntryData } from "../../../catalogue/catalogue.model";
+import {
+  buildCatalogueEmbeddingText,
+  hashEmbeddingText,
+} from "../../../catalogue/catalogue-vector";
 import { logger } from "../../../logger";
 import { toDateStringFromYearMonthDay } from "../../../utils/date";
 import { getTrimmedString } from "../../../utils/string";
@@ -15,12 +20,14 @@ import type {
 import {
   ANILIST_GRAPHQL_ENDPOINT,
   ANILIST_MEDIA_SEARCH_QUERY,
+  ANILIST_POPULAR_MEDIA_QUERY,
   anilistConfig,
 } from "./config";
 import {
   type AniListMedia,
   type AniListMediaType,
   type AniListMediaWithContext,
+  anilistPopularMediaResponseSchema,
   anilistResponseSchema,
 } from "./schema";
 
@@ -36,6 +43,31 @@ export class AniListSourceIntegration
 
   supportsEntry(row: LibraryEntryWithTags): boolean {
     return row.media_type === "anime" || row.media_type === "manga";
+  }
+
+  async getCatalogueEntries(input: {
+    topN: number;
+    pageSize: number;
+    pace: () => Promise<void>;
+  }): Promise<CatalogueEntryData[]> {
+    const entries: CatalogueEntryData[] = [];
+
+    for (const type of ["ANIME", "MANGA"] as const) {
+      const pageCount = Math.ceil(input.topN / input.pageSize);
+      for (let page = 1; page <= pageCount; page += 1) {
+        const media = await this.getPopularMediaPage({
+          type,
+          page,
+          perPage: input.pageSize,
+        });
+        entries.push(
+          ...media.slice(0, input.topN - countEntriesForType(entries, type))
+        );
+        await input.pace();
+      }
+    }
+
+    return entries;
   }
 
   async getEnrichmentData(
@@ -208,10 +240,100 @@ export class AniListSourceIntegration
         typeof data.media.averageScore === "number"
           ? data.media.averageScore / 10
           : null,
-      // AniList FuzzyDate can omit month/day; store released_at only for full dates.
-      // Schema reference: https://studio.apollographql.com/sandbox/explorer?endpoint=https%3A%2F%2Fgraphql.anilist.co
       released_at: this.toReleasedAt(data.media.startDate),
       tags,
+    };
+  }
+
+  private async getPopularMediaPage(input: {
+    type: AniListMediaType;
+    page: number;
+    perPage: number;
+  }): Promise<CatalogueEntryData[]> {
+    const response = await fetchWithRetry(ANILIST_GRAPHQL_ENDPOINT, {
+      method: "POST",
+      headers: this.getRequestHeaders(undefined),
+      body: JSON.stringify({
+        query: ANILIST_POPULAR_MEDIA_QUERY,
+        variables: input,
+      }),
+    });
+
+    if (!response.ok) {
+      logger.warn(
+        { sourceType: this.sourceType, status: response.status, ...input },
+        "AniList catalogue request failed"
+      );
+      return [];
+    }
+
+    const parsed = anilistPopularMediaResponseSchema.safeParse(
+      await response.json()
+    );
+    if (!parsed.success || parsed.data.errors?.length) {
+      logger.warn(
+        {
+          sourceType: this.sourceType,
+          error: parsed.success ? parsed.data.errors : parsed.error,
+        },
+        "AniList catalogue response was invalid"
+      );
+      return [];
+    }
+
+    return (parsed.data.data?.Page?.media ?? []).map((media) =>
+      this.toCatalogueEntry(media)
+    );
+  }
+
+  private toCatalogueEntry(media: AniListMedia): CatalogueEntryData {
+    const title =
+      media.title?.english ||
+      media.title?.romaji ||
+      media.title?.userPreferred ||
+      media.title?.native ||
+      `AniList ${media.id}`;
+    const genres = [...(media.genres ?? [])]
+      .map((genre) => genre.trim())
+      .filter(Boolean);
+    const tags = [...(media.tags ?? [])]
+      .map((tag) => tag.name?.trim())
+      .filter((value): value is string => Boolean(value));
+    const mediaType = media.type === "ANIME" ? "anime" : "manga";
+    const description = media.description ?? null;
+    const embeddingText = buildCatalogueEmbeddingText({
+      title,
+      mediaType,
+      genres,
+      tags,
+      description,
+    });
+
+    return {
+      id: `anilist-${media.id}`,
+      source_type: "anilist",
+      source_media_id: String(media.id),
+      media_type: mediaType,
+      title,
+      description,
+      image_src:
+        media.coverImage?.extraLarge ||
+        media.coverImage?.large ||
+        media.coverImage?.medium ||
+        null,
+      adult: media.isAdult === true,
+      public_rating:
+        typeof media.averageScore === "number" ? media.averageScore / 10 : null,
+      popularity:
+        typeof media.popularity === "number" ? media.popularity : null,
+      released_at: this.toCatalogueReleasedAt(media.startDate),
+      genres,
+      tags,
+      metadata: {
+        title: media.title ?? null,
+        type: media.type,
+      },
+      embedding_text_hash: hashEmbeddingText(embeddingText),
     };
   }
 
@@ -247,6 +369,18 @@ export class AniListSourceIntegration
     return toDateStringFromYearMonthDay(startDate);
   }
 
+  private toCatalogueReleasedAt(
+    startDate: AniListMedia["startDate"]
+  ): string | null {
+    if (!startDate) return null;
+    if (!startDate.year) return null;
+    return [
+      String(startDate.year).padStart(4, "0"),
+      String(startDate.month ?? 1).padStart(2, "0"),
+      String(startDate.day ?? 1).padStart(2, "0"),
+    ].join("-");
+  }
+
   private toTags(
     media: AniListMedia
   ): NonNullable<EnrichedLibraryEntryData["tags"]> {
@@ -268,4 +402,32 @@ export class AniListSourceIntegration
         .map((value) => ({ value, weight: "minor" as const })),
     ];
   }
+}
+
+function countEntriesForType(
+  entries: CatalogueEntryData[],
+  type: AniListMediaType
+) {
+  const mediaType = type === "ANIME" ? "anime" : "manga";
+  return entries.filter((entry) => entry.media_type === mediaType).length;
+}
+
+async function fetchWithRetry(url: string, init: RequestInit) {
+  let response = await fetch(url, init);
+  for (let attempt = 0; response.status === 429 && attempt < 3; attempt += 1) {
+    await sleep(getRetryAfterMs(response) ?? 1000 * (attempt + 1));
+    response = await fetch(url, init);
+  }
+  return response;
+}
+
+function getRetryAfterMs(response: Response) {
+  const retryAfter = response.headers.get("retry-after");
+  if (!retryAfter) return null;
+  const seconds = Number(retryAfter);
+  return Number.isFinite(seconds) ? seconds * 1000 : null;
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
