@@ -1,13 +1,13 @@
 import { sql } from "../db";
 import type { EntryMediaType } from "../db/schema/libraryEntries";
 
-export type CatalogueSourceType = "anilist";
+export type CatalogueSourceType = "anilist" | "tmdb" | "igdb" | "openlibrary";
 
 export type CatalogueEntryData = {
   id: string;
   source_type: CatalogueSourceType;
   source_media_id: string;
-  media_type: Extract<EntryMediaType, "anime" | "manga">;
+  media_type: Exclude<EntryMediaType, "other">;
   title: string;
   description: string | null;
   image_src: string | null;
@@ -79,7 +79,7 @@ class CatalogueModel {
         ${JSON.stringify(data.metadata)},
         ${data.embedding_text_hash}
       )
-      ON CONFLICT(source_type, source_media_id) DO UPDATE SET
+      ON CONFLICT(source_type, source_media_id, media_type) DO UPDATE SET
         media_type = excluded.media_type,
         title = excluded.title,
         description = excluded.description,
@@ -99,18 +99,14 @@ class CatalogueModel {
     return this.toCatalogueEntry(rows[0] as RawCatalogueRow);
   }
 
-  async getEntriesNeedingEmbedding(input: {
-    sourceType: CatalogueSourceType;
-    embeddingModel: string;
-  }) {
+  async getEntriesNeedingEmbedding(input: { embeddingModel: string }) {
     const rows = await sql`
       SELECT catalogue_entries.*
       FROM catalogue_entries
       LEFT JOIN catalogue_embeddings
         ON catalogue_embeddings.catalogue_entry_id = catalogue_entries.id
         AND catalogue_embeddings.embedding_model = ${input.embeddingModel}
-      WHERE catalogue_entries.source_type = ${input.sourceType}
-      AND (
+      WHERE (
         catalogue_embeddings.catalogue_entry_id IS NULL
         OR catalogue_embeddings.embedding_text_hash != catalogue_entries.embedding_text_hash
       )
@@ -162,7 +158,6 @@ class CatalogueModel {
   }) {
     const params: unknown[] = [input.embeddingModel];
     const where = [
-      "catalogue_entries.source_type = 'anilist'",
       "catalogue_embeddings.embedding_text_hash = catalogue_entries.embedding_text_hash",
     ];
 

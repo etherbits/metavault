@@ -1,11 +1,20 @@
 import { z } from "zod";
 import { AniListSourceIntegration } from "../enrichment/source-integrations/anilist/source-integration";
+import { IgdbSourceIntegration } from "../enrichment/source-integrations/igdb/source-integration";
+import { OpenLibrarySourceIntegration } from "../enrichment/source-integrations/openlibrary/source-integration";
+import { TmdbSourceIntegration } from "../enrichment/source-integrations/tmdb/source-integration";
 import { parsedEnv } from "../env";
 import { logger } from "../logger";
 import { err, ok, type Result } from "../utils/result";
-import { type CatalogueEntry, catalogueModel } from "./catalogue.model";
+import {
+  type CatalogueEntry,
+  type CatalogueEntryData,
+  type CatalogueSourceType,
+  catalogueModel,
+} from "./catalogue.model";
 import type {
   CatalogueRefreshResponse,
+  CatalogueSourceRefresh,
   RefreshCatalogueInput,
 } from "./catalogue.schema";
 import {
@@ -24,16 +33,19 @@ const embeddingsResponseSchema = z.object({
 
 class CatalogueService {
   private readonly anilist = new AniListSourceIntegration();
+  private readonly tmdb = new TmdbSourceIntegration();
+  private readonly igdb = new IgdbSourceIntegration();
+  private readonly openLibrary = new OpenLibrarySourceIntegration();
   private refreshPromise: Promise<Result<CatalogueRefreshResponse>> | null =
     null;
 
-  refreshAniList(input: RefreshCatalogueInput = {}) {
+  refreshAll(input: RefreshCatalogueInput = {}) {
     if (this.refreshPromise) {
       logger.info("Catalogue refresh already running; reusing active refresh");
       return this.refreshPromise;
     }
 
-    this.refreshPromise = this.runAniListRefresh(input).finally(() => {
+    this.refreshPromise = this.runRefresh(input).finally(() => {
       this.refreshPromise = null;
     });
     return this.refreshPromise;
@@ -92,33 +104,21 @@ class CatalogueService {
     );
   }
 
-  private async runAniListRefresh(
+  private async runRefresh(
     input: RefreshCatalogueInput
   ): Promise<Result<CatalogueRefreshResponse>> {
-    let fetchedCount = 0;
-    let embeddedCount = 0;
-    let skippedEmbeddingCount = 0;
-
     try {
-      const topN = parsedEnv.METAVAULT_CATALOGUE_ANILIST_TOP_N;
-      const pageSize = parsedEnv.METAVAULT_CATALOGUE_ANILIST_PAGE_SIZE;
       const refreshWindowMs =
         input.refreshWindowMs ??
         parsedEnv.METAVAULT_CATALOGUE_REFRESH_WINDOW_MS;
-      const pageCount = Math.ceil(topN / pageSize) * 2;
-      const estimatedEmbeddingBatches = Math.ceil(
-        (topN * 2) / parsedEnv.METAVAULT_CATALOGUE_EMBEDDING_BATCH_SIZE
-      );
-      const pace = createPacer(
-        refreshWindowMs,
-        pageCount + estimatedEmbeddingBatches
-      );
+      const pace = createPacer(refreshWindowMs, estimateRefreshOperations());
+      const sources = this.getSources(pace);
+      const sourceResults: CatalogueSourceRefresh[] = [];
+      const refreshedEntries = new Map<CatalogueSourceType, CatalogueEntry[]>();
 
       logger.info(
         {
-          sourceType: "anilist",
-          topNPerMediaType: topN,
-          pageSize,
+          sourceTypes: sources.map((source) => source.sourceType),
           embeddingModel: parsedEnv.METAVAULT_CATALOGUE_EMBEDDING_MODEL,
           embeddingBatchSize:
             parsedEnv.METAVAULT_CATALOGUE_EMBEDDING_BATCH_SIZE,
@@ -127,40 +127,71 @@ class CatalogueService {
         "Catalogue refresh started"
       );
 
-      const entries = await this.anilist.getCatalogueEntries({
-        topN,
-        pageSize,
-        pace,
-      });
+      for (const source of sources) {
+        if (source.skipReason) {
+          sourceResults.push({
+            source_type: source.sourceType,
+            status: "skipped",
+            fetched_count: 0,
+            embedded_count: 0,
+            skipped_embedding_count: 0,
+            message: source.skipReason,
+          });
+          continue;
+        }
 
-      logger.info(
-        { sourceType: "anilist", fetchedCount: entries.length },
-        "Catalogue source fetch completed"
-      );
-
-      const upsertedEntries: CatalogueEntry[] = [];
-      for (const entry of entries) {
-        upsertedEntries.push(await catalogueModel.upsertEntry(entry));
+        try {
+          const entries = await source.load();
+          const upsertedEntries: CatalogueEntry[] = [];
+          for (const entry of entries) {
+            upsertedEntries.push(await catalogueModel.upsertEntry(entry));
+          }
+          refreshedEntries.set(source.sourceType, upsertedEntries);
+          sourceResults.push({
+            source_type: source.sourceType,
+            status: "completed",
+            fetched_count: upsertedEntries.length,
+            embedded_count: 0,
+            skipped_embedding_count: 0,
+          });
+          logger.info(
+            {
+              sourceType: source.sourceType,
+              fetchedCount: upsertedEntries.length,
+            },
+            "Catalogue source fetch completed"
+          );
+        } catch (error) {
+          logger.warn(
+            { sourceType: source.sourceType, error },
+            "Catalogue source refresh failed"
+          );
+          sourceResults.push({
+            source_type: source.sourceType,
+            status: "failed",
+            fetched_count: 0,
+            embedded_count: 0,
+            skipped_embedding_count: 0,
+            message: "Source refresh failed",
+          });
+        }
       }
-      fetchedCount = upsertedEntries.length;
 
       const needsEmbedding = await catalogueModel.getEntriesNeedingEmbedding({
-        sourceType: "anilist",
         embeddingModel: parsedEnv.METAVAULT_CATALOGUE_EMBEDDING_MODEL,
       });
       const needsEmbeddingIds = new Set(
         needsEmbedding.map((entry) => entry.id)
       );
-      skippedEmbeddingCount = upsertedEntries.filter(
-        (entry) => !needsEmbeddingIds.has(entry.id)
-      ).length;
+      for (const result of sourceResults) {
+        result.skipped_embedding_count = (
+          refreshedEntries.get(result.source_type) ?? []
+        ).filter((entry) => !needsEmbeddingIds.has(entry.id)).length;
+      }
 
       logger.info(
         {
-          sourceType: "anilist",
-          upsertedCount: upsertedEntries.length,
           needsEmbeddingCount: needsEmbedding.length,
-          skippedEmbeddingCount,
         },
         "Catalogue entries upserted"
       );
@@ -194,27 +225,42 @@ class CatalogueService {
             embeddingBlob: encodeFloat32Vector(embedding),
             embeddingTextHash: entry.embedding_text_hash,
           });
-          embeddedCount += 1;
+          const sourceResult = sourceResults.find(
+            (result) => result.source_type === entry.source_type
+          );
+          if (sourceResult) {
+            sourceResult.embedded_count += 1;
+          }
         }
         await pace();
       }
 
+      const totals = sourceResults.reduce(
+        (total, source) => ({
+          fetched: total.fetched + source.fetched_count,
+          embedded: total.embedded + source.embedded_count,
+          skipped: total.skipped + source.skipped_embedding_count,
+        }),
+        { fetched: 0, embedded: 0, skipped: 0 }
+      );
+
       logger.info(
         {
-          sourceType: "anilist",
-          fetchedCount,
-          embeddedCount,
-          skippedEmbeddingCount,
+          fetchedCount: totals.fetched,
+          embeddedCount: totals.embedded,
+          skippedEmbeddingCount: totals.skipped,
+          sources: sourceResults,
         },
         "Catalogue refresh completed"
       );
 
       return ok({
-        source_type: "anilist",
+        source_type: "all",
         status: "completed",
-        fetched_count: fetchedCount,
-        embedded_count: embeddedCount,
-        skipped_embedding_count: skippedEmbeddingCount,
+        fetched_count: totals.fetched,
+        embedded_count: totals.embedded,
+        skipped_embedding_count: totals.skipped,
+        sources: sourceResults,
       });
     } catch (error) {
       logger.warn({ error }, "Catalogue refresh failed");
@@ -231,6 +277,59 @@ class CatalogueService {
       description: entry.description,
     });
   }
+
+  private getSources(pace: () => Promise<void>): CatalogueSource[] {
+    const tmdbApiKey = parsedEnv.METAVAULT_CATALOGUE_TMDB_API_KEY?.trim();
+    const igdbClientId = parsedEnv.METAVAULT_CATALOGUE_IGDB_CLIENT_ID?.trim();
+    const igdbAccessToken =
+      parsedEnv.METAVAULT_CATALOGUE_IGDB_ACCESS_TOKEN?.trim();
+
+    return [
+      {
+        sourceType: "anilist",
+        load: () =>
+          this.anilist.getCatalogueEntries({
+            topN: parsedEnv.METAVAULT_CATALOGUE_ANILIST_TOP_N,
+            pageSize: parsedEnv.METAVAULT_CATALOGUE_ANILIST_PAGE_SIZE,
+            pace,
+          }),
+      },
+      {
+        sourceType: "tmdb",
+        skipReason: tmdbApiKey ? undefined : "Catalogue API key is missing",
+        load: () =>
+          this.tmdb.getCatalogueEntries({
+            topN: parsedEnv.METAVAULT_CATALOGUE_TMDB_TOP_N,
+            apiKey: tmdbApiKey ?? "",
+            pace,
+          }),
+      },
+      {
+        sourceType: "igdb",
+        skipReason:
+          igdbClientId && igdbAccessToken
+            ? undefined
+            : "Catalogue credentials are missing",
+        load: () =>
+          this.igdb.getCatalogueEntries({
+            topN: parsedEnv.METAVAULT_CATALOGUE_IGDB_TOP_N,
+            pageSize: 50,
+            clientId: igdbClientId ?? "",
+            accessToken: igdbAccessToken ?? "",
+            pace,
+          }),
+      },
+      {
+        sourceType: "openlibrary",
+        load: () =>
+          this.openLibrary.getCatalogueEntries({
+            topN: parsedEnv.METAVAULT_CATALOGUE_OPEN_LIBRARY_TOP_N,
+            pageSize: 100,
+            pace,
+          }),
+      },
+    ];
+  }
 }
 
 export const catalogueService = new CatalogueService();
@@ -244,6 +343,36 @@ function createPacer(refreshWindowMs: number, operationCount: number) {
       await sleep(delayMs);
     }
   };
+}
+
+type CatalogueSource = {
+  sourceType: CatalogueSourceType;
+  load: () => Promise<CatalogueEntryData[]>;
+  skipReason?: string;
+};
+
+function estimateRefreshOperations() {
+  const sourceRequests =
+    Math.ceil(
+      parsedEnv.METAVAULT_CATALOGUE_ANILIST_TOP_N /
+        parsedEnv.METAVAULT_CATALOGUE_ANILIST_PAGE_SIZE
+    ) *
+      2 +
+    Math.ceil(parsedEnv.METAVAULT_CATALOGUE_TMDB_TOP_N / 20) * 2 +
+    Math.ceil(parsedEnv.METAVAULT_CATALOGUE_IGDB_TOP_N / 50) +
+    Math.ceil(parsedEnv.METAVAULT_CATALOGUE_OPEN_LIBRARY_TOP_N / 100);
+  const maximumEntries =
+    parsedEnv.METAVAULT_CATALOGUE_ANILIST_TOP_N * 2 +
+    parsedEnv.METAVAULT_CATALOGUE_TMDB_TOP_N * 2 +
+    parsedEnv.METAVAULT_CATALOGUE_IGDB_TOP_N +
+    parsedEnv.METAVAULT_CATALOGUE_OPEN_LIBRARY_TOP_N;
+
+  return (
+    sourceRequests +
+    Math.ceil(
+      maximumEntries / parsedEnv.METAVAULT_CATALOGUE_EMBEDDING_BATCH_SIZE
+    )
+  );
 }
 
 async function fetchWithRetry(url: URL, init: RequestInit) {

@@ -26,6 +26,7 @@ describe("recommendation vectors", () => {
   it("calculates cosine similarity", () => {
     expect(cosineSimilarity([1, 0], [1, 0])).toBe(1);
     expect(cosineSimilarity([1, 0], [0, 1])).toBe(0);
+    expect(cosineSimilarity([1], [1, 0])).toBe(0);
   });
 
   it("hashes the exact embedding text", () => {
@@ -101,6 +102,29 @@ describe("recommendation scoring", () => {
     });
 
     expect(matching).toBeGreaterThan(vague);
+  });
+
+  it("makes cosine similarity the dominant score contribution", async () => {
+    process.env.NODE_ENV = "test";
+    process.env.JWT_SECRET = "unit-secret";
+    const { getRecommendationScore } = await import(
+      "../../packages/server/recommendations/recommendation.service"
+    );
+
+    const score = getRecommendationScore({
+      prompt: "cozy friendship anime",
+      cosineScore: 0.8,
+      candidate: {
+        title: "Cozy Friendship Anime",
+        genres: ["Slice of Life"],
+        tags: ["Friendship"],
+        public_rating: 8,
+        popularity: 1000,
+      },
+    });
+
+    expect(score.cosineContribution).toBeCloseTo(0.656);
+    expect(score.total).toBeGreaterThan(score.cosineContribution);
   });
 });
 

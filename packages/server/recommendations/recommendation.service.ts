@@ -1,5 +1,10 @@
-import { catalogueService } from "../catalogue/catalogue.service";
+import type { CatalogueEntry } from "../catalogue/catalogue.model";
 import { catalogueModel } from "../catalogue/catalogue.model";
+import { catalogueService } from "../catalogue/catalogue.service";
+import {
+  cosineSimilarity,
+  decodeFloat32Vector,
+} from "../catalogue/catalogue-vector";
 import { parsedEnv } from "../env";
 import { logger } from "../logger";
 import { err, ok, type Result } from "../utils/result";
@@ -7,11 +12,6 @@ import type {
   GenerateRecommendationsInput,
   GenerateRecommendationsResponse,
 } from "./recommendation.schema";
-import {
-  cosineSimilarity,
-  decodeFloat32Vector,
-} from "../catalogue/catalogue-vector";
-import type { CatalogueEntry } from "../catalogue/catalogue.model";
 
 class RecommendationService {
   async generate({
@@ -74,15 +74,15 @@ class RecommendationService {
       }))
       .map((item) => ({
         ...item,
-        score: scoreRecommendationCandidate({
+        score: getRecommendationScore({
           prompt: input.prompt,
           candidate: item.candidate,
           cosineScore: item.cosineScore,
         }),
       }))
-      .sort((left, right) => right.score - left.score)
+      .sort((left, right) => right.score.total - left.score.total)
       .slice(0, input.count)
-      .map(({ candidate, cosineScore }) => ({
+      .map(({ candidate, cosineScore, score }) => ({
         catalogue_entry_id: candidate.id,
         source_type: candidate.source_type,
         source_media_id: candidate.source_media_id,
@@ -92,8 +92,18 @@ class RecommendationService {
         public_rating: candidate.public_rating,
         released_at: candidate.released_at,
         image_src: candidate.image_src,
+        genres: candidate.genres,
         tags: candidate.tags,
         cosine_score: cosineScore,
+        match_score: score.total,
+        score_breakdown: {
+          cosine_weight: SCORE_WEIGHTS.cosine,
+          cosine_contribution: score.cosineContribution,
+          keyword_overlap: score.keywordOverlap,
+          keyword_contribution: score.keywordContribution,
+          rating_contribution: score.ratingContribution,
+          popularity_contribution: score.popularityContribution,
+        },
         ...(input.debug
           ? {
               debug: {
@@ -108,7 +118,8 @@ class RecommendationService {
       {
         userId,
         returnedCount: items.length,
-        topScore: items[0]?.cosine_score ?? null,
+        topMatchScore: items[0]?.match_score ?? null,
+        topCosineScore: items[0]?.cosine_score ?? null,
         topTitle: items[0]?.title ?? null,
       },
       "Recommendation generation completed"
@@ -132,12 +143,41 @@ export function scoreRecommendationCandidate({
   >;
   cosineScore: number;
 }) {
-  return (
-    cosineScore * 0.82 +
-    keywordOverlapScore(prompt, candidate) * 0.1 +
-    ratingScore(candidate.public_rating) * 0.05 +
-    popularityScore(candidate.popularity) * 0.03
-  );
+  return getRecommendationScore({ prompt, candidate, cosineScore }).total;
+}
+
+export function getRecommendationScore({
+  prompt,
+  candidate,
+  cosineScore,
+}: {
+  prompt: string;
+  candidate: Pick<
+    CatalogueEntry,
+    "title" | "genres" | "tags" | "public_rating" | "popularity"
+  >;
+  cosineScore: number;
+}) {
+  const keywordOverlap = keywordOverlapScore(prompt, candidate);
+  const cosineContribution = cosineScore * SCORE_WEIGHTS.cosine;
+  const keywordContribution = keywordOverlap * SCORE_WEIGHTS.keyword;
+  const ratingContribution =
+    ratingScore(candidate.public_rating) * SCORE_WEIGHTS.rating;
+  const popularityContribution =
+    popularityScore(candidate.popularity) * SCORE_WEIGHTS.popularity;
+
+  return {
+    total:
+      cosineContribution +
+      keywordContribution +
+      ratingContribution +
+      popularityContribution,
+    cosineContribution,
+    keywordOverlap,
+    keywordContribution,
+    ratingContribution,
+    popularityContribution,
+  };
 }
 
 function keywordOverlapScore(
@@ -176,3 +216,9 @@ function popularityScore(value: number | null) {
 }
 
 const STOP_WORDS = new Set(["and", "for", "the", "with", "want", "something"]);
+const SCORE_WEIGHTS = {
+  cosine: 0.82,
+  keyword: 0.1,
+  rating: 0.05,
+  popularity: 0.03,
+} as const;

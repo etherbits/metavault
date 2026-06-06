@@ -1,3 +1,8 @@
+import type { CatalogueEntryData } from "../../../catalogue/catalogue.model";
+import {
+  buildCatalogueEmbeddingText,
+  hashEmbeddingText,
+} from "../../../catalogue/catalogue-vector";
 import type { LibraryEntryWithTags } from "../../../ezq/ezq.schema";
 import { logger } from "../../../logger";
 import {
@@ -32,6 +37,71 @@ export class OpenLibrarySourceIntegration
 
   supportsEntry(row: LibraryEntryWithTags): boolean {
     return row.media_type === "book";
+  }
+
+  async getCatalogueEntries(input: {
+    topN: number;
+    pageSize: number;
+    pace: () => Promise<void>;
+  }): Promise<CatalogueEntryData[]> {
+    const entries: CatalogueEntryData[] = [];
+    const pageCount = Math.ceil(input.topN / input.pageSize);
+
+    for (let page = 1; page <= pageCount; page += 1) {
+      const url = new URL(OPEN_LIBRARY_SEARCH_ENDPOINT);
+      url.searchParams.set("q", "language:eng");
+      url.searchParams.set("sort", "rating");
+      url.searchParams.set("page", String(page));
+      url.searchParams.set(
+        "limit",
+        String(Math.min(input.pageSize, input.topN - entries.length))
+      );
+      url.searchParams.set(
+        "fields",
+        [
+          "key",
+          "title",
+          "cover_i",
+          "first_publish_year",
+          "ratings_average",
+          "ratings_count",
+          "subject",
+          "author_name",
+          "first_sentence",
+        ].join(",")
+      );
+
+      const response = await fetch(url);
+      if (!response.ok) {
+        logger.warn(
+          { sourceType: this.sourceType, status: response.status, page },
+          "OpenLibrary catalogue request failed"
+        );
+        await input.pace();
+        continue;
+      }
+
+      const parsed = openLibrarySearchResponseSchema.safeParse(
+        await response.json()
+      );
+      if (!parsed.success) {
+        logger.warn(
+          { sourceType: this.sourceType, error: parsed.error },
+          "OpenLibrary catalogue response was invalid"
+        );
+        await input.pace();
+        continue;
+      }
+
+      entries.push(
+        ...(parsed.data.docs ?? [])
+          .slice(0, input.topN - entries.length)
+          .map((doc) => this.toCatalogueEntry(doc))
+      );
+      await input.pace();
+    }
+
+    return entries;
   }
 
   async getEnrichmentData(
@@ -180,6 +250,54 @@ export class OpenLibrarySourceIntegration
         ? `${data.doc.first_publish_year}-01-01`
         : null,
       tags,
+    };
+  }
+
+  private toCatalogueEntry(
+    doc: OpenLibraryDocWithContext["doc"]
+  ): CatalogueEntryData {
+    const title = doc.title || "Unknown OpenLibrary book";
+    const sourceMediaId =
+      doc.key ?? `title:${hashEmbeddingText(title).slice(0, 16)}`;
+    const genres = [...(doc.subject ?? [])]
+      .map((value) => value.trim())
+      .filter(Boolean)
+      .slice(0, 12);
+    const description = Array.isArray(doc.first_sentence)
+      ? (doc.first_sentence[0] ?? null)
+      : (doc.first_sentence ?? null);
+    const embeddingText = buildCatalogueEmbeddingText({
+      title,
+      mediaType: "book",
+      genres,
+      tags: [],
+      description,
+    });
+
+    return {
+      id: `openlibrary-${sourceMediaId.replace(/^\/+/, "").replaceAll("/", "-")}`,
+      source_type: "openlibrary",
+      source_media_id: sourceMediaId,
+      media_type: "book",
+      title,
+      description,
+      image_src: doc.cover_i
+        ? `${OPEN_LIBRARY_COVER_BASE_URL}/${doc.cover_i}-L.jpg`
+        : null,
+      adult: false,
+      public_rating:
+        typeof doc.ratings_average === "number"
+          ? doc.ratings_average * 2
+          : null,
+      popularity:
+        typeof doc.ratings_count === "number" ? doc.ratings_count : null,
+      released_at: doc.first_publish_year
+        ? `${doc.first_publish_year}-01-01`
+        : null,
+      genres,
+      tags: [],
+      metadata: { authors: doc.author_name ?? [] },
+      embedding_text_hash: hashEmbeddingText(embeddingText),
     };
   }
 }

@@ -25,7 +25,7 @@ export async function createCatalogueEntriesTable(sql: SQL) {
 
   await sql`
     CREATE UNIQUE INDEX IF NOT EXISTS idx_catalogue_entries_source_media
-    ON catalogue_entries(source_type, source_media_id)
+    ON catalogue_entries(source_type, source_media_id, media_type)
   `;
 
   await sql`

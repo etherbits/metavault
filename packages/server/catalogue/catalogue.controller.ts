@@ -29,7 +29,7 @@ export const catalogueRouter = Router().post(
           .json({ message: "Invalid catalogue refresh key" });
       }
 
-      const result = await catalogueService.refreshAniList(req.body);
+      const result = await catalogueService.refreshAll(req.body);
       if (!result.ok) {
         return sendServiceError(res, result.error);
       }

@@ -189,6 +189,42 @@ app.get("/tmdb/3/search/tv", (req, res) => {
   });
 });
 
+app.get("/tmdb/3/movie/popular", (_req, res) => {
+  res.json({
+    results: [
+      {
+        id: 9101,
+        title: "Warm Road Movie",
+        poster_path: "/warm-road-movie.jpg",
+        vote_average: 8.1,
+        popularity: 850,
+        overview: "A warm road trip about friendship and finding home.",
+        release_date: "2022-05-06",
+        adult: false,
+        genre_ids: [28],
+      },
+    ],
+  });
+});
+
+app.get("/tmdb/3/tv/popular", (_req, res) => {
+  res.json({
+    results: [
+      {
+        id: 9102,
+        name: "Quiet Family Drama",
+        poster_path: "/quiet-family-drama.jpg",
+        vote_average: 8.3,
+        popularity: 780,
+        overview: "A thoughtful family drama about memory and reconciliation.",
+        first_air_date: "2021-09-10",
+        adult: false,
+        genre_ids: [18],
+      },
+    ],
+  });
+});
+
 app.get("/tmdb/3/genre/movie/list", (_req, res) => {
   res.json({
     genres: [{ id: 28, name: "Action" }],
@@ -204,7 +240,7 @@ app.get("/tmdb/3/genre/tv/list", (_req, res) => {
 app.post("/igdb/v4/games", express.text({ type: "*/*" }), (req, res) => {
   const body = typeof req.body === "string" ? req.body : "";
   const match = body.match(/search "(.+?)"/);
-  const search = match?.[1]?.replace(/\\"/g, '"') ?? "IGDB Entry";
+  const search = match?.[1]?.replace(/\\"/g, '"') ?? "Cozy Quest";
 
   res.json([
     {
@@ -214,21 +250,33 @@ app.post("/igdb/v4/games", express.text({ type: "*/*" }), (req, res) => {
         url: "//images.igdb.com/igdb/image/upload/t_thumb/game.jpg",
       },
       rating: 91,
+      rating_count: 1200,
+      total_rating_count: 1800,
+      summary: "A gentle adventure game about friendship and exploration.",
       first_release_date: 1_684_368_000,
       genres: [{ name: "Adventure" }, { name: "RPG" }],
+      themes: [{ name: "Fantasy" }],
     },
   ]);
 });
 
 app.get("/openlibrary/search.json", (req, res) => {
-  const search = String(req.query.title ?? "OpenLibrary Entry");
+  const search = String(
+    req.query.title ??
+      (req.query.q ? "The Memory Archive" : "OpenLibrary Entry")
+  );
   res.json({
     docs: [
       {
         key: "/works/OL9001W",
         title: `${search} OpenLibrary`,
         cover_i: 123_456,
+        first_publish_year: 2020,
+        ratings_average: 4.2,
+        ratings_count: 900,
         subject: ["Fantasy", "Magic"],
+        author_name: ["Test Author"],
+        first_sentence: ["A librarian discovers a map made of memories."],
       },
     ],
   });
@@ -329,6 +377,9 @@ function mockEmbedding(text: string) {
     score(normalized, ["sports", "teamwork", "competition"]),
     score(normalized, ["anime"]),
     score(normalized, ["manga"]),
+    score(normalized, ["movie", "film"]),
+    score(normalized, ["game", "quest"]),
+    score(normalized, ["book", "library", "novel"]),
   ];
 }
 

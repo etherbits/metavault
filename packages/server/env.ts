@@ -55,6 +55,24 @@ const envSchema = z
       .int()
       .positive()
       .default(200),
+    METAVAULT_CATALOGUE_TMDB_API_KEY: z.string().optional(),
+    METAVAULT_CATALOGUE_TMDB_TOP_N: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(200),
+    METAVAULT_CATALOGUE_IGDB_CLIENT_ID: z.string().optional(),
+    METAVAULT_CATALOGUE_IGDB_ACCESS_TOKEN: z.string().optional(),
+    METAVAULT_CATALOGUE_IGDB_TOP_N: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(200),
+    METAVAULT_CATALOGUE_OPEN_LIBRARY_TOP_N: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(200),
     METAVAULT_CATALOGUE_REFRESH_WINDOW_MS: z.coerce
       .number()
       .int()

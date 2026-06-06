@@ -104,11 +104,16 @@ test("recommendations refresh catalogue and rank by cosine similarity", async ({
   expect(refreshResponse.ok()).toBeTruthy();
   const refreshBody = await refreshResponse.json();
   expect(refreshBody).toMatchObject({
-    source_type: "anilist",
+    source_type: "all",
     status: "completed",
-    fetched_count: 4,
   });
+  expect(refreshBody.fetched_count).toBeGreaterThan(4);
   expect(refreshBody.embedded_count).toBeGreaterThan(0);
+  expect(
+    refreshBody.sources.map(
+      (source: { source_type: string }) => source.source_type
+    )
+  ).toEqual(["anilist", "tmdb", "igdb", "openlibrary"]);
 
   const recommendationResponse = await request.post(
     "/recommendations/generate",
@@ -137,10 +142,30 @@ test("recommendations refresh catalogue and rank by cosine similarity", async ({
     adult: false,
   });
   expect(body.items[0].cosine_score).toBeGreaterThan(0);
+  expect(body.items[0].score_breakdown).toMatchObject({
+    cosine_weight: 0.82,
+  });
+  expect(body.items[0].match_score).toBeGreaterThan(0);
   expect(body.items[0].debug.embedding_model).toBe("text-embedding-3-small");
   expect(body.items.map((item: { title: string }) => item.title)).not.toContain(
     "Dark Horror Anime"
   );
+
+  const allSourcesResponse = await request.post("/recommendations/generate", {
+    data: {
+      prompt: "Show me recommendations across every media type",
+      count: 20,
+    },
+  });
+  expect(allSourcesResponse.ok()).toBeTruthy();
+  const allSourcesBody = await allSourcesResponse.json();
+  expect(
+    new Set(
+      allSourcesBody.items.map(
+        (item: { source_type: string }) => item.source_type
+      )
+    )
+  ).toEqual(new Set(["anilist", "tmdb", "igdb", "openlibrary"]));
 });
 
 test("assistant can call the recommendation tool", async ({ request }) => {

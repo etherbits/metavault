@@ -1,3 +1,8 @@
+import type { CatalogueEntryData } from "../../../catalogue/catalogue.model";
+import {
+  buildCatalogueEmbeddingText,
+  hashEmbeddingText,
+} from "../../../catalogue/catalogue-vector";
 import type { LibraryEntryWithTags } from "../../../ezq/ezq.schema";
 import { logger } from "../../../logger";
 import { getTrimmedString } from "../../../utils/string";
@@ -35,6 +40,36 @@ export class TmdbSourceIntegration
 
   supportsEntry(row: LibraryEntryWithTags): boolean {
     return row.media_type === "movie" || row.media_type === "tv_show";
+  }
+
+  async getCatalogueEntries(input: {
+    topN: number;
+    apiKey: string;
+    pace: () => Promise<void>;
+  }): Promise<CatalogueEntryData[]> {
+    const entries: CatalogueEntryData[] = [];
+
+    for (const mediaType of ["movie", "tv"] as const) {
+      const genres = await this.getGenreNamesById(mediaType, input.apiKey);
+      const pageCount = Math.ceil(input.topN / 20);
+
+      for (let page = 1; page <= pageCount; page += 1) {
+        const media = await this.getPopularMediaPage({
+          mediaType,
+          page,
+          apiKey: input.apiKey,
+        });
+        const remaining = input.topN - countTmdbEntries(entries, mediaType);
+        entries.push(
+          ...media
+            .slice(0, remaining)
+            .map((item) => this.toCatalogueEntry(item, mediaType, genres))
+        );
+        await input.pace();
+      }
+    }
+
+    return entries;
   }
 
   async getEnrichmentData(
@@ -255,6 +290,79 @@ export class TmdbSourceIntegration
     );
   }
 
+  private async getPopularMediaPage(input: {
+    mediaType: "movie" | "tv";
+    page: number;
+    apiKey: string;
+  }) {
+    const url = new URL(`${TMDB_API_BASE_URL}/${input.mediaType}/popular`);
+    url.searchParams.set("api_key", input.apiKey);
+    url.searchParams.set("page", String(input.page));
+
+    const response = await fetch(url);
+    if (!response.ok) {
+      logger.warn(
+        { sourceType: this.sourceType, status: response.status, ...input },
+        "TMDB catalogue request failed"
+      );
+      return [];
+    }
+
+    const parsed = tmdbSearchResponseSchema.safeParse(await response.json());
+    if (!parsed.success) {
+      logger.warn(
+        { sourceType: this.sourceType, error: parsed.error },
+        "TMDB catalogue response was invalid"
+      );
+      return [];
+    }
+
+    return parsed.data.results ?? [];
+  }
+
+  private toCatalogueEntry(
+    media: TmdbMediaWithContext["media"],
+    mediaType: "movie" | "tv",
+    genreNamesById: Map<number, string>
+  ): CatalogueEntryData {
+    const data = { media, mediaType, genreNamesById };
+    const title = this.getTmdbTitle(data) || `TMDB ${media.id}`;
+    const genres = (media.genre_ids ?? [])
+      .map((id) => genreNamesById.get(id))
+      .filter((value): value is string => Boolean(value));
+    const description = media.overview ?? null;
+    const mappedMediaType = mediaType === "movie" ? "movie" : "tv_show";
+    const embeddingText = buildCatalogueEmbeddingText({
+      title,
+      mediaType: mappedMediaType,
+      genres,
+      tags: [],
+      description,
+    });
+
+    return {
+      id: `tmdb-${mediaType}-${media.id}`,
+      source_type: "tmdb",
+      source_media_id: String(media.id),
+      media_type: mappedMediaType,
+      title,
+      description,
+      image_src: media.poster_path
+        ? `${TMDB_IMAGE_BASE_URL}${media.poster_path}`
+        : null,
+      adult: media.adult === true,
+      public_rating:
+        typeof media.vote_average === "number" ? media.vote_average : null,
+      popularity:
+        typeof media.popularity === "number" ? media.popularity : null,
+      released_at: this.getTmdbReleasedAt(data) || null,
+      genres,
+      tags: [],
+      metadata: { media_type: mediaType },
+      embedding_text_hash: hashEmbeddingText(embeddingText),
+    };
+  }
+
   private getTmdbTitle(data: TmdbMediaWithContext): string | null | undefined {
     switch (data.mediaType) {
       case "movie":
@@ -291,4 +399,12 @@ export class TmdbSourceIntegration
         return null;
     }
   }
+}
+
+function countTmdbEntries(
+  entries: CatalogueEntryData[],
+  mediaType: "movie" | "tv"
+) {
+  const mappedMediaType = mediaType === "movie" ? "movie" : "tv_show";
+  return entries.filter((entry) => entry.media_type === mappedMediaType).length;
 }

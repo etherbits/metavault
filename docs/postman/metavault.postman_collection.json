@@ -564,7 +564,7 @@
       "description": "Global catalogue maintenance endpoints. POST /catalogue/refresh requires METAVAULT_CATALOGUE_REFRESH_KEY on the server to match the catalogueRefreshKey environment variable. The default refresh body uses refreshWindowMs 0 for quick local testing.",
       "item": [
         {
-          "name": "POST /catalogue/refresh AniList",
+          "name": "POST /catalogue/refresh All Sources",
           "event": [
             {
               "listen": "test",
@@ -606,7 +606,7 @@
     },
     {
       "name": "Recommendations",
-      "description": "Recommendation endpoints. Run Auth / Sign In Seeded User first, then Catalogue / POST /catalogue/refresh AniList so there are embedded catalogue entries to rank.",
+      "description": "Recommendation endpoints. Run Auth / Sign In Seeded User first, then Catalogue / POST /catalogue/refresh All Sources so there are embedded catalogue entries to rank.",
       "item": [
         {
           "name": "POST /recommendations/generate Cozy Anime",

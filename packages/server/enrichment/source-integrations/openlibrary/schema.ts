@@ -6,7 +6,13 @@ export const openLibraryDocSchema = z.object({
   cover_i: z.number().nullable().optional(),
   first_publish_year: z.number().nullable().optional(),
   ratings_average: z.number().nullable().optional(),
+  ratings_count: z.number().nullable().optional(),
   subject: z.array(z.string()).nullable().optional(),
+  author_name: z.array(z.string()).nullable().optional(),
+  first_sentence: z
+    .union([z.string(), z.array(z.string())])
+    .nullable()
+    .optional(),
 });
 
 // OpenLibrary search result fields used for mapping:

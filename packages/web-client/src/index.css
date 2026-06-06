@@ -215,6 +215,14 @@
     padding-left: 0.75rem;
   }
 
+  .assistant-markdown img {
+    display: block;
+    max-width: 67%;
+    max-height: 220px;
+    border-radius: 8px;
+    object-fit: cover;
+  }
+
   .assistant-markdown code {
     border-radius: 4px;
     background: #27272a;

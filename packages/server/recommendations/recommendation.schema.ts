@@ -1,7 +1,12 @@
 import { z } from "zod";
 import { EntryMediaTypeSchema } from "../db/schema/libraryEntries";
 
-export const recommendationSourceTypeSchema = z.enum(["anilist"]);
+export const recommendationSourceTypeSchema = z.enum([
+  "anilist",
+  "tmdb",
+  "igdb",
+  "openlibrary",
+]);
 export const recommendationAdultFilterSchema = z.enum([
   "exclude",
   "include",
@@ -46,8 +51,18 @@ export const recommendationItemSchema = z.object({
   public_rating: z.number().nullable(),
   released_at: z.string().nullable(),
   image_src: z.string().nullable(),
+  genres: z.array(z.string()),
   tags: z.array(z.string()),
   cosine_score: z.number(),
+  match_score: z.number(),
+  score_breakdown: z.object({
+    cosine_weight: z.number(),
+    cosine_contribution: z.number(),
+    keyword_overlap: z.number(),
+    keyword_contribution: z.number(),
+    rating_contribution: z.number(),
+    popularity_contribution: z.number(),
+  }),
   debug: z
     .object({
       embedding_text_hash: z.string(),

@@ -1,16 +1,16 @@
 import { z } from "zod";
 import { aiIntegrationService } from "../ai-integrations/ai-integration.service";
 import { logger } from "../logger";
-import { recommendationService } from "../recommendations/recommendation.service";
 import { generateRecommendationsSchema } from "../recommendations/recommendation.schema";
+import { recommendationService } from "../recommendations/recommendation.service";
 import { err, ok, type Result } from "../utils/result";
+import { assistantModel } from "./assistant.model";
 import type {
   AssistantChatInput,
   AssistantChatResponse,
   AssistantSession,
   UpsertAssistantSessionInput,
 } from "./assistant.schema";
-import { assistantModel } from "./assistant.model";
 
 // TODO: add markdown support with lib
 
@@ -63,7 +63,9 @@ const SYSTEM_PROMPT = [
   "Help users understand their current library query results, explain entries, and write EZQ queries.",
   "Use only the provided current query context when discussing visible results.",
   "When the user asks for recommendations, call the generate_recommendations tool instead of inventing recommendations.",
-  "After recommendation tool results are available, explain why the user may like the strongest matches.",
+  "After recommendation tool results are available, explain each strongest match in one or two concise sentences.",
+  "Prioritize cosine_score: it measures how closely the user's prompt embedding points in the same semantic direction as the catalogue entry embedding. Then mention a concrete genre, tag, rating, release year, or media-type signal when useful.",
+  "Describe cosine similarity as an approximate semantic match, not certainty.",
   "Keep answers concise and practical.",
 ].join(" ");
 
