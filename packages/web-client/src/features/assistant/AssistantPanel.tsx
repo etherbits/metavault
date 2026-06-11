@@ -69,11 +69,13 @@ export function AssistantPanel({
   const draftLength = draft.length;
 
   useEffect(() => {
+    if (!activeSession) return;
+
     scrollRef.current?.scrollTo({
       top: scrollRef.current.scrollHeight,
       behavior: "smooth",
     });
-  });
+  }, [activeSession]);
 
   useEffect(() => {
     const handleKeyDown = (event: globalThis.KeyboardEvent) => {

@@ -63,9 +63,13 @@ export function AddToCollectionDialog({
     const name = newCollectionName.trim();
     if (!name || !onCreateCollection) return;
 
-    await onCreateCollection(name);
-    setCreatingCollection(false);
-    setNewCollectionName("");
+    try {
+      await onCreateCollection(name);
+      setCreatingCollection(false);
+      setNewCollectionName("");
+    } catch (error) {
+      console.error("Failed to create collection", error);
+    }
   }
 
   return (
@@ -129,17 +133,19 @@ export function AddToCollectionDialog({
                 </DropdownMenu.Item>
               ))}
 
-              {collections.length > 0 ? (
+              {collections.length > 0 && onCreateCollection ? (
                 <DropdownMenu.Separator className="my-1 h-px bg-[#3F3F46]" />
               ) : null}
 
-              <DropdownMenu.Item
-                className="flex min-h-8 cursor-pointer select-none items-center gap-2 rounded-[6px] px-2 text-sm leading-5 text-[#FACC15] outline-none transition-colors data-[highlighted]:bg-[#27272A]"
-                onSelect={() => setCreatingCollection(true)}
-              >
-                <Plus size={16} />
-                New collection
-              </DropdownMenu.Item>
+              {onCreateCollection ? (
+                <DropdownMenu.Item
+                  className="flex min-h-8 cursor-pointer select-none items-center gap-2 rounded-[6px] px-2 text-sm leading-5 text-[#FACC15] outline-none transition-colors data-[highlighted]:bg-[#27272A]"
+                  onSelect={() => setCreatingCollection(true)}
+                >
+                  <Plus size={16} />
+                  New collection
+                </DropdownMenu.Item>
+              ) : null}
             </DropdownMenu.Content>
           </DropdownMenu.Portal>
         </DropdownMenu.Root>
