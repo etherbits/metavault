@@ -1,5 +1,5 @@
 import { type APIRequestContext, expect, test } from "@playwright/test";
-import { signIn } from "../helpers/auth";
+import { createVerifiedUser, signIn } from "../helpers/auth";
 import {
   executeQuery,
   expectQueryResult,
@@ -79,7 +79,13 @@ test("query page empty input searches all and matches /s", async ({
   request,
   page,
 }) => {
-  await signIn(request);
+  const userSuffix = `${Date.now().toString(36)}_${Math.random()
+    .toString(36)
+    .slice(2, 6)}`;
+  const username = `search_${userSuffix}`;
+  const email = `${username}@test.local`;
+  await createVerifiedUser(request, username, email);
+  await signIn(request, username);
   const tag = `e2e-search-empty-${Date.now()}`;
   const firstTitle = `${tag} first`;
   const secondTitle = `${tag} second`;
@@ -91,7 +97,7 @@ test("query page empty input searches all and matches /s", async ({
   expect(allResponse.ok()).toBeTruthy();
   const allCount = (await allResponse.json()).rows.length;
 
-  await openQueryPage(page);
+  await openQueryPage(page, username);
   await executeQuery(page, "");
   await expect(page.getByText(`Retrieved ${allCount} results`)).toBeVisible();
 

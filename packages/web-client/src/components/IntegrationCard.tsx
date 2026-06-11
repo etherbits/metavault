@@ -8,7 +8,8 @@ type ConfigField = SourceIntegrationSettings["config_fields"][number];
 interface IntegrationCardProps {
   name: string;
   description: string;
-  queryFlag: string;
+  queryFlag?: string;
+  typeLabel?: string;
   config?: Record<string, unknown>;
   configFields?: ConfigField[];
   enabled?: boolean;
@@ -30,6 +31,7 @@ export function IntegrationCard({
   name,
   description,
   queryFlag,
+  typeLabel = "Source Integration",
   config: initialConfig = {},
   configFields = [],
   enabled: initialEnabled = false,
@@ -42,7 +44,7 @@ export function IntegrationCard({
 }: IntegrationCardProps) {
   const [enabled, setEnabled] = useState(initialEnabled);
   const [config, setConfig] = useState<Record<string, string>>(() =>
-    normalizeConfig(initialConfig)
+    normalizeConfig(initialConfig, configFields)
   );
   const [visibleSecrets, setVisibleSecrets] = useState<Record<string, boolean>>(
     {}
@@ -52,10 +54,9 @@ export function IntegrationCard({
     () => `${name.toLowerCase().replace(/\s+/g, "-")}-config`,
     [name]
   );
-
   useEffect(() => {
-    setConfig(normalizeConfig(initialConfig));
-  }, [initialConfig]);
+    setConfig(normalizeConfig(initialConfig, configFields));
+  }, [initialConfig, configFields]);
 
   useEffect(() => {
     setEnabled(initialEnabled);
@@ -106,13 +107,19 @@ export function IntegrationCard({
           </button>
 
           <h3 className="text-[20px] font-semibold leading-6 text-[#E4E4E7]">
-            {name} Source Integration
+            {name} {typeLabel}
           </h3>
         </div>
 
         <p className="text-[16px] leading-6 text-[#D4D4D8]">
-          {description} Query flag to trigger:{" "}
-          <span className="text-[#FAFAFA]">{queryFlag}</span>
+          {description}
+          {queryFlag ? (
+            <>
+              {" "}
+              Query flag to trigger:{" "}
+              <span className="text-[#FAFAFA]">{queryFlag}</span>
+            </>
+          ) : null}
         </p>
       </div>
 
@@ -201,11 +208,17 @@ export function IntegrationCard({
   );
 }
 
-function normalizeConfig(config: Record<string, unknown>) {
+function normalizeConfig(
+  config: Record<string, unknown>,
+  fields: ConfigField[]
+) {
   return Object.fromEntries(
-    Object.entries(config).map(([key, value]) => [
-      key,
-      typeof value === "string" ? value : "",
-    ])
+    fields.map((field) => {
+      const value = config[field.key];
+      return [
+        field.key,
+        typeof value === "string" ? value : (field.defaultValue ?? ""),
+      ];
+    })
   );
 }

@@ -6,24 +6,41 @@ import { MediaCard } from "@/components/MediaCard";
 import { Pagination } from "@/components/Pagination";
 import { QueryInput } from "@/components/QueryInput";
 import { Button } from "@/components/ui/button";
-import { AssistantPanel } from "@/features/assistant/AssistantPanel";
+import {
+  AssistantPanel,
+  type AssistantMessage,
+  type AssistantSession,
+} from "@/features/assistant/AssistantPanel";
+import { streamAssistantMessage } from "@/features/assistant/api";
+import {
+  useAssistantSessions,
+  useSaveAssistantSession,
+} from "@/features/assistant/hooks";
 import {
   useAddToCollection,
   useCollections,
+  useCreateCollection,
 } from "@/features/collections/hooks";
 import {
   useDeleteLibraryEntry,
   useExportLibraryEntries,
   useImportLibraryEntries,
+  useUploadLibraryEntryImage,
   useUpdateLibraryEntry,
 } from "@/features/library/hooks";
+import { toServerMediaType, toServerStatus } from "@/features/library/mappers";
 import { paginateItems } from "@/features/library/pagination";
 import type { MediaItem, MediaStatus } from "@/features/library/types";
 import { useLibrarySearch } from "@/features/library/useLibrarySearch";
 import { useLibrarySelection } from "@/features/library/useLibrarySelection";
-import { pickZipFile, saveBlobFile } from "@/shared/browser/files";
+import {
+  pickImageFile,
+  pickZipFile,
+  saveBlobFile,
+} from "@/shared/browser/files";
 
 const QUERY_PAGE_SIZE = 9;
+const INITIAL_ASSISTANT_SESSION_ID = "initial-assistant-session";
 
 export function QueryPage() {
   const navigate = useNavigate();
@@ -32,13 +49,32 @@ export function QueryPage() {
   const importEntries = useImportLibraryEntries();
   const exportEntries = useExportLibraryEntries();
   const addToCollection = useAddToCollection();
+  const createCollection = useCreateCollection();
+  const uploadEntryImage = useUploadLibraryEntryImage();
+  const assistantSessionsQuery = useAssistantSessions();
+  const saveAssistantSession = useSaveAssistantSession();
 
   const search = useLibrarySearch();
   const selection = useLibrarySelection(search.queryResults);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [assistantOpen, setAssistantOpen] = useState(false);
+  const [assistantFullscreen, setAssistantFullscreen] = useState(false);
   const [assistantDraft, setAssistantDraft] = useState("");
+  const [assistantSending, setAssistantSending] = useState(false);
+  const [assistantError, setAssistantError] = useState<string | null>(null);
+  const [assistantSessions, setAssistantSessions] = useState<
+    AssistantSession[]
+  >([
+    {
+      id: INITIAL_ASSISTANT_SESSION_ID,
+      title: "New chat",
+      messages: [],
+    },
+  ]);
+  const [activeAssistantSessionId, setActiveAssistantSessionId] = useState(
+    INITIAL_ASSISTANT_SESSION_ID
+  );
   const [collectionDialogOpen, setCollectionDialogOpen] = useState(false);
   const [pendingCollectionIds, setPendingCollectionIds] = useState<string[]>(
     []
@@ -50,6 +86,7 @@ export function QueryPage() {
 
   const queryInputRef = useRef<HTMLInputElement>(null);
   const wasQueryExecuting = useRef(false);
+  const assistantSessionsLoaded = useRef(false);
 
   useEffect(() => {
     if (wasQueryExecuting.current && !search.isQueryExecuting) {
@@ -63,6 +100,20 @@ export function QueryPage() {
       setSelectedCollection(collections[0].id);
     }
   }, [collections, selectedCollection]);
+
+  useEffect(() => {
+    if (assistantSessionsLoaded.current || !assistantSessionsQuery.data) {
+      return;
+    }
+
+    assistantSessionsLoaded.current = true;
+    if (assistantSessionsQuery.data.length === 0) {
+      return;
+    }
+
+    setAssistantSessions(assistantSessionsQuery.data);
+    setActiveAssistantSessionId(assistantSessionsQuery.data[0].id);
+  }, [assistantSessionsQuery.data]);
 
   const handleQuerySearch = (value: string) => {
     search.handleQuerySearch(value);
@@ -116,6 +167,33 @@ export function QueryPage() {
     setPendingCollectionIds([]);
   };
 
+  const handleCreateCollection = async (name: string) => {
+    if (pendingCollectionIds.length === 0) return;
+
+    const previousIds = new Set(collections.map((collection) => collection.id));
+    const nextCollections = await createCollection.mutateAsync({
+      name,
+      ids: pendingCollectionIds,
+    });
+    const createdCollection = nextCollections.find(
+      (collection) => !previousIds.has(collection.id)
+    );
+
+    if (createdCollection) {
+      setSelectedCollection(createdCollection.id);
+    }
+
+    setCollectionDialogOpen(false);
+    setPendingCollectionIds([]);
+  };
+
+  const handleUploadImage = (cardId: string) => {
+    pickImageFile(async (file) => {
+      await uploadEntryImage.mutateAsync({ id: cardId, file });
+      await search.refreshQuery();
+    });
+  };
+
   const handleExportItems = async () => {
     const ids =
       selection.selectMode && selection.selectedIds.length > 0
@@ -151,6 +229,145 @@ export function QueryPage() {
     currentPage,
     QUERY_PAGE_SIZE
   );
+  const activeAssistantSession =
+    assistantSessions.find(
+      (session) => session.id === activeAssistantSessionId
+    ) ?? assistantSessions[0];
+
+  const handleNewAssistantSession = () => {
+    const session: AssistantSession = {
+      id: crypto.randomUUID(),
+      title: "New chat",
+      messages: [],
+    };
+
+    setAssistantSessions((previous) => [session, ...previous]);
+    setActiveAssistantSessionId(session.id);
+    setAssistantDraft("");
+    setAssistantError(null);
+  };
+
+  const handleAssistantSubmit = async () => {
+    const message = assistantDraft.trim();
+    if (!message || assistantSending || !activeAssistantSession) return;
+
+    const userMessage: AssistantMessage = {
+      id: crypto.randomUUID(),
+      role: "user",
+      content: message,
+    };
+    const assistantMessage: AssistantMessage = {
+      id: crypto.randomUUID(),
+      role: "assistant",
+      content: "",
+    };
+    const previousMessages = activeAssistantSession.messages;
+    const userTurnSession = {
+      ...activeAssistantSession,
+      title:
+        activeAssistantSession.messages.length === 0
+          ? createAssistantSessionTitle(message)
+          : activeAssistantSession.title,
+      messages: [
+        ...activeAssistantSession.messages,
+        userMessage,
+        assistantMessage,
+      ],
+    };
+
+    setAssistantSessions((previous) =>
+      previous.map((session) =>
+        session.id === activeAssistantSession.id ? userTurnSession : session
+      )
+    );
+    setAssistantDraft("");
+    const userTurnSave = saveAssistantSession
+      .mutateAsync({
+        id: userTurnSession.id,
+        input: {
+          title: userTurnSession.title,
+          messages: userTurnSession.messages.filter(
+            (item) => item.id !== assistantMessage.id
+          ),
+        },
+      })
+      .catch(() => null);
+
+    setAssistantSending(true);
+    setAssistantError(null);
+
+    try {
+      const streamedMessage = await streamAssistantMessage({
+        input: {
+          message,
+          history: previousMessages.map(({ role, content }) => ({
+            role,
+            content,
+          })),
+          context: {
+            currentQuery: search.query || undefined,
+            canonicalQuery: search.canonicalQuery || undefined,
+            visibleResults: pagination.items.map(toAssistantVisibleResult), // TODO: no need for mapping this, we can include all fields
+          },
+        },
+        onDelta: (delta) => {
+          setAssistantSessions((previous) =>
+            previous.map((session) =>
+              session.id === activeAssistantSession.id
+                ? appendAssistantMessageDelta(
+                    session,
+                    assistantMessage.id,
+                    delta
+                  )
+                : session
+            )
+          );
+        },
+      });
+      const completedSession = {
+        ...userTurnSession,
+        messages: userTurnSession.messages.map((item) =>
+          item.id === assistantMessage.id
+            ? { ...item, content: streamedMessage }
+            : item
+        ),
+      };
+
+      setAssistantSessions((previous) =>
+        previous.map((session) =>
+          session.id === activeAssistantSession.id ? completedSession : session
+        )
+      );
+      await userTurnSave;
+      await saveAssistantSession.mutateAsync({
+        id: completedSession.id,
+        input: {
+          title: completedSession.title,
+          messages: completedSession.messages,
+        },
+      });
+    } catch (error) {
+      setAssistantError(
+        error instanceof Error
+          ? error.message
+          : "Unable to send assistant message"
+      );
+      setAssistantSessions((previous) =>
+        previous.map((session) =>
+          session.id === activeAssistantSession.id
+            ? {
+                ...session,
+                messages: session.messages.filter(
+                  (item) => item.id !== assistantMessage.id
+                ),
+              }
+            : session
+        )
+      );
+    } finally {
+      setAssistantSending(false);
+    }
+  };
 
   useEffect(() => {
     if (currentPage !== pagination.currentPage) {
@@ -270,6 +487,7 @@ export function QueryPage() {
                 onRemoveStatus={handleCardRemoveStatus}
                 onDelete={handleCardDelete}
                 onAddToCollection={handleCardAddToCollection}
+                onUploadImage={handleUploadImage}
                 onViewDetails={handleViewDetails}
               />
             ))}
@@ -280,22 +498,40 @@ export function QueryPage() {
       {assistantOpen ? (
         <AssistantPanel
           draft={assistantDraft}
+          sessions={assistantSessions}
+          activeSessionId={activeAssistantSessionId}
+          isSending={assistantSending}
+          errorMessage={assistantError}
+          fullscreen={assistantFullscreen}
+          onSelectSession={(id) => {
+            setActiveAssistantSessionId(id);
+            setAssistantError(null);
+          }}
+          onNewSession={handleNewAssistantSession}
+          onToggleFullscreen={() =>
+            setAssistantFullscreen((previous) => !previous)
+          }
           onDraftChange={setAssistantDraft}
+          onSubmit={handleAssistantSubmit}
+          onClose={() => {
+            setAssistantOpen(false);
+            setAssistantFullscreen(false);
+          }}
         />
       ) : null}
 
-      <Button
-        type="button"
-        variant="brand"
-        size="icon"
-        onClick={() => setAssistantOpen((previous) => !previous)}
-        className="fixed bottom-6 right-4 z-[60] h-10 w-10 rounded-[8px] shadow-[0px_20px_25px_-5px_rgba(0,0,0,0.1),0px_8px_10px_-6px_rgba(0,0,0,0.1)] sm:bottom-12 sm:right-12"
-        aria-label={
-          assistantOpen ? "Close assistant chat" : "Open assistant chat"
-        }
-      >
-        <Bot size={20} />
-      </Button>
+      {!assistantOpen ? (
+        <Button
+          type="button"
+          variant="brand"
+          size="icon"
+          onClick={() => setAssistantOpen(true)}
+          className="fixed bottom-6 right-4 z-[60] h-10 w-10 rounded-[8px] shadow-[0px_20px_25px_-5px_rgba(0,0,0,0.1),0px_8px_10px_-6px_rgba(0,0,0,0.1)] sm:bottom-12 sm:right-12"
+          aria-label="Open assistant chat"
+        >
+          <Bot size={20} />
+        </Button>
+      ) : null}
 
       <AddToCollectionDialog
         open={collectionDialogOpen}
@@ -303,6 +539,13 @@ export function QueryPage() {
         collections={collections}
         onCollectionChange={setSelectedCollection}
         onConfirm={handleConfirmAddToCollection}
+        onCreateCollection={handleCreateCollection}
+        isCreatingCollection={createCollection.isPending}
+        createCollectionError={
+          createCollection.error instanceof Error
+            ? createCollection.error.message
+            : null
+        }
         onCancel={() => {
           setCollectionDialogOpen(false);
           setPendingCollectionIds([]);
@@ -310,4 +553,48 @@ export function QueryPage() {
       />
     </>
   );
+}
+
+function toAssistantVisibleResult(item: MediaItem) {
+  return {
+    id: item.id,
+    title: item.title,
+    media_type: toServerMediaType(item.type),
+    status: item.status ? toServerStatus(item.status) : null,
+    adult: item.adult,
+    public_rating: parseDisplayRating(item.rating),
+    personal_rating: null,
+    tags: item.tags,
+  };
+}
+
+function parseDisplayRating(rating: string) {
+  const value = Number.parseFloat(rating.split("/")[0]?.trim() ?? "");
+  return Number.isFinite(value) ? value : null;
+}
+
+function createAssistantSessionTitle(message: string) {
+  const words = message
+    .replace(/[^\p{L}\p{N}\s-]/gu, "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 5);
+
+  return words.length > 0 ? words.join(" ") : "New chat";
+}
+
+function appendAssistantMessageDelta(
+  session: AssistantSession,
+  messageId: string,
+  delta: string
+): AssistantSession {
+  return {
+    ...session,
+    messages: session.messages.map((message) =>
+      message.id === messageId
+        ? { ...message, content: `${message.content}${delta}` }
+        : message
+    ),
+  };
 }

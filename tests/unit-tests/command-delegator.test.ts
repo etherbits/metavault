@@ -60,6 +60,7 @@ function row(overrides = {}) {
     image_src: null,
     media_type: "anime",
     status: "planning",
+    adult: false,
     public_rating: null,
     personal_rating: null,
     released_at: null,

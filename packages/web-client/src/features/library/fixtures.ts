@@ -1,4 +1,4 @@
-import BatmanPoster from "@/assets/download.jpeg";
+import BatmanPoster from "@/assets/download.jpeg"; // TODO: move testing to /tests
 import {
   LibraryEntryRowsSchema,
   type LibraryEntryWithTags,
@@ -66,6 +66,7 @@ function makeEntry(
     image_src: null,
     media_type: mediaType,
     status,
+    adult: false,
     public_rating: rating,
     personal_rating: null,
     released_at: releasedAt,

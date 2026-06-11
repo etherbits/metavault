@@ -6,6 +6,7 @@ import {
   collectionEntryResponseSchema,
   collectionResponseSchema,
   collectionWithEntriesResponseSchema,
+  createCollectionSchema,
   updateCollectionSchema,
 } from "../../../../server/collection/collection.schema";
 
@@ -22,6 +23,35 @@ export function useCollections(options: { enabled?: boolean } = {}) {
     queryKey: queryKeys.collections.all,
     queryFn: fetchCollections,
     enabled: options.enabled ?? true,
+  });
+}
+
+export function useCreateCollection() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      name,
+      ids = [],
+    }: {
+      name: string;
+      ids?: string[];
+    }) => {
+      const body = createCollectionSchema.parse({
+        name,
+        entries: ids.map((id) => ({ library_entry_id: id })),
+      });
+
+      await apiRequest("/collections", collectionResponseSchema, {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+
+      return fetchCollections();
+    },
+    onSuccess: (collections) => {
+      queryClient.setQueryData(queryKeys.collections.all, collections);
+    },
   });
 }
 

@@ -113,6 +113,7 @@ impl SqlGenerator {
         let WriteParts {
             mut scalar_cols,
             tag_values,
+            collection_values,
             ..
         } = self.collect_write_parts(leaves)?;
         if let Some(user_id) = &extras.user_id {
@@ -176,6 +177,17 @@ impl SqlGenerator {
             }
         }
 
+        for collection in collection_values {
+            let Some(user_id) = &extras.user_id else {
+                return Err(SqlGenerateError::CollectionRequiresUserScope);
+            };
+            statements.extend(collection_add_steps_for_token(
+                entry_id_token.clone(),
+                collection,
+                user_id.clone(),
+            ));
+        }
+
         Ok(statements)
     }
 
@@ -206,6 +218,8 @@ impl SqlGenerator {
             scalar_cols: set_pairs,
             tag_values,
             tag_removals,
+            collection_values,
+            collection_removals,
         } = self.collect_write_items(write_items)?;
         let mut statements = vec![];
 
@@ -321,6 +335,42 @@ impl SqlGenerator {
             }
         }
 
+        for collection in collection_values {
+            let Some(user_id) = &extras.user_id else {
+                return Err(SqlGenerateError::CollectionRequiresUserScope);
+            };
+            statements.extend(collection_add_steps_for_selection(
+                where_clause.clone(),
+                match_params.clone(),
+                collection,
+                user_id.clone(),
+            ));
+        }
+
+        for collection in collection_removals {
+            let Some(user_id) = &extras.user_id else {
+                return Err(SqlGenerateError::CollectionRequiresUserScope);
+            };
+            let mut params = match_params.clone();
+            params.extend([user_id.clone(), collection.name]);
+            statements.push(EzqSqlStep {
+                sql: format!(
+                    "DELETE FROM collection_entries \
+                     WHERE library_entry_id IN (\
+                         SELECT library_entries.id FROM library_entries WHERE {}\
+                     ) \
+                     AND collection_id IN (\
+                         SELECT collections.id FROM collections \
+                         WHERE collections.user_id = ? \
+                           AND lower(collections.name) = lower(?)\
+                     )",
+                    where_clause
+                ),
+                params,
+                outputs: vec![],
+            });
+        }
+
         Ok(statements)
     }
 
@@ -395,6 +445,8 @@ impl SqlGenerator {
         let mut scalar_cols = vec![];
         let mut tag_values = vec![];
         let mut tag_removals = vec![];
+        let mut collection_values = vec![];
+        let mut collection_removals = vec![];
         let mut title_value: Option<String> = None;
 
         for item in &items {
@@ -408,6 +460,13 @@ impl SqlGenerator {
                     }
                     let value = first_segment(&segments, leaf)?;
                     upsert_scalar_col(&mut scalar_cols, prefix, value.to_string());
+                }
+                "adult" => {
+                    if item.remove {
+                        return Err(SqlGenerateError::UnsupportedUpdateWriteShape);
+                    }
+                    let value = first_segment(&segments, leaf)?;
+                    upsert_scalar_col(&mut scalar_cols, prefix, bool_sql_value(value)?.to_string());
                 }
                 "public_rating" | "personal_rating" => {
                     if item.remove {
@@ -442,6 +501,16 @@ impl SqlGenerator {
                         tag_values.push(tag);
                     }
                 }
+                "collection" => {
+                    let collection = CollectionWrite {
+                        name: first_segment(&segments, leaf)?.replace('_', " "),
+                    };
+                    if item.remove {
+                        collection_removals.push(collection);
+                    } else {
+                        collection_values.push(collection);
+                    }
+                }
                 "title" => {
                     if item.remove {
                         return Err(SqlGenerateError::UnsupportedUpdateWriteShape);
@@ -463,6 +532,8 @@ impl SqlGenerator {
             scalar_cols,
             tag_values,
             tag_removals,
+            collection_values,
+            collection_removals,
         })
     }
 
@@ -485,6 +556,11 @@ impl SqlGenerator {
                 params.push(first_segment(&segments, leaf)?.to_string());
                 Ok("library_entries.media_type = ?".to_string())
             }
+            "adult" => {
+                let value = first_segment(&segments, leaf)?;
+                params.push(bool_sql_value(value)?.to_string());
+                Ok("library_entries.adult = ?".to_string())
+            }
             "public_rating" | "personal_rating" => {
                 let value = first_segment(&segments, leaf)?;
                 let (op, num) = split_op_value(value);
@@ -502,6 +578,13 @@ impl SqlGenerator {
                 params.push(nth_segment(&segments, 1, leaf)?.to_string());
                 Ok(
                     "library_entries.id IN (SELECT library_entry_tags.library_entry_id FROM library_entry_tags JOIN tags ON tags.id = library_entry_tags.tag_id WHERE tags.value = ? AND tags.weight = ?)"
+                        .to_string(),
+                )
+            }
+            "collection" => {
+                params.push(first_segment(&segments, leaf)?.replace('_', " "));
+                Ok(
+                    "library_entries.id IN (SELECT collection_entries.library_entry_id FROM collection_entries JOIN collections ON collections.id = collection_entries.collection_id WHERE lower(collections.name) = lower(?))"
                         .to_string(),
                 )
             }
@@ -639,10 +722,104 @@ fn upsert_scalar_col(cols: &mut Vec<(String, String)>, name: &str, value: String
     cols.push((name.to_string(), value));
 }
 
+fn bool_sql_value(value: &str) -> Result<i32, SqlGenerateError> {
+    match value {
+        "true" => Ok(1),
+        "false" => Ok(0),
+        _ => Err(SqlGenerateError::InvalidBoolean(value.to_string())),
+    }
+}
+
+fn collection_add_steps_for_token(
+    entry_id_token: String,
+    collection: CollectionWrite,
+    user_id: String,
+) -> Vec<EzqSqlStep> {
+    let collection_name = collection.name;
+    vec![
+        collection_ensure_step(&collection_name, &user_id),
+        EzqSqlStep {
+            sql: "INSERT INTO collection_entries (id, collection_id, library_entry_id) \
+                  SELECT lower(hex(randomblob(16))), collections.id, ? \
+                  FROM collections \
+                  WHERE collections.user_id = ? \
+                    AND lower(collections.name) = lower(?) \
+                    AND NOT EXISTS (\
+                        SELECT 1 FROM collection_entries \
+                        WHERE collection_entries.collection_id = collections.id \
+                          AND collection_entries.library_entry_id = ?\
+                    )"
+            .to_string(),
+            params: vec![
+                entry_id_token.clone(),
+                user_id,
+                collection_name,
+                entry_id_token,
+            ],
+            outputs: vec![],
+        },
+    ]
+}
+
+fn collection_add_steps_for_selection(
+    where_clause: String,
+    match_params: Vec<String>,
+    collection: CollectionWrite,
+    user_id: String,
+) -> Vec<EzqSqlStep> {
+    let collection_name = collection.name;
+    let mut link_params = match_params;
+    link_params.extend([user_id.clone(), collection_name.clone()]);
+
+    vec![
+        collection_ensure_step(&collection_name, &user_id),
+        EzqSqlStep {
+            sql: format!(
+                "INSERT INTO collection_entries (id, collection_id, library_entry_id) \
+                 SELECT lower(hex(randomblob(16))), collections.id, library_entries.id \
+                 FROM collections \
+                 JOIN library_entries ON {} \
+                 WHERE collections.user_id = ? \
+                   AND lower(collections.name) = lower(?) \
+                   AND NOT EXISTS (\
+                       SELECT 1 FROM collection_entries \
+                       WHERE collection_entries.collection_id = collections.id \
+                         AND collection_entries.library_entry_id = library_entries.id\
+                   )",
+                where_clause
+            ),
+            params: link_params,
+            outputs: vec![],
+        },
+    ]
+}
+
+fn collection_ensure_step(collection_name: &str, user_id: &str) -> EzqSqlStep {
+    EzqSqlStep {
+        sql: "INSERT INTO collections (id, user_id, name) \
+              SELECT lower(hex(randomblob(16))), ?, ? \
+              WHERE NOT EXISTS (\
+                  SELECT 1 FROM collections \
+                  WHERE collections.user_id = ? \
+                    AND lower(collections.name) = lower(?)\
+              )"
+        .to_string(),
+        params: vec![
+            user_id.to_string(),
+            collection_name.to_string(),
+            user_id.to_string(),
+            collection_name.to_string(),
+        ],
+        outputs: vec![],
+    }
+}
+
 struct WriteParts {
     scalar_cols: Vec<(String, String)>,
     tag_values: Vec<TagWrite>,
     tag_removals: Vec<TagWrite>,
+    collection_values: Vec<CollectionWrite>,
+    collection_removals: Vec<CollectionWrite>,
 }
 
 struct WriteItem {
@@ -653,6 +830,10 @@ struct WriteItem {
 struct TagWrite {
     value: String,
     weight: String,
+}
+
+struct CollectionWrite {
+    name: String,
 }
 
 struct Sort {
@@ -667,6 +848,7 @@ const SORTABLE_COLUMNS: &[&str] = &[
     "title",
     "status",
     "media_type",
+    "adult",
     "public_rating",
     "personal_rating",
     "released_at",
@@ -769,6 +951,8 @@ pub enum SqlGenerateError {
     IdNotAllowedInWriteContext,
     #[error("`create` allows at most one `title` qualifier")]
     MultipleTitlesNotAllowed,
+    #[error("`collection` writes require a user_id scope")]
+    CollectionRequiresUserScope,
     #[error("only one `sort` qualifier is allowed per query")]
     MultipleSortsNotAllowed,
     #[error("`sort` qualifier is only allowed at the top level of a search query")]
@@ -777,6 +961,8 @@ pub enum SqlGenerateError {
     InvalidSortColumn(String),
     #[error("invalid sort direction `{0}`")]
     InvalidSortDirection(String),
+    #[error("invalid boolean value `{0}`")]
+    InvalidBoolean(String),
 }
 
 #[cfg(test)]
@@ -858,6 +1044,17 @@ mod tests {
                 "2024-06-01".to_string(),
             ]
         );
+    }
+
+    #[test]
+    fn search_supports_collection_filter() {
+        let ast = root("search", leaf("collection:watch_list"));
+        let sql = generator().generate(ast, Extras::default()).unwrap();
+
+        assert_eq!(sql.len(), 1);
+        assert!(sql[0].sql.contains("JOIN collections"));
+        assert!(sql[0].sql.contains("lower(collections.name) = lower(?)"));
+        assert_eq!(sql[0].params, vec!["watch list".to_string()]);
     }
 
     #[test]
@@ -1196,6 +1393,47 @@ mod tests {
             ]
         );
         assert_eq!(sql[4].outputs, Vec::<String>::new());
+    }
+
+    #[test]
+    fn create_can_add_entry_to_collection() {
+        let sql = generator()
+            .generate(
+                root(
+                    "create",
+                    and(vec![
+                        leaf("title:attack_on_titan"),
+                        leaf("collection:watch_list"),
+                    ]),
+                ),
+                Extras {
+                    user_id: Some("user-1".to_string()),
+                },
+            )
+            .unwrap();
+
+        assert_eq!(sql.len(), 3);
+        assert_eq!(sql[0].outputs, vec![ENTRY_ID_TOKEN.to_string()]);
+        assert!(sql[1].sql.contains("INSERT INTO collections"));
+        assert_eq!(
+            sql[1].params,
+            vec![
+                "user-1".to_string(),
+                "watch list".to_string(),
+                "user-1".to_string(),
+                "watch list".to_string(),
+            ]
+        );
+        assert!(sql[2].sql.contains("INSERT INTO collection_entries"));
+        assert_eq!(
+            sql[2].params,
+            vec![
+                ENTRY_ID_TOKEN.to_string(),
+                "user-1".to_string(),
+                "watch list".to_string(),
+                ENTRY_ID_TOKEN.to_string(),
+            ]
+        );
     }
 
     #[test]
@@ -1637,6 +1875,71 @@ mod tests {
         assert_eq!(sql[0].outputs, Vec::<String>::new());
         assert!(sql[1].sql.starts_with("INSERT INTO library_entry_tags (library_entry_id, tag_id) SELECT library_entries.id, tags.id FROM library_entries JOIN tags ON tags.value = ? AND tags.weight = ? WHERE library_entries.id = ?"));
         assert_eq!(sql[1].outputs, Vec::<String>::new());
+    }
+
+    #[test]
+    fn update_can_add_entry_to_collection() {
+        let sql = generator()
+            .generate(
+                root(
+                    "update",
+                    update(leaf("id:42"), leaf("collection:watch_list")),
+                ),
+                Extras {
+                    user_id: Some("user-1".to_string()),
+                },
+            )
+            .unwrap();
+
+        assert_eq!(sql.len(), 2);
+        assert!(sql[0].sql.contains("INSERT INTO collections"));
+        assert_eq!(
+            sql[0].params,
+            vec![
+                "user-1".to_string(),
+                "watch list".to_string(),
+                "user-1".to_string(),
+                "watch list".to_string(),
+            ]
+        );
+        assert!(sql[1].sql.contains("INSERT INTO collection_entries"));
+        assert!(sql[1].sql.contains("JOIN library_entries"));
+        assert_eq!(
+            sql[1].params,
+            vec![
+                "42".to_string(),
+                "user-1".to_string(),
+                "user-1".to_string(),
+                "watch list".to_string()
+            ]
+        );
+    }
+
+    #[test]
+    fn update_can_remove_entry_from_collection() {
+        let sql = generator()
+            .generate(
+                root(
+                    "update",
+                    update(leaf("id:42"), not(leaf("collection:watch_list"))),
+                ),
+                Extras {
+                    user_id: Some("user-1".to_string()),
+                },
+            )
+            .unwrap();
+
+        assert_eq!(sql.len(), 1);
+        assert!(sql[0].sql.contains("DELETE FROM collection_entries"));
+        assert_eq!(
+            sql[0].params,
+            vec![
+                "42".to_string(),
+                "user-1".to_string(),
+                "user-1".to_string(),
+                "watch list".to_string()
+            ]
+        );
     }
 
     #[test]

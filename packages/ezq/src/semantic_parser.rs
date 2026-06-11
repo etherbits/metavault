@@ -561,6 +561,13 @@ mod tests {
     }
 
     #[test]
+    fn parse_resolves_collection_qualifier() {
+        let input = root("s", leaf("col:watch_list"));
+        let result = parser().parse(input).unwrap();
+        assert_eq!(result, root("search", leaf("collection:watch_list")));
+    }
+
+    #[test]
     fn parse_preserves_constructed_title_qualifier() {
         let input = root(
             "search",

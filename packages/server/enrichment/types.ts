@@ -34,6 +34,7 @@ export type EnrichedLibraryEntryData = {
   media_id?: string | null;
   source_id?: string | null;
   media_type?: LibraryEntryWithTags["media_type"];
+  adult?: boolean;
   image_src?: string | null;
   public_rating?: number | null;
   released_at?: string | null;

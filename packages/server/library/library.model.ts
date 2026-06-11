@@ -15,6 +15,7 @@ export interface LibraryEntry {
 
   media_type: EntryMediaType | null;
   status: EntryStatus | null;
+  adult: boolean;
 
   image_src: string | null;
 
@@ -42,6 +43,7 @@ export interface CreateLibraryEntryData {
 
   media_type?: EntryMediaType;
   status?: EntryStatus;
+  adult?: boolean;
 
   image_src?: string;
 
@@ -59,6 +61,7 @@ export interface UpdateLibraryEntryData {
 
   media_type?: EntryMediaType;
   status?: EntryStatus | null;
+  adult?: boolean;
 
   image_src?: string;
 
@@ -74,6 +77,7 @@ export interface EnrichedLibraryEntryUpdateData {
   media_id?: string | null;
   source_id?: string | null;
   media_type?: EntryMediaType | null;
+  adult?: boolean;
   image_src?: string | null;
 
   public_rating?: number | null;
@@ -94,6 +98,7 @@ const ENRICHMENT_SCALAR_COLUMNS: EnrichmentScalarColumn[] = [
   "media_id",
   "source_id",
   "media_type",
+  "adult",
   "image_src",
   "public_rating",
   "released_at",
@@ -112,6 +117,7 @@ class LibraryModel {
         source_id,
         media_type,
         status,
+        adult,
         image_src,
         public_rating,
         personal_rating,
@@ -125,6 +131,7 @@ class LibraryModel {
         ${data.source_id ?? null},
         ${data.media_type ?? null},
         ${data.status ?? null},
+        ${data.adult ? 1 : 0},
         ${data.image_src ?? null},
         ${data.public_rating ?? null},
         ${data.personal_rating ?? null},
@@ -133,7 +140,7 @@ class LibraryModel {
       RETURNING *
     `;
 
-    return result[0] as LibraryEntry;
+    return this.toLibraryEntry(result[0] as LibraryEntry);
   }
 
   async getById(id: string): Promise<LibraryEntry | null> {
@@ -141,7 +148,7 @@ class LibraryModel {
       SELECT * FROM library_entries WHERE id = ${id}
     `;
 
-    return (result[0] as LibraryEntry) || null;
+    return result[0] ? this.toLibraryEntry(result[0] as LibraryEntry) : null;
   }
 
   async getByUser(userId: string): Promise<LibraryEntry[]> {
@@ -151,7 +158,7 @@ class LibraryModel {
       ORDER BY created_at DESC
     `;
 
-    return result as LibraryEntry[];
+    return (result as LibraryEntry[]).map((row) => this.toLibraryEntry(row));
   }
 
   async getByIds(userId: string, ids: string[]): Promise<LibraryEntry[]> {
@@ -166,7 +173,7 @@ class LibraryModel {
       ORDER BY created_at DESC
     `;
 
-    return result as LibraryEntry[];
+    return (result as LibraryEntry[]).map((row) => this.toLibraryEntry(row));
   }
 
   async update(
@@ -175,6 +182,7 @@ class LibraryModel {
     data: UpdateLibraryEntryData
   ): Promise<LibraryEntry | null> {
     const hasStatus = Object.hasOwn(data, "status");
+    const hasAdult = Object.hasOwn(data, "adult");
     const result = await sql`
       UPDATE library_entries
       SET
@@ -183,6 +191,7 @@ class LibraryModel {
         source_id = COALESCE(${data.source_id}, source_id),
         media_type = COALESCE(${data.media_type}, media_type),
         status = CASE WHEN ${hasStatus} THEN ${data.status ?? null} ELSE status END,
+        adult = CASE WHEN ${hasAdult} THEN ${data.adult ? 1 : 0} ELSE adult END,
         image_src = COALESCE(${data.image_src}, image_src),
         public_rating = COALESCE(${data.public_rating}, public_rating),
         personal_rating = COALESCE(${data.personal_rating}, personal_rating),
@@ -193,7 +202,7 @@ class LibraryModel {
       RETURNING *
     `;
 
-    return (result[0] as LibraryEntry) || null;
+    return result[0] ? this.toLibraryEntry(result[0] as LibraryEntry) : null;
   }
 
   async delete(id: string, userId: string): Promise<boolean> {
@@ -345,7 +354,9 @@ class LibraryModel {
   }
 
   private isMissingEnrichmentValue(value: unknown): boolean {
-    return value === null || value === undefined || value === "";
+    return (
+      value === null || value === undefined || value === "" || value === false
+    );
   }
 
   async replaceEntryTags({
@@ -430,8 +441,17 @@ class LibraryModel {
     if (!row) return null;
 
     return {
-      ...row,
+      ...this.toLibraryEntry(row),
       tags: JSON.parse(row.tags) as LibraryTag[],
+    };
+  }
+
+  private toLibraryEntry(
+    row: Omit<LibraryEntry, "adult"> & { adult: boolean | number }
+  ): LibraryEntry {
+    return {
+      ...row,
+      adult: row.adult === true || row.adult === 1,
     };
   }
 }

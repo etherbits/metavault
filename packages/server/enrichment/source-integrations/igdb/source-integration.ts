@@ -1,3 +1,8 @@
+import type { CatalogueEntryData } from "../../../catalogue/catalogue.model";
+import {
+  buildCatalogueEmbeddingText,
+  hashEmbeddingText,
+} from "../../../catalogue/catalogue-vector";
 import type { LibraryEntryWithTags } from "../../../ezq/ezq.schema";
 import { logger } from "../../../logger";
 import { getTrimmedString } from "../../../utils/string";
@@ -30,6 +35,59 @@ export class IgdbSourceIntegration
 
   supportsEntry(row: LibraryEntryWithTags): boolean {
     return row.media_type === "game";
+  }
+
+  async getCatalogueEntries(input: {
+    topN: number;
+    pageSize: number;
+    clientId: string;
+    accessToken: string;
+    pace: () => Promise<void>;
+  }): Promise<CatalogueEntryData[]> {
+    const entries: CatalogueEntryData[] = [];
+
+    for (let offset = 0; offset < input.topN; offset += input.pageSize) {
+      const limit = Math.min(input.pageSize, input.topN - offset);
+      const response = await fetch(IGDB_GAMES_ENDPOINT, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Client-ID": input.clientId,
+          Authorization: `Bearer ${input.accessToken}`,
+        },
+        body: [
+          "fields name,summary,cover.url,rating,rating_count,total_rating_count,first_release_date,genres.name,themes.name;",
+          "where rating_count > 0;",
+          "sort total_rating_count desc;",
+          `limit ${limit};`,
+          `offset ${offset};`,
+        ].join(" "),
+      });
+
+      if (!response.ok) {
+        logger.warn(
+          { sourceType: this.sourceType, status: response.status, offset },
+          "IGDB catalogue request failed"
+        );
+        await input.pace();
+        continue;
+      }
+
+      const parsed = igdbGamesResponseSchema.safeParse(await response.json());
+      if (!parsed.success) {
+        logger.warn(
+          { sourceType: this.sourceType, error: parsed.error },
+          "IGDB catalogue response was invalid"
+        );
+        await input.pace();
+        continue;
+      }
+
+      entries.push(...parsed.data.map((game) => this.toCatalogueEntry(game)));
+      await input.pace();
+    }
+
+    return entries;
   }
 
   async getEnrichmentData(
@@ -188,4 +246,48 @@ export class IgdbSourceIntegration
     const withProtocol = url.startsWith("//") ? `https:${url}` : url;
     return withProtocol.replace("/t_thumb/", "/t_cover_big/");
   }
+
+  private toCatalogueEntry(
+    game: IgdbGameWithContext["game"]
+  ): CatalogueEntryData {
+    const title = game.name || `IGDB ${game.id}`;
+    const genres = getNamedValues(game.genres);
+    const tags = getNamedValues(game.themes);
+    const description = game.summary ?? null;
+    const embeddingText = buildCatalogueEmbeddingText({
+      title,
+      mediaType: "game",
+      genres,
+      tags,
+      description,
+    });
+
+    return {
+      id: `igdb-${game.id}`,
+      source_type: "igdb",
+      source_media_id: String(game.id),
+      media_type: "game",
+      title,
+      description,
+      image_src: this.toCoverUrl(game.cover?.url),
+      adult: false,
+      public_rating: typeof game.rating === "number" ? game.rating / 10 : null,
+      popularity: game.total_rating_count ?? game.rating_count ?? null,
+      released_at: game.first_release_date
+        ? new Date(game.first_release_date * 1000).toISOString().slice(0, 10)
+        : null,
+      genres,
+      tags,
+      metadata: {},
+      embedding_text_hash: hashEmbeddingText(embeddingText),
+    };
+  }
+}
+
+function getNamedValues(
+  values: Array<{ name?: string | null }> | null | undefined
+) {
+  return (values ?? [])
+    .map((value) => value.name?.trim())
+    .filter((value): value is string => Boolean(value));
 }
