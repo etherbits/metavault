@@ -12,6 +12,7 @@ export async function createLibraryEntriesTable(sql: SQL) {
       image_src TEXT,
       media_type TEXT,
       status TEXT,
+      adult INTEGER NOT NULL DEFAULT 0,
       public_rating REAL,
       personal_rating REAL,
       released_at DATETIME,
@@ -49,6 +50,12 @@ export const EntryMediaTypeSchema = z.enum([
 ]);
 export type EntryMediaType = z.infer<typeof EntryMediaTypeSchema>;
 
+const booleanFromSqlSchema = z.preprocess((value) => {
+  if (value === 0) return false;
+  if (value === 1) return true;
+  return value;
+}, z.boolean());
+
 export const LibraryEntrySchema = z.object({
   id: z.string(),
   title: z.string(),
@@ -58,6 +65,7 @@ export const LibraryEntrySchema = z.object({
   image_src: z.string().nullable(),
   media_type: EntryMediaTypeSchema.nullable(),
   status: EntryStatusSchema.nullable(),
+  adult: booleanFromSqlSchema,
   public_rating: z.number().nullable(),
   personal_rating: z.number().nullable(),
   released_at: z.string().nullable(),

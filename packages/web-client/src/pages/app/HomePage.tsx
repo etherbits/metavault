@@ -6,6 +6,7 @@ import { HomeSection } from "@/components/HomeSection";
 import {
   useAddToCollection,
   useCollections,
+  useCreateCollection,
 } from "@/features/collections/hooks";
 import {
   useLibraryEntries,
@@ -19,6 +20,7 @@ export function HomePage() {
   const collectionsQuery = useCollections();
   const updateEntry = useUpdateLibraryEntry();
   const addToCollection = useAddToCollection();
+  const createCollection = useCreateCollection();
 
   const libraryItems = libraryQuery.data ?? [];
   const collections = collectionsQuery.data ?? [];
@@ -63,6 +65,26 @@ export function HomePage() {
       collectionId: selectedCollection,
       collections,
     });
+    setCollectionDialogOpen(false);
+    setPendingCollectionIds([]);
+  };
+
+  const handleCreateCollection = async (name: string) => {
+    if (pendingCollectionIds.length === 0) return;
+
+    const previousIds = new Set(collections.map((collection) => collection.id));
+    const nextCollections = await createCollection.mutateAsync({
+      name,
+      ids: pendingCollectionIds,
+    });
+    const createdCollection = nextCollections.find(
+      (collection) => !previousIds.has(collection.id)
+    );
+
+    if (createdCollection) {
+      setSelectedCollection(createdCollection.id);
+    }
+
     setCollectionDialogOpen(false);
     setPendingCollectionIds([]);
   };
@@ -142,6 +164,13 @@ export function HomePage() {
         collections={collections}
         onCollectionChange={setSelectedCollection}
         onConfirm={handleConfirmAddToCollection}
+        onCreateCollection={handleCreateCollection}
+        isCreatingCollection={createCollection.isPending}
+        createCollectionError={
+          createCollection.error instanceof Error
+            ? createCollection.error.message
+            : null
+        }
         onCancel={() => {
           setCollectionDialogOpen(false);
           setPendingCollectionIds([]);

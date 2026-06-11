@@ -12,6 +12,7 @@ pub const QUALIFIER_SEMANTICS: &[&[QualifierSegmentRule]] = &[
         NonEmpty,
         FuzzyListWithDefault(&["major", "minor"], "major"),
     ],
+    &[Single("collection"), NonEmpty],
     &[
         Single("status"),
         FuzzyList(&["in_progress", "dropped", "planning", "on_hold", "finished"]),
@@ -24,6 +25,7 @@ pub const QUALIFIER_SEMANTICS: &[&[QualifierSegmentRule]] = &[
             "movie", "tv_show", "anime", "game", "book", "manga", "other",
         ]),
     ],
+    &[Single("adult"), FuzzyList(&["true", "false"])],
     &[Single("created_at"), Date],
     &[Single("updated_at"), Date],
     &[Single("released_at"), Date],
@@ -34,6 +36,7 @@ pub const QUALIFIER_SEMANTICS: &[&[QualifierSegmentRule]] = &[
             "title",
             "status",
             "media_type",
+            "adult",
             "public_rating",
             "personal_rating",
             "released_at",

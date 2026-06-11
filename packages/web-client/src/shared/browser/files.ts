@@ -79,3 +79,16 @@ export function pickZipFile(onLoad: (file: File) => void) {
   };
   input.click();
 }
+
+export function pickImageFile(onLoad: (file: File) => void) {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "image/png,image/jpeg,image/webp,image/gif";
+  input.onchange = () => {
+    const file = input.files?.[0];
+    if (!file) return;
+
+    onLoad(file);
+  };
+  input.click();
+}

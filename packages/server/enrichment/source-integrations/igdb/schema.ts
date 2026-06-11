@@ -14,8 +14,12 @@ export const igdbGameSchema = z.object({
     .nullable()
     .optional(),
   rating: z.number().nullable().optional(),
+  rating_count: z.number().nullable().optional(),
+  total_rating_count: z.number().nullable().optional(),
+  summary: z.string().nullable().optional(),
   first_release_date: z.number().nullable().optional(),
   genres: z.array(igdbGenreSchema).nullable().optional(),
+  themes: z.array(igdbGenreSchema).nullable().optional(),
 });
 
 // IGDB game fields and nested cover/genre expansion are requested with APIcalypse:

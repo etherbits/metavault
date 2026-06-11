@@ -312,7 +312,7 @@ export class EnrichmentService {
   }
 
   private isMissingValue(value: unknown): boolean {
-    return value == null || value === "";
+    return value == null || value === "" || value === false;
   }
 
   private toVirtualTags(

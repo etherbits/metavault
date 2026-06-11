@@ -7,7 +7,7 @@ patch_pkg() {
     import { readFileSync, writeFileSync } from 'node:fs';
     const p = JSON.parse(readFileSync('${path}/package.json', 'utf8'));
     p.name = '${name}';
-    p.repository = { type: 'git', url: 'https://github.com/etherbits/metavault' };
+    p.repository = { type: 'git', url: 'git+https://github.com/etherbits/metavault.git' };
     writeFileSync('${path}/package.json', JSON.stringify(p, null, 2) + '\n');
   "
 }

@@ -19,4 +19,10 @@ export const queryKeys = {
   sourceIntegrations: {
     all: ["source-integrations"] as const,
   },
+  aiIntegrations: {
+    all: ["ai-integrations"] as const,
+  },
+  assistant: {
+    sessions: ["assistant", "sessions"] as const,
+  },
 } as const;

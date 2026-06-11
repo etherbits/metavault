@@ -6,6 +6,7 @@ import type {
   ServerEntryStatus,
   ServerMediaType,
 } from "@/features/library/types";
+import { API_BASE_URL } from "@/shared/api/client";
 
 const serverToUiType: Record<ServerMediaType, MediaType> = {
   movie: "Movie",
@@ -58,10 +59,11 @@ export function mapServerEntryToMediaItem(
     title: entry.title,
     type: entry.media_type ? serverToUiType[entry.media_type] : "Other",
     status: entry.status ? serverToUiStatus[entry.status] : undefined,
+    adult: entry.adult,
     releasedAt,
     rating,
     tags: entry.tags,
-    posterUrl: entry.image_src ?? undefined,
+    posterUrl: toDisplayImageSrc(entry.image_src),
   };
 }
 
@@ -80,6 +82,7 @@ export function mapMediaItemToServerEntry(
     image_src: item.posterUrl ?? null,
     media_type: uiToServerType[item.type],
     status: item.status ? uiToServerStatus[item.status] : null,
+    adult: item.adult,
     public_rating: Number.isFinite(numericRating) ? numericRating : null,
     personal_rating: null,
     released_at: item.releasedAt === "-" ? null : item.releasedAt,
@@ -93,6 +96,14 @@ export function mapServerEntriesToMediaItems(entries: LibraryEntryWithTags[]) {
   return entries.map(mapServerEntryToMediaItem);
 }
 
+export function toServerMediaType(type: MediaType): ServerMediaType {
+  return uiToServerType[type];
+}
+
+export function toServerStatus(status: MediaStatus): ServerEntryStatus {
+  return uiToServerStatus[status];
+}
+
 export function isMediaStatus(value: string): value is MediaStatus {
   return Object.values(uiToServerStatus).some(
     (serverStatus) => serverToUiStatus[serverStatus] === value
@@ -103,4 +114,14 @@ export function isMediaType(value: string): value is MediaType {
   return Object.values(uiToServerType).some(
     (serverType) => serverToUiType[serverType] === value
   );
+}
+
+function toDisplayImageSrc(imageSrc: string | null) {
+  if (!imageSrc) return undefined;
+
+  if (imageSrc.startsWith("/media/")) {
+    return `${API_BASE_URL}${imageSrc}`;
+  }
+
+  return imageSrc;
 }
