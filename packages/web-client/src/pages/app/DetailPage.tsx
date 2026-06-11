@@ -1,20 +1,10 @@
-import {
-  CalendarDays,
-  Clapperboard,
-  GripVertical,
-  Link2,
-  Pencil,
-  Plus,
-  Save,
-  Sparkles,
-  Star,
-  Trash2,
-  Type,
-} from "lucide-react";
+import { CalendarDays, Clapperboard, Sparkles, Star } from "lucide-react";
+import { type ReactNode } from "react";
 import { Navigate, useNavigate, useParams } from "react-router";
 import BatmanPoster from "@/assets/download.jpeg";
 import { StatusBadge, getStatusBadgeTone } from "@/components/Badges";
 import { Button } from "@/components/ui/button";
+import { ContentNodesSection } from "@/features/content-nodes/ContentNodesSection";
 import { useLibraryEntries } from "@/features/library/hooks";
 import type { MediaItem } from "@/features/library/types";
 import { cn } from "@/lib/utils";
@@ -77,7 +67,7 @@ function DetailPageContent({
         </Button>
       </div>
 
-      <div className="flex flex-col gap-8 xl:flex-row xl:gap-10">
+      <div className="flex flex-col gap-8 xl:flex-row xl:gap-10 ">
         <section className="flex w-full max-w-[320px] flex-col gap-8 self-center sm:max-w-[400px] xl:self-auto">
           <div className="relative aspect-[2/3] max-h-[600px] w-full overflow-hidden rounded-[4px] shadow-[4px_0px_16px_rgba(164,37,36,0.18)]">
             <img
@@ -96,7 +86,7 @@ function DetailPageContent({
             />
           </div>
 
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-8">
             <InfoPill
               icon={<Clapperboard size={24} />}
               label="Content Type"
@@ -157,66 +147,7 @@ function DetailPageContent({
           </div>
         </section>
 
-        <section className="flex min-w-0 flex-1 flex-col gap-6 pt-2 xl:pt-10">
-          <div className="flex w-full flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="text-[20px] font-semibold leading-6 text-[#FAFAFA]">
-              Content Nodes
-            </h2>
-
-            <Button
-              type="button"
-              variant="surface"
-              className="h-9 w-fit px-3 text-sm"
-            >
-              <Plus size={16} />
-              Add New
-            </Button>
-          </div>
-
-          <div className="flex w-full flex-col gap-3">
-            {[`${item.title}: Blu-ray 2160p`, `${item.title}: 1080P`].map(
-              (nodeTitle) => (
-                <div
-                  key={nodeTitle}
-                  className="flex flex-wrap items-center gap-2 sm:flex-nowrap"
-                >
-                  <div className="flex h-[41px] min-w-0 w-full items-center gap-1.5 rounded-[8px] bg-[#27272A] px-3 text-left sm:flex-1">
-                    <GripVertical
-                      size={20}
-                      className="shrink-0 text-[#A1A1AA]"
-                    />
-                    <span className="truncate text-[18px] font-semibold leading-[27px] text-[#D4D4D8]">
-                      {nodeTitle}
-                    </span>
-                  </div>
-
-                  <NodeActions />
-                </div>
-              )
-            )}
-
-            <div className="flex w-full flex-wrap items-center gap-2">
-              <div className="flex h-[41px] min-w-[250px] flex-1 items-center gap-2 rounded-[8px] border border-[#3F3F46] bg-[#27272A] px-3 text-[#71717A]">
-                <Type size={16} />
-                <span className="text-[18px] font-semibold leading-[27px]">
-                  Movie name
-                </span>
-              </div>
-              <div className="flex h-10 min-w-[250px] flex-1 items-center gap-2 rounded-[6px] border border-[#3F3F46] bg-[#27272A] px-3 text-[#71717A]">
-                <Link2 size={16} />
-                <span className="truncate text-[16px] leading-6">
-                  http://sample.link
-                </span>
-              </div>
-              <IconButton label="Save node">
-                <Save size={16} />
-              </IconButton>
-              <IconButton label="Delete node" danger>
-                <Trash2 size={16} />
-              </IconButton>
-            </div>
-          </div>
-        </section>
+        <ContentNodesSection libraryEntryId={item.id} />
       </div>
     </div>
   );
@@ -227,7 +158,7 @@ function InfoPill({
   label,
   value,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
   value: string;
 }) {
@@ -241,43 +172,5 @@ function InfoPill({
         {value}
       </span>
     </div>
-  );
-}
-
-function NodeActions() {
-  return (
-    <div className="ml-auto flex items-center gap-2 sm:ml-0">
-      <IconButton label="Link node">
-        <Link2 size={16} />
-      </IconButton>
-      <IconButton label="Edit node">
-        <Pencil size={16} />
-      </IconButton>
-      <IconButton label="Delete node" danger>
-        <Trash2 size={16} />
-      </IconButton>
-    </div>
-  );
-}
-
-function IconButton({
-  label,
-  danger,
-  children,
-}: {
-  label: string;
-  danger?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <Button
-      type="button"
-      variant={danger ? "danger-surface" : "surface"}
-      size="icon"
-      aria-label={label}
-      className="h-10 w-10"
-    >
-      {children}
-    </Button>
   );
 }
