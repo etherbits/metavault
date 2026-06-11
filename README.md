@@ -2,6 +2,57 @@
 
 MetaVault is a multi-user, API-first personal media library for tracking the things you watch, read, and play. It pulls from multiple sources through a unified data layer, supports AI-powered interactions, and lets you organize your collection with statuses, custom collections, and shareable lists — all built on a fast, lightweight stack.
 
+## Features / What it can do
+
+MetaVault is a self-hostable media library for tracking the things you watch, read, and play. In the demo, I show the parts that are working right now:
+
+- Group library entries on the Home page by status, recency, and custom collections.
+- Search and modify the library from the Query page using EZQ, the Easy Query language.
+- Create, update, search, and delete library entries from the query input.
+- Add metadata such as title, media type, status, dates, ratings, and tags.
+- Enrich entries from configured source integrations.
+- Configure metadata providers such as TMDB, AniList, IGDB, and OpenLibrary.
+- Configure AI model profiles and choose which one the assistant should use.
+- Ask the assistant questions about the current query and visible query results.
+- Export library entries as a zip archive.
+- Import exported entries back into the library.
+
+## Demo
+
+[Demo video](https://youtu.be/ETdOzTMx31s)
+
+### Walkthrough
+
+The demo starts on the Home page. Library entries are grouped into sections, including in-progress items, recently added items, and custom collections. From there, I can click `Query More` to open that group in the Query page.
+
+The Query page is the main workspace in MetaVault. EZQ, short for Easy Query, is the central piece here. It lets me search the library, create new entries, update existing ones, delete entries, and run enrichment from a single input.
+
+First, I create a new library entry with the `/c` create action. I can pass the title and any supported metadata, such as the media type. The syntax is intentionally flexible, so I do not have to write every field in its full canonical form. When the query is valid, MetaVault shows the canonical version below the input so I can see exactly what will be run.
+
+After creating the entry, I use enrichment to fill in missing metadata. This is one of the more useful parts of the query flow. If enrichment is used with `/s`, the search action, the enriched result is temporary and is not saved. If it is used with `/c` or `/u`, the create and update actions, the enriched fields are stored on the library entry.
+
+The `#enrich` command can also run with override mode, written as `#enrich:override`. Normal enrichment fills missing fields without replacing what is already there. Override mode replaces existing fields with the values returned by the source integration.
+
+The demo also shows deletion with `/d`. After deleting an entry, the query results update and the removed item disappears from the library.
+
+Full EZQ syntax documentation will be provided in the future.
+
+Next, I open the Integrations page. There are two integration sections: source integrations and AI integrations.
+
+Source integrations are used for metadata enrichment. These are the providers that fill in things like poster images, dates, ratings, and tags. They need to be configured with the required keys or credentials before they can enrich entries.
+
+The AI integrations section controls which model the assistant uses on the Query page. I have two model profiles defined in the demo, and I select my locally running Qwen model for the assistant.
+
+Back on the Query page, I open the assistant. The assistant can see the current query and the current query results, so I can ask about the items on screen without pasting that context into the prompt. In the demo, I ask for a recommendation from the visible movie results, then ask which one fits a scientific mood. The assistant recommends Oppenheimer based on the current result set.
+
+NOTE: This is just the LLM picking the answer from what it knows already, we are working on a more robust recommendations system that will use cosine matching. Once it's done, the LLM will use the endpoint we expose to it to get the recommendations
+
+The last part of the demo shows import and export. Export creates a zip archive with a CSV file for the textual library data and any local images attached to the exported entries. Hosted images are not copied into the archive.
+
+Imported data is treated the same way as data added by hand. That means, for example, that an exported CSV can be edited before importing, then brought back into MetaVault as normal library entries.
+
+
+
 ## Setup
 
 To install dependencies:
