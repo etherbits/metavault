@@ -2,6 +2,11 @@ export const queryKeys = {
   auth: {
     session: ["auth", "session"] as const,
   },
+  contentNodes: {
+    all: ["content-nodes"] as const,
+    byLibraryEntry: (libraryEntryId: string) =>
+      ["content-nodes", "library-entry", libraryEntryId] as const,
+  },
   library: {
     all: ["library"] as const,
     entries: () => ["library", "entries"] as const,
