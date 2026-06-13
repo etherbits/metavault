@@ -66,6 +66,13 @@ export const assistantRouter = Router()
           onDelta: (delta) => {
             res.write(`data: ${JSON.stringify({ delta })}\n\n`);
           },
+          onRecommendations: (recommendationRuns) => {
+            res.write(
+              `event: recommendations\ndata: ${JSON.stringify({
+                recommendation_runs: recommendationRuns,
+              })}\n\n`
+            );
+          },
         });
 
         if (!result.ok) {

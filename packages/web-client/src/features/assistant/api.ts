@@ -1,15 +1,17 @@
 import { API_BASE_URL, ApiError, apiRequest } from "@/shared/api/client";
 import {
+  type AssistantChatInput,
+  type AssistantRecommendationRun,
+  assistantRecommendationRunSchema,
   assistantChatResponseSchema,
   assistantChatSchema,
   assistantSessionSchema,
   assistantSessionsResponseSchema,
-  type AssistantChatInput,
   type UpsertAssistantSessionInput,
 } from "../../../../server/assistant/assistant.schema";
 
-export { assistantChatSchema };
 export type { AssistantChatInput, UpsertAssistantSessionInput };
+export { assistantChatSchema };
 
 export function sendAssistantMessage(input: AssistantChatInput) {
   return apiRequest("/assistant/chat", assistantChatResponseSchema, {
@@ -21,9 +23,11 @@ export function sendAssistantMessage(input: AssistantChatInput) {
 export async function streamAssistantMessage({
   input,
   onDelta,
+  onRecommendations,
 }: {
   input: AssistantChatInput;
   onDelta: (delta: string) => void;
+  onRecommendations?: (runs: AssistantRecommendationRun[]) => void;
 }) {
   const response = await fetch(`${API_BASE_URL}/assistant/chat/stream`, {
     method: "POST",
@@ -71,12 +75,15 @@ export async function streamAssistantMessage({
       }
 
       if (event.event === "done") {
-        return typeof event.data.message === "string"
-          ? event.data.message
-          : message;
+        return event.data.message ?? message;
       }
 
-      if (typeof event.data.delta === "string") {
+      if (event.event === "recommendations") {
+        onRecommendations?.(event.data.recommendationRuns ?? []);
+        continue;
+      }
+
+      if (event.data.delta !== undefined) {
         message += event.data.delta;
         onDelta(event.data.delta);
       }
@@ -120,7 +127,25 @@ function parseServerSentEvent(eventText: string) {
   if (dataLines.length === 0) return null;
 
   try {
-    const data = JSON.parse(dataLines.join("\n")) as Record<string, string>;
+    const parsed = JSON.parse(dataLines.join("\n")) as unknown;
+    if (!parsed || typeof parsed !== "object") return null;
+
+    const data = {
+      message:
+        "message" in parsed && typeof parsed.message === "string"
+          ? parsed.message
+          : undefined,
+      delta:
+        "delta" in parsed && typeof parsed.delta === "string"
+          ? parsed.delta
+          : undefined,
+      recommendationRuns:
+        "recommendation_runs" in parsed
+          ? assistantRecommendationRunSchema
+              .array()
+              .safeParse(parsed.recommendation_runs).data
+          : undefined,
+    };
     return { event, data };
   } catch {
     return null;

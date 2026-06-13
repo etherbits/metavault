@@ -64,7 +64,7 @@ class RecommendationService {
       "Recommendation candidates loaded"
     );
 
-    const items = candidates
+    const rankedCandidates = candidates
       .map((candidate) => ({
         candidate,
         cosineScore: cosineSimilarity(
@@ -80,13 +80,24 @@ class RecommendationService {
           cosineScore: item.cosineScore,
         }),
       }))
-      .sort((left, right) => right.score.total - left.score.total)
+      .sort((left, right) => right.score.total - left.score.total);
+
+    const seenTitles = new Set<string>();
+    const items = rankedCandidates
+      .filter(({ candidate }) => {
+        const key = normalizeRecommendationTitle(candidate.title);
+        if (seenTitles.has(key)) return false;
+        seenTitles.add(key);
+        return true;
+      })
       .slice(0, input.count)
       .map(({ candidate, cosineScore, score }) => ({
         catalogue_entry_id: candidate.id,
         source_type: candidate.source_type,
         source_media_id: candidate.source_media_id,
+        source_url: getRecommendationSourceUrl(candidate),
         title: candidate.title,
+        description: candidate.description,
         media_type: candidate.media_type,
         adult: candidate.adult,
         public_rating: candidate.public_rating,
@@ -130,6 +141,43 @@ class RecommendationService {
 }
 
 export const recommendationService = new RecommendationService();
+
+export function normalizeRecommendationTitle(title: string) {
+  return title
+    .normalize("NFKD")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "");
+}
+
+export function getRecommendationSourceUrl(
+  candidate: Pick<
+    CatalogueEntry,
+    "source_type" | "source_media_id" | "media_type"
+  >
+): string {
+  const sourceId = encodeURIComponent(candidate.source_media_id);
+
+  switch (candidate.source_type) {
+    case "anilist":
+      return `https://anilist.co/${candidate.media_type}/${sourceId}`;
+    case "tmdb":
+      return `https://www.themoviedb.org/${
+        candidate.media_type === "tv_show" ? "tv" : "movie"
+      }/${sourceId}`;
+    case "igdb":
+      return `https://www.igdb.com/games/${sourceId}`;
+    case "openlibrary": {
+      const workId = candidate.source_media_id.replace(/^\/works\//, "");
+      return `https://openlibrary.org/works/${encodeURIComponent(workId)}`;
+    }
+    default:
+      return assertUnsupportedSourceType(candidate.source_type);
+  }
+}
+
+function assertUnsupportedSourceType(sourceType: never): never {
+  throw new Error(`Unsupported recommendation source type: ${sourceType}`);
+}
 
 export function scoreRecommendationCandidate({
   prompt,
