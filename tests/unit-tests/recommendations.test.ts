@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, mock } from "bun:test";
 import { refreshCatalogueSchema } from "../../packages/server/catalogue/catalogue.schema";
+import { assistantChatSchema } from "../../packages/server/assistant/assistant.schema";
 import {
   buildCatalogueEmbeddingText,
   cosineSimilarity,
@@ -131,6 +132,17 @@ describe("recommendation scoring", () => {
 });
 
 describe("recommendation schemas", () => {
+  it("applies assistant recommendation detail defaults", () => {
+    expect(
+      assistantChatSchema.parse({
+        message: "Recommend a cozy anime",
+      })
+    ).toMatchObject({
+      message: "Recommend a cozy anime",
+      includeRecommendationDetails: false,
+    });
+  });
+
   it("applies generate defaults", () => {
     const parsed = generateRecommendationsSchema.parse({
       prompt: "cozy anime",
@@ -195,6 +207,22 @@ describe("recommendation source URLs", () => {
         media_type: "tv_show",
       })
     ).toBe("https://www.themoviedb.org/tv/9102");
+  });
+
+  it("fails loudly for unsupported recommendation sources", async () => {
+    process.env.NODE_ENV = "test";
+    process.env.JWT_SECRET = "unit-secret";
+    const { getRecommendationSourceUrl } = await import(
+      "../../packages/server/recommendations/recommendation.service"
+    );
+
+    expect(() =>
+      getRecommendationSourceUrl({
+        source_type: "unsupported",
+        source_media_id: "1",
+        media_type: "movie",
+      } as never)
+    ).toThrow("Unsupported recommendation source type: unsupported");
   });
 
   it("normalizes equivalent titles for result deduplication", async () => {

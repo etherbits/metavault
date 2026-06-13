@@ -154,7 +154,7 @@ export function getRecommendationSourceUrl(
     CatalogueEntry,
     "source_type" | "source_media_id" | "media_type"
   >
-) {
+): string {
   const sourceId = encodeURIComponent(candidate.source_media_id);
 
   switch (candidate.source_type) {
@@ -170,7 +170,13 @@ export function getRecommendationSourceUrl(
       const workId = candidate.source_media_id.replace(/^\/works\//, "");
       return `https://openlibrary.org/works/${encodeURIComponent(workId)}`;
     }
+    default:
+      return assertUnsupportedSourceType(candidate.source_type);
   }
+}
+
+function assertUnsupportedSourceType(sourceType: never): never {
+  throw new Error(`Unsupported recommendation source type: ${sourceType}`);
 }
 
 export function scoreRecommendationCandidate({

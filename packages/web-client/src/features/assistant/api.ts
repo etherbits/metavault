@@ -2,6 +2,7 @@ import { API_BASE_URL, ApiError, apiRequest } from "@/shared/api/client";
 import {
   type AssistantChatInput,
   type AssistantRecommendationRun,
+  assistantRecommendationRunSchema,
   assistantChatResponseSchema,
   assistantChatSchema,
   assistantSessionSchema,
@@ -69,29 +70,20 @@ export async function streamAssistantMessage({
 
       if (event.event === "error") {
         throw new Error(
-          typeof event.data.message === "string"
-            ? event.data.message
-            : "Unable to stream assistant reply"
+          event.data.message ?? "Unable to stream assistant reply"
         );
       }
 
       if (event.event === "done") {
-        return typeof event.data.message === "string"
-          ? event.data.message
-          : message;
+        return event.data.message ?? message;
       }
 
-      if (
-        event.event === "recommendations" &&
-        Array.isArray(event.data.recommendation_runs)
-      ) {
-        onRecommendations?.(
-          event.data.recommendation_runs as AssistantRecommendationRun[]
-        );
+      if (event.event === "recommendations") {
+        onRecommendations?.(event.data.recommendationRuns ?? []);
         continue;
       }
 
-      if (typeof event.data.delta === "string") {
+      if (event.data.delta !== undefined) {
         message += event.data.delta;
         onDelta(event.data.delta);
       }
@@ -135,7 +127,25 @@ function parseServerSentEvent(eventText: string) {
   if (dataLines.length === 0) return null;
 
   try {
-    const data = JSON.parse(dataLines.join("\n")) as Record<string, unknown>;
+    const parsed = JSON.parse(dataLines.join("\n")) as unknown;
+    if (!parsed || typeof parsed !== "object") return null;
+
+    const data = {
+      message:
+        "message" in parsed && typeof parsed.message === "string"
+          ? parsed.message
+          : undefined,
+      delta:
+        "delta" in parsed && typeof parsed.delta === "string"
+          ? parsed.delta
+          : undefined,
+      recommendationRuns:
+        "recommendation_runs" in parsed
+          ? assistantRecommendationRunSchema
+              .array()
+              .safeParse(parsed.recommendation_runs).data
+          : undefined,
+    };
     return { event, data };
   } catch {
     return null;

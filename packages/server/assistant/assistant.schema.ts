@@ -75,7 +75,7 @@ export const assistantChatResponseSchema = z.object({
   recommendation_runs: z.array(assistantRecommendationRunSchema).optional(),
 });
 
-export type AssistantChatInput = z.infer<typeof assistantChatSchema>;
+export type AssistantChatInput = z.input<typeof assistantChatSchema>;
 export type AssistantChatResponse = z.infer<typeof assistantChatResponseSchema>;
 export type AssistantRecommendationRun = z.infer<
   typeof assistantRecommendationRunSchema
