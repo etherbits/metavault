@@ -1,15 +1,16 @@
 import { API_BASE_URL, ApiError, apiRequest } from "@/shared/api/client";
 import {
+  type AssistantChatInput,
+  type AssistantRecommendationRun,
   assistantChatResponseSchema,
   assistantChatSchema,
   assistantSessionSchema,
   assistantSessionsResponseSchema,
-  type AssistantChatInput,
   type UpsertAssistantSessionInput,
 } from "../../../../server/assistant/assistant.schema";
 
-export { assistantChatSchema };
 export type { AssistantChatInput, UpsertAssistantSessionInput };
+export { assistantChatSchema };
 
 export function sendAssistantMessage(input: AssistantChatInput) {
   return apiRequest("/assistant/chat", assistantChatResponseSchema, {
@@ -21,9 +22,11 @@ export function sendAssistantMessage(input: AssistantChatInput) {
 export async function streamAssistantMessage({
   input,
   onDelta,
+  onRecommendations,
 }: {
   input: AssistantChatInput;
   onDelta: (delta: string) => void;
+  onRecommendations?: (runs: AssistantRecommendationRun[]) => void;
 }) {
   const response = await fetch(`${API_BASE_URL}/assistant/chat/stream`, {
     method: "POST",
@@ -76,6 +79,16 @@ export async function streamAssistantMessage({
           : message;
       }
 
+      if (
+        event.event === "recommendations" &&
+        Array.isArray(event.data.recommendation_runs)
+      ) {
+        onRecommendations?.(
+          event.data.recommendation_runs as AssistantRecommendationRun[]
+        );
+        continue;
+      }
+
       if (typeof event.data.delta === "string") {
         message += event.data.delta;
         onDelta(event.data.delta);
@@ -120,7 +133,7 @@ function parseServerSentEvent(eventText: string) {
   if (dataLines.length === 0) return null;
 
   try {
-    const data = JSON.parse(dataLines.join("\n")) as Record<string, string>;
+    const data = JSON.parse(dataLines.join("\n")) as Record<string, unknown>;
     return { event, data };
   } catch {
     return null;

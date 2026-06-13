@@ -112,7 +112,7 @@ class CatalogueService {
         input.refreshWindowMs ??
         parsedEnv.METAVAULT_CATALOGUE_REFRESH_WINDOW_MS;
       const pace = createPacer(refreshWindowMs, estimateRefreshOperations());
-      const sources = this.getSources(pace);
+      const sources = this.getSources(pace, input.sources);
       const sourceResults: CatalogueSourceRefresh[] = [];
       const refreshedEntries = new Map<CatalogueSourceType, CatalogueEntry[]>();
 
@@ -177,9 +177,13 @@ class CatalogueService {
         }
       }
 
-      const needsEmbedding = await catalogueModel.getEntriesNeedingEmbedding({
-        embeddingModel: parsedEnv.METAVAULT_CATALOGUE_EMBEDDING_MODEL,
-      });
+      const needsEmbedding = (
+        await catalogueModel.getEntriesNeedingEmbedding({
+          embeddingModel: parsedEnv.METAVAULT_CATALOGUE_EMBEDDING_MODEL,
+        })
+      ).filter(
+        (entry) => !input.sources || input.sources.includes(entry.source_type)
+      );
       const needsEmbeddingIds = new Set(
         needsEmbedding.map((entry) => entry.id)
       );
@@ -278,13 +282,16 @@ class CatalogueService {
     });
   }
 
-  private getSources(pace: () => Promise<void>): CatalogueSource[] {
+  private getSources(
+    pace: () => Promise<void>,
+    requestedSources?: CatalogueSourceType[]
+  ): CatalogueSource[] {
     const tmdbApiKey = parsedEnv.METAVAULT_CATALOGUE_TMDB_API_KEY?.trim();
     const igdbClientId = parsedEnv.METAVAULT_CATALOGUE_IGDB_CLIENT_ID?.trim();
     const igdbAccessToken =
       parsedEnv.METAVAULT_CATALOGUE_IGDB_ACCESS_TOKEN?.trim();
 
-    return [
+    const sources: CatalogueSource[] = [
       {
         sourceType: "anilist",
         load: () =>
@@ -329,6 +336,13 @@ class CatalogueService {
           }),
       },
     ];
+
+    if (!requestedSources) {
+      return sources;
+    }
+
+    const requested = new Set(requestedSources);
+    return sources.filter((source) => requested.has(source.sourceType));
   }
 }
 

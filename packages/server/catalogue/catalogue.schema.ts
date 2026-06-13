@@ -1,11 +1,19 @@
 import { z } from "zod";
 
+export const catalogueSourceTypeSchema = z.enum([
+  "anilist",
+  "tmdb",
+  "igdb",
+  "openlibrary",
+]);
+
 export const refreshCatalogueSchema = z.object({
   refreshWindowMs: z.number().int().min(0).optional(),
+  sources: z.array(catalogueSourceTypeSchema).min(1).optional(),
 });
 
 export const catalogueSourceRefreshSchema = z.object({
-  source_type: z.enum(["anilist", "tmdb", "igdb", "openlibrary"]),
+  source_type: catalogueSourceTypeSchema,
   status: z.enum(["completed", "skipped", "failed"]),
   fetched_count: z.number().int(),
   embedded_count: z.number().int(),
