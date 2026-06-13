@@ -4,6 +4,10 @@ import {
   EntryStatusSchema,
 } from "../db/schema/libraryEntries";
 import { EmbeddedTagSchema } from "../db/schema/tags";
+import {
+  generateRecommendationsSchema,
+  recommendationItemSchema,
+} from "../recommendations/recommendation.schema";
 
 export const ASSISTANT_MESSAGE_MAX_LENGTH = 4000;
 
@@ -48,6 +52,9 @@ export const upsertAssistantSessionSchema = z.object({
 
 export const assistantChatSchema = z.object({
   message: z.string().trim().min(1).max(ASSISTANT_MESSAGE_MAX_LENGTH),
+  recommendationCount: z.number().int().min(1).max(50).optional(),
+  recommendationMediaTypes: z.array(EntryMediaTypeSchema).min(1).optional(),
+  includeRecommendationDetails: z.boolean().default(false),
   history: z.array(assistantMessageSchema).max(30).optional(),
   context: z
     .object({
@@ -58,12 +65,21 @@ export const assistantChatSchema = z.object({
     .optional(),
 });
 
-export const assistantChatResponseSchema = z.object({
-  message: z.string(),
+export const assistantRecommendationRunSchema = z.object({
+  input: generateRecommendationsSchema,
+  items: z.array(recommendationItemSchema),
 });
 
-export type AssistantChatInput = z.infer<typeof assistantChatSchema>;
+export const assistantChatResponseSchema = z.object({
+  message: z.string(),
+  recommendation_runs: z.array(assistantRecommendationRunSchema).optional(),
+});
+
+export type AssistantChatInput = z.input<typeof assistantChatSchema>;
 export type AssistantChatResponse = z.infer<typeof assistantChatResponseSchema>;
+export type AssistantRecommendationRun = z.infer<
+  typeof assistantRecommendationRunSchema
+>;
 export type AssistantSession = z.infer<typeof assistantSessionSchema>;
 export type UpsertAssistantSessionInput = z.infer<
   typeof upsertAssistantSessionSchema

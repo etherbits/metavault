@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const tmdbMovieSchema = z.object({
   id: z.number(),
-  title: z.string().nullable().optional(),
+  title: z.string().nullable(),
   original_title: z.string().nullable().optional(),
   poster_path: z.string().nullable().optional(),
   vote_average: z.number().nullable().optional(),
@@ -15,7 +15,7 @@ export const tmdbMovieSchema = z.object({
 
 export const tmdbTvSchema = z.object({
   id: z.number(),
-  name: z.string().nullable().optional(),
+  name: z.string().nullable(),
   original_name: z.string().nullable().optional(),
   poster_path: z.string().nullable().optional(),
   vote_average: z.number().nullable().optional(),

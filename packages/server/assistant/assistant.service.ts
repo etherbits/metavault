@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { aiIntegrationService } from "../ai-integrations/ai-integration.service";
+import type { EntryMediaType } from "../db/schema/libraryEntries";
 import { logger } from "../logger";
 import { generateRecommendationsSchema } from "../recommendations/recommendation.schema";
 import { recommendationService } from "../recommendations/recommendation.service";
@@ -8,6 +9,7 @@ import { assistantModel } from "./assistant.model";
 import type {
   AssistantChatInput,
   AssistantChatResponse,
+  AssistantRecommendationRun,
   AssistantSession,
   UpsertAssistantSessionInput,
 } from "./assistant.schema";
@@ -147,6 +149,16 @@ type ChatCompletionMessage = {
   }>;
 };
 
+const ALL_MEDIA_TYPES: EntryMediaType[] = [
+  "movie",
+  "tv_show",
+  "anime",
+  "game",
+  "book",
+  "manga",
+  "other",
+];
+
 class AssistantService {
   async getSessions(userId: string): Promise<Result<AssistantSession[]>> {
     return ok(await assistantModel.getSessionsByUser(userId));
@@ -198,15 +210,22 @@ class AssistantService {
         url,
         messages,
         assistantMessage: firstResult.data,
+        recommendationCount: input.recommendationCount,
+        recommendationMediaTypes: input.recommendationMediaTypes,
       });
       if (!finalResult.ok) return finalResult;
 
-      const message = finalResult.data.content?.trim();
+      const message = finalResult.data.message.content?.trim();
       if (!message) {
         return err(502, "AI assistant returned an empty response");
       }
 
-      return ok({ message });
+      return ok({
+        message,
+        ...(input.includeRecommendationDetails
+          ? { recommendation_runs: finalResult.data.recommendationRuns }
+          : {}),
+      });
     } catch (error) {
       logger.warn({ error }, "OpenAI-compatible chat completion request threw");
       return err(502, "AI assistant request failed");
@@ -217,10 +236,14 @@ class AssistantService {
     userId,
     input,
     onDelta,
+    onRecommendations,
   }: {
     userId: string;
     input: AssistantChatInput;
     onDelta: (delta: string) => void | Promise<void>;
+    onRecommendations?: (
+      runs: AssistantRecommendationRun[]
+    ) => void | Promise<void>;
   }): Promise<Result<{ message: string }>> {
     const requestResult = await this.buildChatCompletionRequest(userId, input);
     if (!requestResult.ok) return requestResult;
@@ -239,10 +262,19 @@ class AssistantService {
       const toolMessagesResult = await this.buildRecommendationToolMessages({
         userId,
         assistantMessage: firstResult.data,
+        recommendationCount: input.recommendationCount,
+        recommendationMediaTypes: input.recommendationMediaTypes,
       });
       if (!toolMessagesResult.ok) return toolMessagesResult;
 
-      if (toolMessagesResult.data.length === 0) {
+      if (
+        input.includeRecommendationDetails &&
+        toolMessagesResult.data.recommendationRuns.length > 0
+      ) {
+        await onRecommendations?.(toolMessagesResult.data.recommendationRuns);
+      }
+
+      if (toolMessagesResult.data.messages.length === 0) {
         const content = firstResult.data.content?.trim();
         if (!content) {
           return err(502, "AI assistant returned an empty response");
@@ -258,7 +290,7 @@ class AssistantService {
           content: firstResult.data.content ?? null,
           tool_calls: firstResult.data.tool_calls,
         },
-        ...toolMessagesResult.data,
+        ...toolMessagesResult.data.messages,
       ];
 
       const response = await fetch(url, {
@@ -431,38 +463,64 @@ class AssistantService {
     url: URL;
     messages: ChatCompletionMessage[];
     assistantMessage: ChatCompletionMessage;
-  }): Promise<Result<ChatCompletionMessage>> {
+    recommendationCount?: number;
+    recommendationMediaTypes?: EntryMediaType[];
+  }): Promise<
+    Result<{
+      message: ChatCompletionMessage;
+      recommendationRuns: AssistantRecommendationRun[];
+    }>
+  > {
     const toolMessagesResult = await this.buildRecommendationToolMessages({
       userId: input.userId,
       assistantMessage: input.assistantMessage,
+      recommendationCount: input.recommendationCount,
+      recommendationMediaTypes: input.recommendationMediaTypes,
     });
     if (!toolMessagesResult.ok) return toolMessagesResult;
 
-    if (toolMessagesResult.data.length === 0) {
-      return ok(input.assistantMessage);
+    if (toolMessagesResult.data.messages.length === 0) {
+      return ok({
+        message: input.assistantMessage,
+        recommendationRuns: [],
+      });
     }
 
-    return this.requestChatCompletion({
+    const finalResult = await this.requestChatCompletion({
       config: input.config,
       url: input.url,
       messages: [
         ...input.messages,
         input.assistantMessage,
-        ...toolMessagesResult.data,
+        ...toolMessagesResult.data.messages,
       ],
+    });
+    if (!finalResult.ok) return finalResult;
+
+    return ok({
+      message: finalResult.data,
+      recommendationRuns: toolMessagesResult.data.recommendationRuns,
     });
   }
 
   private async buildRecommendationToolMessages(input: {
     userId: string;
     assistantMessage: ChatCompletionMessage;
-  }): Promise<Result<ChatCompletionMessage[]>> {
+    recommendationCount?: number;
+    recommendationMediaTypes?: EntryMediaType[];
+  }): Promise<
+    Result<{
+      messages: ChatCompletionMessage[];
+      recommendationRuns: AssistantRecommendationRun[];
+    }>
+  > {
     const toolCalls =
       input.assistantMessage.tool_calls?.filter(
         (toolCall) => toolCall.function.name === "generate_recommendations"
       ) ?? [];
 
     const messages: ChatCompletionMessage[] = [];
+    const recommendationRuns: AssistantRecommendationRun[] = [];
     for (const toolCall of toolCalls) {
       const args = safeJsonParse(toolCall.function.arguments);
       const parsed = generateRecommendationsSchema.safeParse(args);
@@ -477,10 +535,33 @@ class AssistantService {
         continue;
       }
 
+      const recommendationInput = {
+        ...parsed.data,
+        ...(input.recommendationCount === undefined
+          ? {}
+          : { count: input.recommendationCount }),
+        ...(input.recommendationMediaTypes
+          ? {
+              filters: {
+                ...parsed.data.filters,
+                excludedMediaTypes: ALL_MEDIA_TYPES.filter(
+                  (mediaType) =>
+                    !input.recommendationMediaTypes?.includes(mediaType)
+                ),
+              },
+            }
+          : {}),
+      };
       const result = await recommendationService.generate({
         userId: input.userId,
-        input: parsed.data,
+        input: recommendationInput,
       });
+      if (result.ok) {
+        recommendationRuns.push({
+          input: recommendationInput,
+          items: result.data.items,
+        });
+      }
       messages.push({
         role: "tool",
         tool_call_id: toolCall.id,
@@ -490,7 +571,7 @@ class AssistantService {
       });
     }
 
-    return ok(messages);
+    return ok({ messages, recommendationRuns });
   }
 
   private formatContext(context: AssistantChatInput["context"]): string {

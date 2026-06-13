@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it, mock } from "bun:test";
+import { refreshCatalogueSchema } from "../../packages/server/catalogue/catalogue.schema";
+import { assistantChatSchema } from "../../packages/server/assistant/assistant.schema";
 import {
   buildCatalogueEmbeddingText,
   cosineSimilarity,
@@ -6,6 +8,7 @@ import {
   encodeFloat32Vector,
   hashEmbeddingText,
 } from "../../packages/server/catalogue/catalogue-vector";
+import { tmdbSearchResponseSchema } from "../../packages/server/enrichment/source-integrations/tmdb/schema";
 import { generateRecommendationsSchema } from "../../packages/server/recommendations/recommendation.schema";
 
 const originalFetch = globalThis.fetch;
@@ -129,6 +132,17 @@ describe("recommendation scoring", () => {
 });
 
 describe("recommendation schemas", () => {
+  it("applies assistant recommendation detail defaults", () => {
+    expect(
+      assistantChatSchema.parse({
+        message: "Recommend a cozy anime",
+      })
+    ).toMatchObject({
+      message: "Recommend a cozy anime",
+      includeRecommendationDetails: false,
+    });
+  });
+
   it("applies generate defaults", () => {
     const parsed = generateRecommendationsSchema.parse({
       prompt: "cozy anime",
@@ -155,6 +169,91 @@ describe("recommendation schemas", () => {
     });
 
     expect(parsed.success).toBe(false);
+  });
+
+  it("accepts selective catalogue refresh sources", () => {
+    expect(
+      refreshCatalogueSchema.parse({
+        sources: ["anilist", "tmdb"],
+        refreshWindowMs: 0,
+      })
+    ).toEqual({
+      sources: ["anilist", "tmdb"],
+      refreshWindowMs: 0,
+    });
+  });
+});
+
+describe("recommendation source URLs", () => {
+  it("builds AniList and TMDB detail URLs", async () => {
+    process.env.NODE_ENV = "test";
+    process.env.JWT_SECRET = "unit-secret";
+    const { getRecommendationSourceUrl } = await import(
+      "../../packages/server/recommendations/recommendation.service"
+    );
+
+    expect(
+      getRecommendationSourceUrl({
+        source_type: "anilist",
+        source_media_id: "1001",
+        media_type: "anime",
+      })
+    ).toBe("https://anilist.co/anime/1001");
+
+    expect(
+      getRecommendationSourceUrl({
+        source_type: "tmdb",
+        source_media_id: "9102",
+        media_type: "tv_show",
+      })
+    ).toBe("https://www.themoviedb.org/tv/9102");
+  });
+
+  it("fails loudly for unsupported recommendation sources", async () => {
+    process.env.NODE_ENV = "test";
+    process.env.JWT_SECRET = "unit-secret";
+    const { getRecommendationSourceUrl } = await import(
+      "../../packages/server/recommendations/recommendation.service"
+    );
+
+    expect(() =>
+      getRecommendationSourceUrl({
+        source_type: "unsupported",
+        source_media_id: "1",
+        media_type: "movie",
+      } as never)
+    ).toThrow("Unsupported recommendation source type: unsupported");
+  });
+
+  it("normalizes equivalent titles for result deduplication", async () => {
+    process.env.NODE_ENV = "test";
+    process.env.JWT_SECRET = "unit-secret";
+    const { normalizeRecommendationTitle } = await import(
+      "../../packages/server/recommendations/recommendation.service"
+    );
+
+    expect(normalizeRecommendationTitle("Howl's Moving Castle")).toBe(
+      normalizeRecommendationTitle("Howl’s Moving Castle")
+    );
+  });
+});
+
+describe("TMDB catalogue response schemas", () => {
+  it("preserves TV names instead of parsing them as movies", () => {
+    const parsed = tmdbSearchResponseSchema.parse({
+      results: [
+        {
+          id: 42,
+          name: "Example TV Show",
+          original_name: "Original TV Show",
+        },
+      ],
+    });
+
+    expect(parsed.results?.[0]).toMatchObject({
+      id: 42,
+      name: "Example TV Show",
+    });
   });
 });
 
