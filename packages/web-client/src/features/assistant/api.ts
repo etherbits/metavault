@@ -69,7 +69,9 @@ export async function streamAssistantMessage({
 
       if (event.event === "error") {
         throw new Error(
-          event.data.message ?? "Unable to stream assistant reply"
+          typeof event.data.message === "string"
+            ? event.data.message
+            : "Unable to stream assistant reply"
         );
       }
 

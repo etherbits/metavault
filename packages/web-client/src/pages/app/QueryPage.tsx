@@ -300,6 +300,7 @@ export function QueryPage() {
       const streamedMessage = await streamAssistantMessage({
         input: {
           message,
+          includeRecommendationDetails: false,
           history: previousMessages.map(({ role, content }) => ({
             role,
             content,
