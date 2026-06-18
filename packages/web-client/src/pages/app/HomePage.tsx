@@ -10,12 +10,22 @@ import {
   useRenameCollection,
   useSyncCollections,
 } from "@/features/collections/hooks";
+import type { CollectionView } from "@/features/collections/hooks";
 import {
   useLibraryEntries,
   useUpdateLibraryEntry,
   useUpdateLibraryEntryPersonalRating,
 } from "@/features/library/hooks";
 import type { MediaItem, MediaStatus } from "@/features/library/types";
+
+interface HomeSectionItem {
+  id: string;
+  title: string;
+  query: string;
+  defaultOpen: boolean;
+  items: MediaItem[];
+  collection?: CollectionView;
+}
 
 export function HomePage() {
   const navigate = useNavigate();
@@ -103,7 +113,7 @@ export function HomePage() {
     (item) => !homeHiddenSet.has(item.id)
   );
 
-  const homeSections = [
+  const homeSections: HomeSectionItem[] = [
     {
       id: "in_progress",
       title: "In Progress",
