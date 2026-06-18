@@ -375,7 +375,7 @@ export function Sidebar({
     <motion.aside
       animate={{ width: isOpen ? 240 : 68 }}
       transition={sidebarTransition}
-      className="flex h-dvh shrink-0 flex-col justify-between overflow-hidden border-r border-[#27272A] bg-[#09090B] p-[10px]"
+      className="relative z-10 flex h-dvh shrink-0 flex-col justify-between overflow-visible border-r border-[#27272A] bg-[#09090B] p-[10px]"
     >
       <div
         className={cn(

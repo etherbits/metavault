@@ -1,20 +1,24 @@
 import { CalendarDays, Clapperboard, Sparkles, Star } from "lucide-react";
-import { type ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router";
 import BatmanPoster from "@/assets/download.jpeg";
 import { StatusBadge, getStatusBadgeTone } from "@/components/Badges";
+import { PersonalRatingControl } from "@/components/PersonalRatingControl";
 import { Button } from "@/components/ui/button";
 import { ContentNodesSection } from "@/features/content-nodes/ContentNodesSection";
-import { useLibraryEntries } from "@/features/library/hooks";
+import {
+  useLibraryEntry,
+  useUpdateLibraryEntryPersonalRating,
+} from "@/features/library/hooks";
 import type { MediaItem } from "@/features/library/types";
 import { cn } from "@/lib/utils";
 
 export function DetailPage() {
   const { itemId } = useParams<{ itemId: string }>();
   const navigate = useNavigate();
-  const libraryQuery = useLibraryEntries();
+  const itemQuery = useLibraryEntry(itemId ?? null);
 
-  if (libraryQuery.isLoading) {
+  if (itemQuery.isLoading) {
     return (
       <div className="flex flex-1 items-center justify-center py-10">
         <div className="h-7 w-7 animate-spin rounded-full border-2 border-[#3F3F46] border-t-[#FAFAFA]" />
@@ -22,7 +26,7 @@ export function DetailPage() {
     );
   }
 
-  const item = libraryQuery.data?.find((entry) => entry.id === itemId);
+  const item = itemQuery.data;
   if (!item) {
     return <Navigate to="/app/query" replace />;
   }
@@ -37,15 +41,33 @@ function DetailPageContent({
   item: MediaItem;
   onBack: () => void;
 }) {
-  const numericRating = Number.parseFloat(item.rating.replace(/[^\d.]/g, ""));
-  const personalRating = Number.isFinite(numericRating)
-    ? Math.max(0, Math.min(5, numericRating / 2))
-    : 4.5;
-  const fullStars = Math.floor(personalRating);
-  const hasHalfStar = personalRating - fullStars >= 0.5;
-  const emptyStars = Math.max(0, 5 - fullStars - (hasHalfStar ? 1 : 0));
+  const updatePersonalRating = useUpdateLibraryEntryPersonalRating();
+  const [optimisticPersonalRating, setOptimisticPersonalRating] = useState<{
+    id: string;
+    value: number;
+  } | null>(null);
+  const displayedPersonalRating =
+    optimisticPersonalRating?.id === item.id
+      ? optimisticPersonalRating.value
+      : item.personalRating;
   const status = item.status ?? "On Hold";
   const statusTone = getStatusBadgeTone(status);
+
+  function updateRating(personalRating: number) {
+    setOptimisticPersonalRating({ id: item.id, value: personalRating });
+    updatePersonalRating.mutate(
+      {
+        id: item.id,
+        personalRating,
+      },
+      {
+        onError: () =>
+          setOptimisticPersonalRating((current) =>
+            current?.id === item.id ? null : current
+          ),
+      }
+    );
+  }
 
   return (
     <div className="mx-auto flex w-full max-w-[1488px] flex-col gap-8">
@@ -97,41 +119,30 @@ function DetailPageContent({
               label="Release Date"
               value={item.releasedAt}
             />
-            <InfoPill
-              icon={<Star size={24} />}
-              label="Public Rating"
-              value={item.rating}
-            />
+            <div className="inline-flex h-10 w-fit items-center overflow-hidden rounded-[6px] bg-[#3F3F46]">
+              <span className="inline-flex h-full items-center gap-2 rounded-l-[6px] bg-[#262626] px-[10px] text-[18px] font-medium leading-[27px] text-[#A1A1AA]">
+                <Star size={24} />
+                Public Rating
+              </span>
+              <span className="inline-flex h-full items-center px-3">
+                <span className="text-[18px] font-medium leading-[27px] text-[#D4D4D8]">
+                  {item.rating}
+                </span>
+              </span>
+            </div>
 
-            <div className="inline-flex h-[35px] w-fit items-center overflow-hidden rounded-[6px] bg-[#3F3F46]">
+            <div className="inline-flex h-10 w-fit items-center overflow-hidden rounded-[6px] bg-[#3F3F46]">
               <span className="inline-flex h-full items-center gap-2 rounded-l-[6px] bg-[#262626] px-[10px] text-[18px] font-medium leading-[27px] text-[#A1A1AA]">
                 <Sparkles size={24} />
                 Personal Rating
               </span>
-              <div className="inline-flex items-center gap-0.5 px-3">
-                {Array.from(
-                  { length: fullStars },
-                  (_, slot) => `full-${slot + 1}`
-                ).map((key) => (
-                  <Star
-                    key={key}
-                    size={20}
-                    className="fill-[#FACC15] text-[#FACC15]"
-                  />
-                ))}
-                {hasHalfStar ? (
-                  <Star
-                    size={20}
-                    className="fill-[#FACC15]/50 text-[#FACC15]"
-                  />
-                ) : null}
-                {Array.from(
-                  { length: emptyStars },
-                  (_, slot) => `empty-${slot + 1}`
-                ).map((key) => (
-                  <Star key={key} size={20} className="text-[#FACC15]" />
-                ))}
-              </div>
+              <span className="inline-flex h-full items-center px-3">
+                <PersonalRatingControl
+                  value={displayedPersonalRating}
+                  onChange={updateRating}
+                  disabled={updatePersonalRating.isPending}
+                />
+              </span>
             </div>
 
             <div className="flex flex-wrap gap-4">

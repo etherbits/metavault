@@ -44,6 +44,7 @@ export function normalizeImportedItems(raw: unknown): Omit<MediaItem, "id">[] {
       adult: false,
       releasedAt: entry.date ?? "-",
       rating: entry.rating ?? "-",
+      personalRating: null,
       tags: entry.tags ?? [],
       posterUrl: entry.posterUrl,
     });

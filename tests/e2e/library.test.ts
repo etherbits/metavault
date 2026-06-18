@@ -3,6 +3,7 @@ import path from "node:path";
 import { expect, test } from "@playwright/test";
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import { signIn } from "../helpers/auth";
+import { signInPage, WEB_BASE_URL } from "../helpers/queryPage";
 
 const CSV_HEADERS =
   "title,media_id,source_id,media_type,status,image_src,released_at,public_rating,personal_rating,major_tags,minor_tags";
@@ -157,6 +158,68 @@ test("library CRUD works for an authenticated user", async ({ request }) => {
 
   const deletedResponse = await request.get(`/library/${created.id}`);
   expect(deletedResponse.status()).toBe(404);
+});
+
+test("detail page shows and updates personal rating in half-star steps", async ({
+  page,
+  request,
+}) => {
+  await signIn(request);
+
+  const title = `Personal Rating Detail ${Date.now()}`;
+  const createResponse = await request.post("/library", {
+    multipart: {
+      title,
+      media_id: `personal-rating-detail-${Date.now()}`,
+      media_type: "anime",
+      status: "planning",
+      public_rating: "2",
+      personal_rating: "5.5",
+    },
+  });
+  expect(createResponse.status()).toBe(201);
+  const created = (await createResponse.json()) as { id: string };
+
+  await signInPage(page);
+  await page.goto(`${WEB_BASE_URL}/app/detail/${created.id}`);
+  await expect(page.getByRole("heading", { name: title })).toBeVisible();
+
+  const ratingSlider = page.getByRole("slider", {
+    name: "Personal rating",
+  });
+  await expect(ratingSlider).toHaveAttribute("aria-valuenow", "5.5");
+
+  const bounds = await ratingSlider.boundingBox();
+  expect(bounds).not.toBeNull();
+  if (!bounds) {
+    throw new Error("Personal rating slider was not visible");
+  }
+
+  const patchResponse = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return (
+      url.pathname === `/library/${created.id}` &&
+      response.request().method() === "PATCH"
+    );
+  });
+
+  await ratingSlider.click({
+    position: {
+      x: bounds.width * 0.91,
+      y: bounds.height / 2,
+    },
+  });
+  await expect((await patchResponse).ok()).toBeTruthy();
+  await expect(ratingSlider).toHaveAttribute("aria-valuenow", "10");
+
+  const getResponse = await request.get(`/library/${created.id}`);
+  expect(getResponse.ok()).toBeTruthy();
+  expect(await getResponse.json()).toEqual(
+    expect.objectContaining({ personal_rating: 10 })
+  );
+
+  const deleteResponse = await request.delete(`/library/${created.id}`);
+  expect(deleteResponse.ok()).toBeTruthy();
 });
 
 test("library CSV import skips invalid rows and reports counts", async ({

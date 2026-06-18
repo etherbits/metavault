@@ -26,6 +26,8 @@ export type CatalogueEntry = CatalogueEntryData & {
   updated_at: string;
 };
 
+export type CataloguePullMediaType = Exclude<EntryMediaType, "other"> | "all";
+
 type RawCatalogueRow = Omit<
   CatalogueEntry,
   "adult" | "genres" | "tags" | "metadata"
@@ -225,6 +227,52 @@ class CatalogueModel {
       dimensions: row.dimensions,
       embedding_blob: row.embedding_blob,
     }));
+  }
+
+  async getTopEntries(input: {
+    userId: string;
+    mediaType: CataloguePullMediaType;
+    limit: number;
+    excludeExistingLibrary: boolean;
+  }) {
+    const params: unknown[] = [];
+    const where: string[] = [];
+
+    if (input.mediaType !== "all") {
+      where.push("catalogue_entries.media_type = ?");
+      params.push(input.mediaType);
+    }
+
+    if (input.excludeExistingLibrary) {
+      where.push(`NOT EXISTS (
+        SELECT 1
+        FROM library_entries
+        WHERE library_entries.user_id = ?
+        AND library_entries.media_id = catalogue_entries.source_media_id
+        AND library_entries.media_type = catalogue_entries.media_type
+      )`);
+      params.push(input.userId);
+    }
+
+    const whereClause = where.length > 0 ? `WHERE ${where.join(" AND ")}` : "";
+
+    const rows = await sql.unsafe(
+      `
+        SELECT catalogue_entries.*
+        FROM catalogue_entries
+        ${whereClause}
+        ORDER BY
+          catalogue_entries.popularity IS NULL ASC,
+          catalogue_entries.popularity DESC,
+          catalogue_entries.public_rating IS NULL ASC,
+          catalogue_entries.public_rating DESC,
+          catalogue_entries.title ASC
+        LIMIT ?
+      `,
+      [...params, input.limit]
+    );
+
+    return (rows as RawCatalogueRow[]).map((row) => this.toCatalogueEntry(row));
   }
 
   private toCatalogueEntry(row: RawCatalogueRow): CatalogueEntry {

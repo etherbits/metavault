@@ -29,11 +29,20 @@ process.env.DATABASE_URL ??= `sqlite://${path.join(
 let EnrichmentCommandExecutor: typeof import("../../packages/server/enrichment/enrichment-command-executor").EnrichmentCommandExecutor;
 let EnrichmentService: typeof import("../../packages/server/enrichment/enrichment.service").EnrichmentService;
 let SourceIntegrationRegistry: typeof import("../../packages/server/enrichment/source-integration-registry").SourceIntegrationRegistry;
+let AliasCommandExecutor: typeof import("../../packages/server/aliases/alias-command-executor").AliasCommandExecutor;
+let PullCommandExecutor: typeof import("../../packages/server/catalogue/pull-command-executor").PullCommandExecutor;
+let sql: typeof import("../../packages/server/db").sql;
 
 beforeAll(async () => {
   const db = await import("../../packages/server/db");
   const commandExecutor = await import(
     "../../packages/server/enrichment/enrichment-command-executor"
+  );
+  const aliasCommandExecutor = await import(
+    "../../packages/server/aliases/alias-command-executor"
+  );
+  const pullCommandExecutor = await import(
+    "../../packages/server/catalogue/pull-command-executor"
   );
   const enrichmentService = await import(
     "../../packages/server/enrichment/enrichment.service"
@@ -46,6 +55,9 @@ beforeAll(async () => {
   EnrichmentService = enrichmentService.EnrichmentService;
   SourceIntegrationRegistry =
     sourceIntegrationRegistry.SourceIntegrationRegistry;
+  AliasCommandExecutor = aliasCommandExecutor.AliasCommandExecutor;
+  PullCommandExecutor = pullCommandExecutor.PullCommandExecutor;
+  sql = db.sql;
 
   await db.applySchema();
 });
@@ -87,10 +99,67 @@ function createExecutor({
   };
 }
 
+async function ensureUser(userId: string) {
+  await sql`
+    INSERT OR IGNORE INTO users (id, username, email, password_hash, is_verified)
+    VALUES (${userId}, ${userId}, ${`${userId}@test.local`}, 'hash', 1)
+  `;
+}
+
+async function insertCatalogueEntry(input: {
+  id: string;
+  sourceType?: string;
+  sourceMediaId: string;
+  mediaType: string;
+  title: string;
+  popularity: number | null;
+  publicRating?: number | null;
+  genres?: string[];
+  tags?: string[];
+}) {
+  await sql`
+    INSERT INTO catalogue_entries (
+      id,
+      source_type,
+      source_media_id,
+      media_type,
+      title,
+      adult,
+      public_rating,
+      popularity,
+      genres_json,
+      tags_json,
+      metadata_json,
+      embedding_text_hash
+    )
+    VALUES (
+      ${input.id},
+      ${input.sourceType ?? "anilist"},
+      ${input.sourceMediaId},
+      ${input.mediaType},
+      ${input.title},
+      0,
+      ${input.publicRating ?? null},
+      ${input.popularity},
+      ${JSON.stringify(input.genres ?? [])},
+      ${JSON.stringify(input.tags ?? [])},
+      '{}',
+      ${`hash-${input.id}`}
+    )
+    ON CONFLICT(source_type, source_media_id, media_type) DO UPDATE SET
+      title = excluded.title,
+      popularity = excluded.popularity,
+      public_rating = excluded.public_rating,
+      genres_json = excluded.genres_json,
+      tags_json = excluded.tags_json
+  `;
+}
+
 const params: Omit<CommandExecutionParams, "command"> = {
   action: "update",
   userId: "user-1",
   rows: [row()],
+  filterRowsByExpression: mock(async (_expression, rows) => rows),
 };
 
 describe("command schema parser", () => {
@@ -232,6 +301,171 @@ describe("CommandDelegator", () => {
     const result = await delegator.delegateCommands(["a", "b"], params);
 
     expect(result.rows).toEqual([...firstRows, ...secondRows]);
+  });
+});
+
+describe("AliasCommandExecutor", () => {
+  it("accepts alias commands", () => {
+    const executor = new AliasCommandExecutor();
+
+    expect(executor.canExecute("alias:favorite-w")).toBe(true);
+    expect(executor.canExecute("alias")).toBe(false);
+    expect(executor.canExecute("enrich")).toBe(false);
+  });
+
+  it("loads the user alias and filters rows through the command context", async () => {
+    const userId = "alias-command-user";
+    await sql`
+      INSERT OR IGNORE INTO users (id, username, email, password_hash, is_verified)
+      VALUES (${userId}, 'alias-command-user', 'alias-command-user@test.local', 'hash', 1)
+    `;
+    await sql`
+      INSERT INTO alias_mappings (id, user_id, alias, expansion)
+      VALUES (${crypto.randomUUID()}, ${userId}, 'favorite-w', 'personal_rating:>7 media_type:anime')
+      ON CONFLICT(user_id, alias) DO UPDATE SET
+        expansion = excluded.expansion
+    `;
+
+    const filteredRows = [row({ id: "filtered" })];
+    const filterRowsByExpression = mock(async () => filteredRows);
+    const executor = new AliasCommandExecutor();
+
+    const result = await executor.execute({
+      ...params,
+      command: "alias:favorite-w",
+      userId,
+      filterRowsByExpression,
+    });
+
+    expect(result.rows).toBe(filteredRows);
+    expect(filterRowsByExpression).toHaveBeenCalledWith(
+      {
+        And: [{ Leaf: "personal_rating:>7" }, { Leaf: "media_type:anime" }],
+      },
+      params.rows
+    );
+  });
+});
+
+describe("PullCommandExecutor", () => {
+  it("accepts valid pull commands", () => {
+    const executor = new PullCommandExecutor();
+
+    expect(executor.canExecute("pull:anime:200")).toBe(true);
+    expect(executor.canExecute("pull:all:10")).toBe(true);
+    expect(executor.canExecute("pull:other:10")).toBe(false);
+    expect(executor.canExecute("pull:anime:0")).toBe(false);
+    expect(executor.canExecute("pull:anime:501")).toBe(false);
+    expect(executor.canExecute("pull:anime")).toBe(false);
+  });
+
+  it("previews top catalogue entries for search without creating library rows", async () => {
+    const userId = "pull-search-user";
+    await ensureUser(userId);
+    const existingRows = [row({ id: "existing-search-row" })];
+    await insertCatalogueEntry({
+      id: "pull-search-low",
+      sourceMediaId: "pull-search-low-media",
+      mediaType: "anime",
+      title: "Pull Search Low",
+      popularity: 10,
+    });
+    await insertCatalogueEntry({
+      id: "pull-search-high",
+      sourceMediaId: "pull-search-high-media",
+      mediaType: "anime",
+      title: "Pull Search High",
+      popularity: 100,
+      genres: ["action"],
+    });
+
+    const executor = new PullCommandExecutor();
+    const result = await executor.execute({
+      ...params,
+      action: "search",
+      rows: existingRows,
+      userId,
+      command: "pull:anime:1",
+    });
+
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows).not.toEqual(existingRows);
+    expect(result.rows[0]).toMatchObject({
+      id: "catalogue:pull-search-high",
+      title: "Pull Search High",
+      media_id: "pull-search-high-media",
+      media_type: "anime",
+      status: null,
+      tags: [expect.objectContaining({ value: "action", weight: "major" })],
+    });
+
+    const libraryRows = await sql`
+      SELECT *
+      FROM library_entries
+      WHERE user_id = ${userId}
+      AND media_id = 'pull-search-high-media'
+    `;
+    expect(libraryRows).toHaveLength(0);
+  });
+
+  it("creates pulled catalogue entries only for create actions and skips existing library media", async () => {
+    const userId = "pull-create-user";
+    await ensureUser(userId);
+    await insertCatalogueEntry({
+      id: "pull-create-game",
+      sourceType: "igdb",
+      sourceMediaId: "pull-create-game-media",
+      mediaType: "game",
+      title: "Pull Create Game",
+      popularity: 100,
+      tags: ["favorite"],
+    });
+    await insertCatalogueEntry({
+      id: "pull-create-existing-game",
+      sourceType: "igdb",
+      sourceMediaId: "pull-create-existing-game-media",
+      mediaType: "game",
+      title: "Pull Create Existing Game",
+      popularity: 90,
+    });
+
+    await sql`
+      INSERT INTO library_entries (id, user_id, title, media_id, media_type)
+      VALUES (
+        'pull-create-existing',
+        ${userId},
+        'Existing Pull Create Game',
+        'pull-create-existing-game-media',
+        'game'
+      )
+    `;
+
+    const executor = new PullCommandExecutor();
+    const result = await executor.execute({
+      ...params,
+      action: "create",
+      rows: [],
+      userId,
+      command: "pull:game:10",
+    });
+
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0]).toMatchObject({
+      title: "Pull Create Game",
+      media_id: "pull-create-game-media",
+      media_type: "game",
+      status: null,
+      tags: [expect.objectContaining({ value: "favorite", weight: "major" })],
+    });
+
+    const createdRows = await sql`
+      SELECT *
+      FROM library_entries
+      WHERE user_id = ${userId}
+      AND media_id IN ('pull-create-game-media', 'pull-create-existing-game-media')
+      ORDER BY media_id ASC
+    `;
+    expect(createdRows).toHaveLength(2);
   });
 });
 

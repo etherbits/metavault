@@ -6,6 +6,7 @@ import {
   fetchLibraryEntries,
   fetchLibraryEntry,
   importLibraryEntries,
+  updateLibraryEntryPersonalRating,
   updateLibraryEntryStatus,
   uploadLibraryEntryImage,
 } from "@/features/library/api";
@@ -35,6 +36,28 @@ export function useUpdateLibraryEntry() {
     mutationFn: updateLibraryEntryStatus,
     onSuccess: (items) => {
       queryClient.setQueryData(queryKeys.library.entries(), items);
+      queryClient.invalidateQueries({ queryKey: queryKeys.library.all });
+    },
+  });
+}
+
+export function useUpdateLibraryEntryPersonalRating() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: updateLibraryEntryPersonalRating,
+    onSuccess: (item) => {
+      if (!item) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.library.all });
+        return;
+      }
+
+      queryClient.setQueryData(queryKeys.library.entry(item.id), item);
+      queryClient.setQueryData<MediaItem[]>(
+        queryKeys.library.entries(),
+        (current) =>
+          current?.map((entry) => (entry.id === item.id ? item : entry))
+      );
       queryClient.invalidateQueries({ queryKey: queryKeys.library.all });
     },
   });

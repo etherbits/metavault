@@ -11,6 +11,7 @@ import {
 import { Popover } from "radix-ui";
 import { StatusBadge } from "@/components/Badges";
 import { MediaCardMenu } from "@/components/MediaCardMenu";
+import { PersonalRatingControl } from "@/components/PersonalRatingControl";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type {
@@ -32,6 +33,8 @@ interface MediaCardProps {
   onAddToCollection?: (id: string) => void;
   onUploadImage?: (id: string) => void;
   onViewDetails?: (item: MediaItem) => void;
+  onChangePersonalRating?: (id: string, rating: number) => void;
+  personalRatingPending?: boolean;
 }
 
 function getTypeIcon(type: MediaType) {
@@ -131,6 +134,8 @@ export function MediaCard({
   onAddToCollection,
   onUploadImage,
   onViewDetails,
+  onChangePersonalRating,
+  personalRatingPending = false,
 }: MediaCardProps) {
   const posterSrc = item.posterUrl || "/image-placeholder.svg";
   const sortedTags = sortTagsForDisplay(item.tags);
@@ -143,6 +148,9 @@ export function MediaCard({
     visibleMajorTags.length +
     minorTags.length -
     visibleMinorTags.length;
+  const canEditLibraryFields = !item.id.startsWith("catalogue:");
+  const canEditPersonalRating =
+    Boolean(onChangePersonalRating) && canEditLibraryFields;
 
   function handleCardClick() {
     if (selectMode) {
@@ -152,6 +160,7 @@ export function MediaCard({
 
   return (
     <Card
+      data-media-card-id={item.id}
       className={cn(
         "relative h-full min-h-[300px] w-full overflow-visible rounded-[4px] border-none bg-[#27272A] py-0 text-white ring-0 shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)]",
         selected && "ring-2 ring-[#FACC15]"
@@ -164,12 +173,18 @@ export function MediaCard({
             src={posterSrc}
             alt=""
             aria-hidden="true"
+            width={400}
+            height={600}
+            decoding="async"
             className="pointer-events-none absolute inset-0 z-0 h-full w-full scale-105 rounded-t-[4px] object-cover opacity-25 blur-xl sm:rounded-l-[4px] sm:rounded-tr-none"
           />
           <div className="relative z-10 h-full w-full overflow-hidden rounded-t-[4px] bg-[#27272A] sm:rounded-l-[4px] sm:rounded-tr-none">
             <img
               src={posterSrc}
               alt={item.title}
+              width={400}
+              height={600}
+              decoding="async"
               className="block h-full w-full object-cover"
             />
           </div>
@@ -196,10 +211,29 @@ export function MediaCard({
                 {item.releasedAt}
               </span>
 
-              <span className="inline-flex h-5 w-fit items-center gap-1 rounded-[8px] bg-[#3F3F46] px-2 text-[12px] font-semibold leading-4 text-[#FAFAFA]">
-                <Star size={12} />
-                {item.rating}
-              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex h-5 w-fit items-center gap-1 rounded-[8px] bg-[#3F3F46] px-2 text-[12px] font-semibold leading-4 text-[#FAFAFA]">
+                  <Star size={12} />
+                  {item.rating}
+                </span>
+
+                {canEditPersonalRating || item.personalRating !== null ? (
+                  <span className="inline-flex h-5 w-fit items-center rounded-[8px] bg-[#3F3F46] px-2 text-[#FAFAFA]">
+                    <PersonalRatingControl
+                      value={item.personalRating}
+                      size="sm"
+                      ariaLabel={`Personal rating for ${item.title}`}
+                      disabled={personalRatingPending}
+                      onChange={
+                        canEditPersonalRating
+                          ? (rating) =>
+                              onChangePersonalRating?.(item.id, rating)
+                          : undefined
+                      }
+                    />
+                  </span>
+                ) : null}
+              </div>
             </div>
           </div>
 

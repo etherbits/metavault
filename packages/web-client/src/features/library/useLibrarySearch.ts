@@ -23,13 +23,14 @@ export function useLibrarySearch() {
 
   useEffect(() => {
     setDraft(urlQuery);
+    setCanonicalError(null);
+    setOverride(null);
+
     if (submittedQueryRef.current === urlQuery) {
       submittedQueryRef.current = null;
     } else {
       setExecutedQuery(getExecutableLoadQuery(urlQuery));
     }
-    setCanonicalError(null);
-    setOverride(null);
   }, [urlQuery]);
 
   const ezqSearch = useEzqSearch(executedQuery);

@@ -28,6 +28,7 @@ export interface MediaItem {
   adult: boolean;
   releasedAt: string;
   rating: string;
+  personalRating: number | null;
   tags: LibraryEntryWithTags["tags"];
   posterUrl?: string;
 }

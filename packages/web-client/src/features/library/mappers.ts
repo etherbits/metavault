@@ -62,6 +62,7 @@ export function mapServerEntryToMediaItem(
     adult: entry.adult,
     releasedAt,
     rating,
+    personalRating: entry.personal_rating,
     tags: entry.tags,
     posterUrl: toDisplayImageSrc(entry.image_src),
   };
@@ -84,7 +85,7 @@ export function mapMediaItemToServerEntry(
     status: item.status ? uiToServerStatus[item.status] : null,
     adult: item.adult,
     public_rating: Number.isFinite(numericRating) ? numericRating : null,
-    personal_rating: null,
+    personal_rating: item.personalRating,
     released_at: item.releasedAt === "-" ? null : item.releasedAt,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),

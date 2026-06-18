@@ -1,16 +1,19 @@
 import { Home } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router";
 import { AddToCollectionDialog } from "@/components/AddToCollectionDialog";
 import { HomeSection } from "@/components/HomeSection";
 import {
-  useAddToCollection,
   useCollections,
   useCreateCollection,
+  useDeleteCollection,
+  useRenameCollection,
+  useSyncCollections,
 } from "@/features/collections/hooks";
 import {
   useLibraryEntries,
   useUpdateLibraryEntry,
+  useUpdateLibraryEntryPersonalRating,
 } from "@/features/library/hooks";
 import type { MediaItem, MediaStatus } from "@/features/library/types";
 
@@ -19,8 +22,11 @@ export function HomePage() {
   const libraryQuery = useLibraryEntries();
   const collectionsQuery = useCollections();
   const updateEntry = useUpdateLibraryEntry();
-  const addToCollection = useAddToCollection();
+  const updatePersonalRating = useUpdateLibraryEntryPersonalRating();
+  const syncCollections = useSyncCollections();
   const createCollection = useCreateCollection();
+  const renameCollection = useRenameCollection();
+  const deleteCollection = useDeleteCollection();
 
   const libraryItems = libraryQuery.data ?? [];
   const collections = collectionsQuery.data ?? [];
@@ -30,20 +36,19 @@ export function HomePage() {
   const [pendingCollectionIds, setPendingCollectionIds] = useState<string[]>(
     []
   );
-  const [selectedCollection, setSelectedCollection] = useState("");
-
-  useEffect(() => {
-    if (collections.length > 0 && selectedCollection === "") {
-      setSelectedCollection(collections[0].id);
-    }
-  }, [collections, selectedCollection]);
-
   const handleCardStatusChange = (cardId: string, status: MediaStatus) => {
     updateEntry.mutate({ ids: [cardId], status });
   };
 
   const handleCardRemoveStatus = (cardId: string) => {
     updateEntry.mutate({ ids: [cardId], status: undefined });
+  };
+
+  const handleCardPersonalRatingChange = (
+    cardId: string,
+    personalRating: number
+  ) => {
+    updatePersonalRating.mutate({ id: cardId, personalRating });
   };
 
   const handleCardDeleteFromHome = (cardId: string) => {
@@ -55,14 +60,14 @@ export function HomePage() {
     setCollectionDialogOpen(true);
   };
 
-  const handleConfirmAddToCollection = async () => {
-    if (pendingCollectionIds.length === 0 || selectedCollection === "") {
+  const handleConfirmAddToCollection = async (collectionIds: string[]) => {
+    if (pendingCollectionIds.length === 0) {
       setCollectionDialogOpen(false);
       return;
     }
-    await addToCollection.mutateAsync({
+    await syncCollections.mutateAsync({
       ids: pendingCollectionIds,
-      collectionId: selectedCollection,
+      collectionIds,
       collections,
     });
     setCollectionDialogOpen(false);
@@ -70,23 +75,19 @@ export function HomePage() {
   };
 
   const handleCreateCollection = async (name: string) => {
-    if (pendingCollectionIds.length === 0) return;
-
-    const previousIds = new Set(collections.map((collection) => collection.id));
-    const nextCollections = await createCollection.mutateAsync({
+    const result = await createCollection.mutateAsync({
       name,
-      ids: pendingCollectionIds,
     });
-    const createdCollection = nextCollections.find(
-      (collection) => !previousIds.has(collection.id)
-    );
 
-    if (createdCollection) {
-      setSelectedCollection(createdCollection.id);
-    }
+    return result.createdId;
+  };
 
-    setCollectionDialogOpen(false);
-    setPendingCollectionIds([]);
+  const handleRenameCollection = async (id: string, name: string) => {
+    await renameCollection.mutateAsync({ id, name });
+  };
+
+  const handleDeleteCollection = async (id: string) => {
+    await deleteCollection.mutateAsync(id);
   };
 
   const handleViewDetails = (item: MediaItem) => {
@@ -122,9 +123,10 @@ export function HomePage() {
     ...collections.map((collection) => ({
       id: collection.id,
       title: collection.name,
-      query: undefined,
+      query: toCollectionQuery(collection.name),
       defaultOpen: false,
       items: getCollectionItems(collection.entries, visibleLibraryItems),
+      collection,
     })),
   ];
 
@@ -151,6 +153,11 @@ export function HomePage() {
             onDelete={handleCardDeleteFromHome}
             onAddToCollection={handleCardAddToCollection}
             onViewDetails={handleViewDetails}
+            collection={section.collection}
+            onRenameCollection={handleRenameCollection}
+            onDeleteCollection={handleDeleteCollection}
+            onChangePersonalRating={handleCardPersonalRatingChange}
+            personalRatingPending={updatePersonalRating.isPending}
             onQueryMore={
               section.query ? () => handleQueryMore(section.query) : undefined
             }
@@ -160,11 +167,11 @@ export function HomePage() {
 
       <AddToCollectionDialog
         open={collectionDialogOpen}
-        selectedCollection={selectedCollection}
+        targetIds={pendingCollectionIds}
         collections={collections}
-        onCollectionChange={setSelectedCollection}
         onConfirm={handleConfirmAddToCollection}
         onCreateCollection={handleCreateCollection}
+        isSaving={syncCollections.isPending}
         isCreatingCollection={createCollection.isPending}
         createCollectionError={
           createCollection.error instanceof Error
@@ -178,6 +185,10 @@ export function HomePage() {
       />
     </div>
   );
+}
+
+function toCollectionQuery(collectionName: string) {
+  return `/search collection:${collectionName.replaceAll(" ", "_")}`;
 }
 
 function getCollectionItems(
