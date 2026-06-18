@@ -6,6 +6,7 @@ import { aiIntegrationProfilesMigration } from "./003_ai_integration_profiles";
 import { backfillAiIntegrationTimestampsMigration } from "./004_backfill_ai_integration_timestamps";
 import { catalogueMigration } from "./005_catalogue";
 import { catalogueMediaIdentityMigration } from "./006_catalogue_media_identity";
+import { aliasMappingsConstraintsMigration } from "./007_alias_mappings_constraints";
 import type { Migration } from "./types";
 
 const migrations: Migration[] = [
@@ -15,6 +16,7 @@ const migrations: Migration[] = [
   backfillAiIntegrationTimestampsMigration,
   catalogueMigration,
   catalogueMediaIdentityMigration,
+  aliasMappingsConstraintsMigration,
 ];
 
 export async function migrate(sql: SQL) {

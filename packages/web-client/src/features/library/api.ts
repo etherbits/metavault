@@ -52,6 +52,20 @@ export async function updateLibraryEntryStatus(payload: {
   return fetchLibraryEntries();
 }
 
+export async function updateLibraryEntryPersonalRating(payload: {
+  id: string;
+  personalRating: number;
+}) {
+  await apiRequest(`/library/${payload.id}`, LibraryEntrySchema, {
+    method: "PATCH",
+    body: JSON.stringify({
+      personal_rating: payload.personalRating,
+    }),
+  });
+
+  return fetchLibraryEntry(payload.id);
+}
+
 export async function deleteLibraryEntries(ids: string[]) {
   await Promise.all(
     ids.map((id) =>

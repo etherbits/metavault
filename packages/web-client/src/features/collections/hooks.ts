@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { z } from "zod";
+import { z } from "zod";
 import { apiRequest } from "@/shared/api/client";
 import { queryKeys } from "@/shared/api/queryKeys";
 import {
@@ -42,55 +42,135 @@ export function useCreateCollection() {
         entries: ids.map((id) => ({ library_entry_id: id })),
       });
 
-      await apiRequest("/collections", collectionResponseSchema, {
-        method: "POST",
+      const created = await apiRequest(
+        "/collections",
+        collectionResponseSchema,
+        {
+          method: "POST",
+          body: JSON.stringify(body),
+        }
+      );
+
+      return {
+        createdId: created.id,
+        collections: await fetchCollections(),
+      };
+    },
+    onSuccess: ({ collections }) => {
+      updateCollectionsCache(queryClient, collections);
+    },
+  });
+}
+
+export function useSyncCollections() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      ids,
+      collectionIds,
+      collections,
+    }: {
+      ids: string[];
+      collectionIds: string[];
+      collections: CollectionView[];
+    }) => {
+      const selectedCollectionIds = new Set(collectionIds);
+      const knownCollectionIds = new Set(
+        collections.map((collection) => collection.id)
+      );
+
+      if (
+        collectionIds.some(
+          (collectionId) => !knownCollectionIds.has(collectionId)
+        )
+      ) {
+        throw new Error("Collection not found");
+      }
+
+      const updates = collections
+        .map((collection) => {
+          const entries = syncCollectionEntryIds(
+            collection.entries,
+            ids,
+            selectedCollectionIds.has(collection.id)
+          );
+          if (sameEntryIds(entries, collection.entries)) return null;
+
+          const body = updateCollectionSchema.parse({ entries });
+
+          return apiRequest(
+            `/collections/${collection.id}`,
+            collectionResponseSchema,
+            {
+              method: "PATCH",
+              body: JSON.stringify(body),
+            }
+          );
+        })
+        .filter((update) => update !== null);
+
+      await Promise.all(updates);
+
+      if (updates.length === 0) {
+        return collections;
+      }
+
+      return fetchCollections();
+    },
+    onSuccess: (collections) => {
+      updateCollectionsCache(queryClient, collections);
+    },
+  });
+}
+
+export function useRenameCollection() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+      const body = updateCollectionSchema.parse({ name });
+
+      await apiRequest(`/collections/${id}`, collectionResponseSchema, {
+        method: "PATCH",
         body: JSON.stringify(body),
       });
 
       return fetchCollections();
     },
     onSuccess: (collections) => {
-      queryClient.setQueryData(queryKeys.collections.all, collections);
+      updateCollectionsCache(queryClient, collections);
     },
   });
 }
 
-export function useAddToCollection() {
+export function useDeleteCollection() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({
-      ids,
-      collectionId,
-      collections,
-    }: {
-      ids: string[];
-      collectionId: string;
-      collections: CollectionView[];
-    }) => {
-      const collection = collections.find((item) => item.id === collectionId);
-      if (!collection) {
-        throw new Error("Collection not found");
-      }
-
-      const entries = mergeCollectionEntryIds(collection.entries, ids);
-      const body = updateCollectionSchema.parse({ entries });
-
+    mutationFn: async (id: string) => {
       await apiRequest(
-        `/collections/${collectionId}`,
-        collectionResponseSchema,
+        `/collections/${id}`,
+        z.object({ message: z.string() }),
         {
-          method: "PATCH",
-          body: JSON.stringify(body),
+          method: "DELETE",
         }
       );
 
       return fetchCollections();
     },
     onSuccess: (collections) => {
-      queryClient.setQueryData(queryKeys.collections.all, collections);
+      updateCollectionsCache(queryClient, collections);
     },
   });
+}
+
+function updateCollectionsCache(
+  queryClient: ReturnType<typeof useQueryClient>,
+  collections: CollectionView[]
+) {
+  queryClient.setQueryData(queryKeys.collections.all, collections);
+  queryClient.invalidateQueries({ queryKey: queryKeys.collections.all });
 }
 
 async function fetchCollections() {
@@ -116,15 +196,31 @@ function parseCollectionEntries(entries: string) {
   return collectionEntryResponseSchema.array().parse(rows);
 }
 
-function mergeCollectionEntryIds(
+function syncCollectionEntryIds(
   entries: CollectionView["entries"],
-  ids: string[]
+  ids: string[],
+  selected: boolean
 ) {
   const existingIds = new Set(entries.map((entry) => entry.library_entry_id));
+  if (!selected) {
+    const idsToRemove = new Set(ids);
+    return entries.filter((entry) => !idsToRemove.has(entry.library_entry_id));
+  }
+
   return [
     ...entries,
     ...ids
       .filter((id) => !existingIds.has(id))
       .map((id) => ({ library_entry_id: id })),
   ];
+}
+
+function sameEntryIds(
+  first: CollectionView["entries"],
+  second: CollectionView["entries"]
+) {
+  if (first.length !== second.length) return false;
+
+  const secondIds = new Set(second.map((entry) => entry.library_entry_id));
+  return first.every((entry) => secondIds.has(entry.library_entry_id));
 }

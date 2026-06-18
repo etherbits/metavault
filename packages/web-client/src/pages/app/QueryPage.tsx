@@ -17,9 +17,9 @@ import {
   useSaveAssistantSession,
 } from "@/features/assistant/hooks";
 import {
-  useAddToCollection,
   useCollections,
   useCreateCollection,
+  useSyncCollections,
 } from "@/features/collections/hooks";
 import {
   useDeleteLibraryEntry,
@@ -27,6 +27,7 @@ import {
   useImportLibraryEntries,
   useUploadLibraryEntryImage,
   useUpdateLibraryEntry,
+  useUpdateLibraryEntryPersonalRating,
 } from "@/features/library/hooks";
 import { toServerMediaType, toServerStatus } from "@/features/library/mappers";
 import { paginateItems } from "@/features/library/pagination";
@@ -48,9 +49,10 @@ export function QueryPage() {
   const deleteEntry = useDeleteLibraryEntry();
   const importEntries = useImportLibraryEntries();
   const exportEntries = useExportLibraryEntries();
-  const addToCollection = useAddToCollection();
+  const syncCollections = useSyncCollections();
   const createCollection = useCreateCollection();
   const uploadEntryImage = useUploadLibraryEntryImage();
+  const updatePersonalRating = useUpdateLibraryEntryPersonalRating();
   const assistantSessionsQuery = useAssistantSessions();
   const saveAssistantSession = useSaveAssistantSession();
 
@@ -79,8 +81,6 @@ export function QueryPage() {
   const [pendingCollectionIds, setPendingCollectionIds] = useState<string[]>(
     []
   );
-  const [selectedCollection, setSelectedCollection] = useState("");
-
   const collectionsQuery = useCollections({ enabled: collectionDialogOpen });
   const collections = collectionsQuery.data ?? [];
 
@@ -94,12 +94,6 @@ export function QueryPage() {
     }
     wasQueryExecuting.current = search.isQueryExecuting;
   }, [search.isQueryExecuting]);
-
-  useEffect(() => {
-    if (collections.length > 0 && selectedCollection === "") {
-      setSelectedCollection(collections[0].id);
-    }
-  }, [collections, selectedCollection]);
 
   useEffect(() => {
     if (assistantSessionsLoaded.current || !assistantSessionsQuery.data) {
@@ -152,15 +146,15 @@ export function QueryPage() {
     setCollectionDialogOpen(true);
   };
 
-  const handleConfirmAddToCollection = async () => {
-    if (pendingCollectionIds.length === 0 || selectedCollection === "") {
+  const handleConfirmAddToCollection = async (collectionIds: string[]) => {
+    if (pendingCollectionIds.length === 0) {
       setCollectionDialogOpen(false);
       return;
     }
 
-    await addToCollection.mutateAsync({
+    await syncCollections.mutateAsync({
       ids: pendingCollectionIds,
-      collectionId: selectedCollection,
+      collectionIds,
       collections,
     });
     setCollectionDialogOpen(false);
@@ -168,23 +162,11 @@ export function QueryPage() {
   };
 
   const handleCreateCollection = async (name: string) => {
-    if (pendingCollectionIds.length === 0) return;
-
-    const previousIds = new Set(collections.map((collection) => collection.id));
-    const nextCollections = await createCollection.mutateAsync({
+    const result = await createCollection.mutateAsync({
       name,
-      ids: pendingCollectionIds,
     });
-    const createdCollection = nextCollections.find(
-      (collection) => !previousIds.has(collection.id)
-    );
 
-    if (createdCollection) {
-      setSelectedCollection(createdCollection.id);
-    }
-
-    setCollectionDialogOpen(false);
-    setPendingCollectionIds([]);
+    return result.createdId;
   };
 
   const handleUploadImage = (cardId: string) => {
@@ -192,6 +174,14 @@ export function QueryPage() {
       await uploadEntryImage.mutateAsync({ id: cardId, file });
       await search.refreshQuery();
     });
+  };
+
+  const handleCardPersonalRatingChange = async (
+    cardId: string,
+    personalRating: number
+  ) => {
+    await updatePersonalRating.mutateAsync({ id: cardId, personalRating });
+    await search.refreshQuery();
   };
 
   const handleExportItems = async () => {
@@ -489,6 +479,8 @@ export function QueryPage() {
                 onAddToCollection={handleCardAddToCollection}
                 onUploadImage={handleUploadImage}
                 onViewDetails={handleViewDetails}
+                onChangePersonalRating={handleCardPersonalRatingChange}
+                personalRatingPending={updatePersonalRating.isPending}
               />
             ))}
           </div>
@@ -535,11 +527,11 @@ export function QueryPage() {
 
       <AddToCollectionDialog
         open={collectionDialogOpen}
-        selectedCollection={selectedCollection}
+        targetIds={pendingCollectionIds}
         collections={collections}
-        onCollectionChange={setSelectedCollection}
         onConfirm={handleConfirmAddToCollection}
         onCreateCollection={handleCreateCollection}
+        isSaving={syncCollections.isPending}
         isCreatingCollection={createCollection.isPending}
         createCollectionError={
           createCollection.error instanceof Error
@@ -563,7 +555,7 @@ function toAssistantVisibleResult(item: MediaItem) {
     status: item.status ? toServerStatus(item.status) : null,
     adult: item.adult,
     public_rating: parseDisplayRating(item.rating),
-    personal_rating: null,
+    personal_rating: item.personalRating,
     tags: item.tags,
   };
 }

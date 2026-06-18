@@ -11,6 +11,7 @@ import { DropdownMenu } from "radix-ui";
 import {
   type KeyboardEvent as ReactKeyboardEvent,
   useEffect,
+  useLayoutEffect,
   useRef,
 } from "react";
 import ReactMarkdown from "react-markdown";
@@ -62,19 +63,34 @@ export function AssistantPanel({
   onClose,
 }: AssistantPanelProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const lastSessionIdRef = useRef<string | null>(null);
+  const stickToBottomRef = useRef(true);
   const activeSession = sessions.find(
     (session) => session.id === activeSessionId
   );
   const messages = activeSession?.messages ?? [];
   const draftLength = draft.length;
 
-  useEffect(() => {
-    if (!activeSession) return;
+  useLayoutEffect(() => {
+    const scrollContainer = scrollRef.current;
+    if (!activeSession || !scrollContainer) return;
 
-    scrollRef.current?.scrollTo({
-      top: scrollRef.current.scrollHeight,
-      behavior: "smooth",
+    const sessionChanged = lastSessionIdRef.current !== activeSession.id;
+    lastSessionIdRef.current = activeSession.id;
+
+    if (sessionChanged) {
+      stickToBottomRef.current = true;
+      scrollContainer.scrollTop = scrollContainer.scrollHeight;
+      return;
+    }
+
+    if (!stickToBottomRef.current) return;
+
+    const frameId = requestAnimationFrame(() => {
+      scrollContainer.scrollTop = scrollContainer.scrollHeight;
     });
+
+    return () => cancelAnimationFrame(frameId);
   }, [activeSession]);
 
   useEffect(() => {
@@ -103,6 +119,18 @@ export function AssistantPanel({
     }
   };
 
+  const handleMessagesScroll = () => {
+    const scrollContainer = scrollRef.current;
+    if (!scrollContainer) return;
+
+    const distanceFromBottom =
+      scrollContainer.scrollHeight -
+      scrollContainer.scrollTop -
+      scrollContainer.clientHeight;
+
+    stickToBottomRef.current = distanceFromBottom < 80;
+  };
+
   return (
     <>
       <button
@@ -117,7 +145,7 @@ export function AssistantPanel({
           "fixed z-50 flex flex-col overflow-hidden rounded-[8px] border border-[#27272A] bg-[#18181B] shadow-[0px_24px_60px_rgba(0,0,0,0.42)]",
           fullscreen
             ? "inset-3 sm:inset-6"
-            : "bottom-12 right-4 h-[560px] w-[calc(100vw-2rem)] max-w-[540px] sm:right-12"
+            : "bottom-4 right-4 h-[min(560px,calc(100dvh-2rem))] w-[calc(100vw-2rem)] max-w-[540px] sm:bottom-12 sm:right-12 sm:h-[min(560px,calc(100dvh-6rem))]"
         )}
       >
         <div className="flex min-h-14 min-w-0 items-center gap-3 border-b border-[#27272A] px-5">
@@ -209,6 +237,7 @@ export function AssistantPanel({
         <div className="flex min-h-0 flex-1 flex-col">
           <div
             ref={scrollRef}
+            onScroll={handleMessagesScroll}
             className={cn(
               "flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 py-5",
               fullscreen && "mx-auto w-full max-w-[960px]"

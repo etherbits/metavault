@@ -1,35 +1,67 @@
-import { ChevronDown, Plus } from "lucide-react";
-import { DropdownMenu } from "radix-ui";
-import { type FormEvent, useEffect, useState } from "react";
+import { Check, Folder, Plus, Search } from "lucide-react";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { CollectionView } from "@/features/collections/hooks";
 import { cn } from "@/lib/utils";
 
 interface AddToCollectionDialogProps {
   open: boolean;
-  selectedCollection: string;
+  targetIds: string[];
   collections: CollectionView[];
-  onCollectionChange: (value: string) => void;
-  onConfirm: () => void;
-  onCreateCollection?: (name: string) => Promise<void> | void;
+  onConfirm: (collectionIds: string[]) => void;
+  onCreateCollection?: (name: string) => Promise<string | null> | string | null;
   onCancel: () => void;
+  isSaving?: boolean;
   isCreatingCollection?: boolean;
   createCollectionError?: string | null;
 }
 
 export function AddToCollectionDialog({
   open,
-  selectedCollection,
+  targetIds,
   collections,
-  onCollectionChange,
   onConfirm,
   onCreateCollection,
   onCancel,
+  isSaving = false,
   isCreatingCollection = false,
   createCollectionError = null,
 }: AddToCollectionDialogProps) {
-  const [creatingCollection, setCreatingCollection] = useState(false);
+  const [selectedCollectionIds, setSelectedCollectionIds] = useState<string[]>(
+    []
+  );
+  const [search, setSearch] = useState("");
   const [newCollectionName, setNewCollectionName] = useState("");
+  const initializedOpenStateRef = useRef(false);
+
+  const targetIdSet = useMemo(() => new Set(targetIds), [targetIds]);
+  const filteredCollections = collections.filter((collection) =>
+    collection.name.toLowerCase().includes(search.trim().toLowerCase())
+  );
+
+  useEffect(() => {
+    if (!open) {
+      initializedOpenStateRef.current = false;
+      return;
+    }
+
+    if (initializedOpenStateRef.current) return;
+    initializedOpenStateRef.current = true;
+
+    const initiallySelected = collections
+      .filter(
+        (collection) =>
+          targetIds.length > 0 &&
+          targetIds.every((id) =>
+            collection.entries.some((entry) => entry.library_entry_id === id)
+          )
+      )
+      .map((collection) => collection.id);
+
+    setSelectedCollectionIds(initiallySelected);
+    setSearch("");
+    setNewCollectionName("");
+  }, [collections, open, targetIds]);
 
   useEffect(() => {
     if (!open) return;
@@ -44,18 +76,17 @@ export function AddToCollectionDialog({
     return () => window.removeEventListener("keydown", handleEscape);
   }, [open, onCancel]);
 
-  useEffect(() => {
-    if (!open) {
-      setCreatingCollection(false);
-      setNewCollectionName("");
-    }
-  }, [open]);
-
   if (!open) return null;
 
-  const activeCollection = collections.find(
-    (collection) => collection.id === selectedCollection
-  );
+  const selectedCount = selectedCollectionIds.length;
+
+  function toggleCollection(collectionId: string) {
+    setSelectedCollectionIds((current) =>
+      current.includes(collectionId)
+        ? current.filter((id) => id !== collectionId)
+        : [...current, collectionId]
+    );
+  }
 
   async function handleCreateCollection(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -63,135 +94,168 @@ export function AddToCollectionDialog({
     const name = newCollectionName.trim();
     if (!name || !onCreateCollection) return;
 
-    try {
-      await onCreateCollection(name);
-      setCreatingCollection(false);
-      setNewCollectionName("");
-    } catch (error) {
-      console.error("Failed to create collection", error);
+    const createdId = await onCreateCollection(name);
+    if (createdId) {
+      setSelectedCollectionIds((current) =>
+        current.includes(createdId) ? current : [...current, createdId]
+      );
     }
+    setNewCollectionName("");
+    setSearch("");
   }
 
   return (
-    <div
-      className="fixed inset-0 z-[220] flex items-center justify-center bg-[#18181B]/[0.86] px-4 backdrop-blur-[8px]"
-      onClick={(event) => {
-        if (event.target === event.currentTarget) {
-          onCancel();
-        }
-      }}
-      aria-hidden="true"
-    >
+    <div className="fixed inset-0 z-[220] flex items-center justify-center px-4">
+      <button
+        type="button"
+        className="absolute inset-0 cursor-default bg-[#18181B]/[0.86] backdrop-blur-[8px]"
+        aria-label="Close add to collections dialog"
+        onClick={onCancel}
+      />
       <div
-        className="w-full max-w-[480px] rounded-[12px] border border-[#3F3F46] bg-[#18181B] p-8 shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)]"
+        className="relative flex max-h-[min(640px,calc(100vh-32px))] w-full max-w-[520px] flex-col overflow-hidden rounded-[12px] border border-[#3F3F46] bg-[#18181B] shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)]"
         role="dialog"
         aria-modal="true"
         aria-labelledby="add-to-collection-title"
       >
-        <h2
-          id="add-to-collection-title"
-          className="text-[20px] font-semibold leading-6 text-[#FAFAFA]"
-        >
-          Add content to collection
-        </h2>
+        <div className="border-b border-[#27272A] p-6">
+          <h2
+            id="add-to-collection-title"
+            className="text-[20px] font-semibold leading-6 text-[#FAFAFA]"
+          >
+            Add to collections
+          </h2>
 
-        <p className="mt-4 text-[14px] leading-5 text-[#A1A1AA]">
-          Select the collection to move the content item(s)
-        </p>
+          <p className="mt-2 text-[14px] leading-5 text-[#A1A1AA]">
+            Choose one or more collections for the selected item(s).
+          </p>
+        </div>
 
-        <DropdownMenu.Root>
-          <DropdownMenu.Trigger asChild>
-            <button
-              type="button"
-              className="mt-4 flex h-9 w-full items-center justify-between rounded-[8px] border border-[#3F3F46] bg-white/5 px-3 text-left text-[14px] leading-5 text-[#FAFAFA] shadow-sm outline-none transition-colors hover:bg-white/10 focus:border-[#52525B]"
-            >
-              <span className={cn(!activeCollection && "text-[#A1A1AA]")}>
-                {activeCollection?.name ?? "Choose collection"}
-              </span>
-              <ChevronDown size={16} className="text-[#A1A1AA]" />
-            </button>
-          </DropdownMenu.Trigger>
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="border-b border-[#27272A] p-4">
+            <label className="relative block">
+              <Search
+                size={16}
+                className="-translate-y-1/2 pointer-events-none absolute left-3 top-1/2 text-[#A1A1AA]"
+              />
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search collections"
+                className="h-9 w-full rounded-[8px] border border-[#3F3F46] bg-white/5 pl-9 pr-3 text-[14px] leading-5 text-[#FAFAFA] outline-none placeholder:text-[#A1A1AA] focus:border-[#71717A]"
+              />
+            </label>
+          </div>
 
-          <DropdownMenu.Portal>
-            <DropdownMenu.Content
-              align="start"
-              sideOffset={6}
-              collisionPadding={12}
-              className="z-[230] flex max-h-[280px] w-[var(--radix-dropdown-menu-trigger-width)] flex-col gap-1 overflow-y-auto rounded-[8px] border border-[#3F3F46] bg-[#18181B] p-2 shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.24),0px_4px_6px_-4px_rgba(0,0,0,0.2)]"
-              onCloseAutoFocus={(event) => event.preventDefault()}
-            >
-              {collections.map((collection) => (
-                <DropdownMenu.Item
-                  key={collection.id}
-                  className={cn(
-                    "flex min-h-8 cursor-pointer select-none items-center rounded-[6px] px-2 text-sm leading-5 text-[#FAFAFA] outline-none transition-colors data-[highlighted]:bg-[#27272A]",
-                    collection.id === selectedCollection && "bg-[#27272A]"
-                  )}
-                  onSelect={() => onCollectionChange(collection.id)}
-                >
-                  {collection.name}
-                </DropdownMenu.Item>
-              ))}
+          <div className="min-h-[160px] flex-1 overflow-y-auto p-2">
+            {filteredCollections.length > 0 ? (
+              filteredCollections.map((collection) => {
+                const selected = selectedCollectionIds.includes(collection.id);
+                const alreadyContainsTargets =
+                  targetIds.length > 0 &&
+                  collection.entries.some((entry) =>
+                    targetIdSet.has(entry.library_entry_id)
+                  );
 
-              {collections.length > 0 && onCreateCollection ? (
-                <DropdownMenu.Separator className="my-1 h-px bg-[#3F3F46]" />
-              ) : null}
+                return (
+                  <button
+                    key={collection.id}
+                    type="button"
+                    aria-label={collection.name}
+                    aria-pressed={selected}
+                    className={cn(
+                      "flex w-full items-center gap-3 rounded-[8px] px-3 py-2 text-left outline-none transition-colors hover:bg-[#27272A] focus-visible:bg-[#27272A]",
+                      selected && "bg-[#27272A]"
+                    )}
+                    onClick={() => toggleCollection(collection.id)}
+                  >
+                    <span
+                      className={cn(
+                        "flex size-5 shrink-0 items-center justify-center rounded-[5px] border border-[#52525B]",
+                        selected &&
+                          "border-[#FACC15] bg-[#FACC15] text-[#09090B]"
+                      )}
+                      aria-hidden="true"
+                    >
+                      {selected ? <Check size={14} /> : null}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[14px] font-medium leading-5 text-[#FAFAFA]">
+                        {collection.name}
+                      </span>
+                      <span className="block text-[12px] leading-4 text-[#A1A1AA]">
+                        {collection.entries.length}{" "}
+                        {collection.entries.length === 1 ? "item" : "items"}
+                        {alreadyContainsTargets ? " • already included" : ""}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })
+            ) : (
+              <p className="px-3 py-8 text-center text-[14px] leading-5 text-[#A1A1AA]">
+                No collections match your search.
+              </p>
+            )}
+          </div>
 
-              {onCreateCollection ? (
-                <DropdownMenu.Item
-                  className="flex min-h-8 cursor-pointer select-none items-center gap-2 rounded-[6px] px-2 text-sm leading-5 text-[#FACC15] outline-none transition-colors data-[highlighted]:bg-[#27272A]"
-                  onSelect={() => setCreatingCollection(true)}
-                >
-                  <Plus size={16} />
-                  New collection
-                </DropdownMenu.Item>
-              ) : null}
-            </DropdownMenu.Content>
-          </DropdownMenu.Portal>
-        </DropdownMenu.Root>
-
-        {creatingCollection ? (
           <form
-            className="mt-3 flex flex-col gap-2 sm:flex-row"
+            className="flex items-center gap-2 border-t border-[#27272A] p-4"
             onSubmit={handleCreateCollection}
           >
-            <input
-              value={newCollectionName}
-              onChange={(event) => setNewCollectionName(event.target.value)}
-              placeholder="Collection name"
-              className="h-9 min-w-0 flex-1 rounded-[8px] border border-[#3F3F46] bg-white/5 px-3 text-[14px] leading-5 text-[#FAFAFA] outline-none placeholder:text-[#A1A1AA] focus:border-[#52525B]"
-            />
+            <label className="relative min-w-0 flex-1">
+              <Folder
+                size={16}
+                className="-translate-y-1/2 pointer-events-none absolute left-3 top-1/2 text-[#A1A1AA]"
+              />
+              <input
+                value={newCollectionName}
+                onChange={(event) => setNewCollectionName(event.target.value)}
+                placeholder="New collection name"
+                className="h-9 w-full rounded-[8px] border border-[#3F3F46] bg-white/5 pl-9 pr-3 text-[14px] leading-5 text-[#FAFAFA] outline-none placeholder:text-[#A1A1AA] focus:border-[#71717A]"
+              />
+            </label>
             <Button
               type="submit"
-              variant="brand"
-              size="lg"
+              variant="surface"
+              size="icon-lg"
+              aria-label="Create collection"
               disabled={!newCollectionName.trim() || isCreatingCollection}
             >
-              {isCreatingCollection ? "Creating..." : "Create"}
+              <Plus size={16} />
             </Button>
           </form>
-        ) : null}
+        </div>
 
         {createCollectionError ? (
-          <p className="mt-3 text-[13px] leading-5 text-[#FCA5A5]">
+          <p className="border-t border-[#27272A] px-6 py-3 text-[13px] leading-5 text-[#FCA5A5]">
             {createCollectionError}
           </p>
         ) : null}
 
-        <div className="mt-4 flex items-center justify-end gap-2">
-          <Button
-            type="button"
-            variant="brand"
-            size="lg"
-            onClick={onConfirm}
-            disabled={selectedCollection === ""}
-          >
-            Move
-          </Button>
-
-          <Button type="button" variant="surface" size="lg" onClick={onCancel}>
-            Cancel
-          </Button>
+        <div className="flex items-center justify-between gap-3 border-t border-[#27272A] p-4">
+          <p className="text-[13px] leading-5 text-[#A1A1AA]">
+            {selectedCount} selected
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="surface"
+              size="lg"
+              onClick={onCancel}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="brand"
+              size="lg"
+              onClick={() => onConfirm(selectedCollectionIds)}
+              disabled={targetIds.length === 0 || isSaving}
+            >
+              Save
+            </Button>
+          </div>
         </div>
       </div>
     </div>

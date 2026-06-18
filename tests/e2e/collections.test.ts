@@ -1,5 +1,11 @@
 import { expect, type APIRequestContext, test } from "@playwright/test";
 import { signIn } from "../helpers/auth";
+import {
+  expectQueryResult,
+  openQueryPage,
+  signInPage,
+  WEB_BASE_URL,
+} from "../helpers/queryPage";
 
 type LibraryEntry = {
   id: string;
@@ -118,7 +124,8 @@ test("collections CRUD works for an authenticated user", async ({
 
 function parseCollectionEntries(collection: Collection | undefined) {
   expect(collection).toBeDefined();
-  return JSON.parse(collection?.entries ?? "[]") as CollectionEntry[];
+  const raw = JSON.parse(collection?.entries ?? "[]") as unknown;
+  return (Array.isArray(raw) ? raw.filter(Boolean) : []) as CollectionEntry[];
 }
 
 test("collections reject invalid library entries", async ({ request }) => {
@@ -136,3 +143,214 @@ test("collections reject invalid library entries", async ({ request }) => {
     message: "One or more library entries do not belong to the user",
   });
 });
+
+test("query page adds an item to multiple collections from searchable picker", async ({
+  request,
+  page,
+}) => {
+  await signIn(request);
+  const suffix = Date.now();
+  const entry = await createLibraryEntry(
+    request,
+    `Collection Picker Entry ${suffix}`
+  );
+  const firstCollection = await createCollection(
+    request,
+    `Picker First ${suffix}`
+  );
+  const secondCollection = await createCollection(
+    request,
+    `Picker Second ${suffix}`
+  );
+  const createdName = `Picker Created ${suffix}`;
+
+  await openQueryPage(page);
+  await page
+    .getByPlaceholder("Query your library with EZQ")
+    .fill(`/search id:${entry.id}`);
+  await page.getByPlaceholder("Query your library with EZQ").press("Enter");
+  await expectQueryResult(page, `Collection Picker Entry ${suffix}`);
+
+  await page.getByRole("button", { name: "Card actions" }).click();
+  await page.getByText("Add to collection", { exact: true }).click();
+
+  await expect(
+    page.getByRole("heading", { name: "Add to collections" })
+  ).toBeVisible();
+  const pickerDialog = page.getByRole("dialog", {
+    name: "Add to collections",
+  });
+  await page.getByPlaceholder("Search collections").fill("Picker First");
+  await pickerDialog
+    .getByRole("button", { name: firstCollection.name, exact: true })
+    .click();
+  await expect(pickerDialog.getByText("1 selected")).toBeVisible();
+  await page.getByPlaceholder("Search collections").fill("");
+  await pickerDialog
+    .getByRole("button", { name: secondCollection.name, exact: true })
+    .click();
+  await expect(pickerDialog.getByText("2 selected")).toBeVisible();
+  await page.getByPlaceholder("New collection name").fill(createdName);
+  await page.getByRole("button", { name: "Create collection" }).click();
+  await expect(
+    pickerDialog.getByRole("button", { name: createdName, exact: true })
+  ).toBeVisible();
+  await expect(pickerDialog.getByText("3 selected")).toBeVisible();
+  await pickerDialog.getByRole("button", { name: "Save", exact: true }).click();
+
+  await expect(
+    page.getByRole("heading", { name: "Add to collections" })
+  ).toHaveCount(0);
+
+  const collections = await fetchCollections(request);
+  for (const collectionName of [
+    firstCollection.name,
+    secondCollection.name,
+    createdName,
+  ]) {
+    const collection = collections.find((item) => item.name === collectionName);
+    expect(
+      parseCollectionEntries(collection).map((item) => item.library_entry_id)
+    ).toContain(entry.id);
+  }
+
+  await page.getByRole("button", { name: "Card actions" }).click();
+  await page.getByText("Add to collection", { exact: true }).click();
+  await expect(pickerDialog.getByText("3 selected")).toBeVisible();
+  for (const collectionName of [
+    firstCollection.name,
+    secondCollection.name,
+    createdName,
+  ]) {
+    await pickerDialog
+      .getByRole("button", { name: collectionName, exact: true })
+      .click();
+  }
+  await expect(pickerDialog.getByText("0 selected")).toBeVisible();
+  await pickerDialog.getByRole("button", { name: "Save", exact: true }).click();
+
+  const afterRemoval = await fetchCollections(request);
+  for (const collectionName of [
+    firstCollection.name,
+    secondCollection.name,
+    createdName,
+  ]) {
+    const collection = afterRemoval.find(
+      (item) => item.name === collectionName
+    );
+    expect(
+      parseCollectionEntries(collection).map((item) => item.library_entry_id)
+    ).not.toContain(entry.id);
+  }
+});
+
+test("home collection sections can query more, rename, and delete", async ({
+  request,
+  page,
+}) => {
+  await signIn(request);
+  const suffix = Date.now();
+  const title = `Home Collection Entry ${suffix}`;
+  const entry = await createLibraryEntry(request, title);
+  const collection = await createCollection(
+    request,
+    `Home Collection ${suffix}`,
+    [entry.id]
+  );
+  const renamed = `Renamed Collection ${suffix}`;
+
+  await signInPage(page);
+  await page.goto(`${WEB_BASE_URL}/app/home`);
+  await expect(
+    page.getByRole("heading", { name: "Home", exact: true })
+  ).toBeVisible();
+
+  const collectionSection = page
+    .locator("section")
+    .filter({ has: page.getByRole("heading", { name: collection.name }) });
+
+  await collectionSection.getByRole("button", { name: "Query More" }).click();
+  await expect(page).toHaveURL(/\/app\/query/);
+  await expect(
+    page.getByPlaceholder("Query your library with EZQ")
+  ).toHaveValue(`/search collection:Home_Collection_${suffix}`);
+  await expectQueryResult(page, title);
+
+  await page.goto(`${WEB_BASE_URL}/app/home`);
+  await page
+    .getByRole("button", { name: `Edit ${collection.name} collection` })
+    .click();
+  await page.getByLabel("Rename collection").fill(renamed);
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(
+    page.getByRole("heading", { name: renamed, exact: true })
+  ).toBeVisible();
+
+  await page
+    .getByRole("button", { name: `Edit ${renamed} collection` })
+    .click();
+  await page.getByText("Delete collection", { exact: true }).click();
+  const deleteDialog = page.getByRole("alertdialog", {
+    name: "Delete collection?",
+  });
+  await expect(deleteDialog).toBeVisible();
+  await expect(deleteDialog).toContainText(
+    `Delete "${renamed}"? Items stay in your library.`
+  );
+  await deleteDialog.getByRole("button", { name: "Delete" }).click();
+  await expect(page.getByRole("heading", { name: renamed })).toHaveCount(0);
+
+  const collections = await fetchCollections(request);
+  expect(collections.find((item) => item.id === collection.id)).toBeUndefined();
+});
+
+test("EZQ collection filter returns entries from the named collection", async ({
+  request,
+}) => {
+  await signIn(request);
+  const suffix = Date.now();
+  const matchingEntry = await createLibraryEntry(
+    request,
+    `Collection Query Match ${suffix}`
+  );
+  const excludedEntry = await createLibraryEntry(
+    request,
+    `Collection Query Excluded ${suffix}`
+  );
+  await createCollection(request, `collection query ${suffix}`, [
+    matchingEntry.id,
+  ]);
+
+  const response = await request.post("/ezq", {
+    data: {
+      query: `/search collection:collection_query_${suffix}`,
+    },
+  });
+  expect(response.ok()).toBeTruthy();
+  const body = (await response.json()) as { rows: { id: string }[] };
+  const ids = body.rows.map((row) => row.id);
+  expect(ids).toContain(matchingEntry.id);
+  expect(ids).not.toContain(excludedEntry.id);
+});
+
+async function createCollection(
+  request: APIRequestContext,
+  name: string,
+  entryIds: string[] = []
+) {
+  const response = await request.post("/collections", {
+    data: {
+      name,
+      entries: entryIds.map((id) => ({ library_entry_id: id })),
+    },
+  });
+
+  expect(response.status()).toBe(201);
+  return (await response.json()) as Collection;
+}
+
+async function fetchCollections(request: APIRequestContext) {
+  const response = await request.get("/collections");
+  expect(response.ok()).toBeTruthy();
+  return (await response.json()) as Collection[];
+}
