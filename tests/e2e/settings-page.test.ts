@@ -4,6 +4,9 @@ import { signInPage, WEB_BASE_URL } from "../helpers/queryPage";
 test("settings page manages query aliases from compact rows", async ({
   page,
 }) => {
+  const aliasName = `settings_e2e_${Date.now()}`;
+  const aliasExpansion = `tag:${aliasName}:major`;
+
   await signInPage(page);
   await page.goto(`${WEB_BASE_URL}/app/settings`);
 
@@ -20,13 +23,13 @@ test("settings page manages query aliases from compact rows", async ({
   const addButton = page.getByRole("button", { name: "Add New" });
   await expect(addButton).toBeEnabled();
   await addButton.click();
-  await page.getByLabel("Alias name").last().fill("settings-e2e");
-  await page.getByLabel("EZQ expansion").last().fill("tag:settings-e2e:major");
+  await page.getByLabel("Alias name").last().fill(aliasName);
+  await page.getByLabel("EZQ expansion").last().fill(aliasExpansion);
 
   const saveResponse = page.waitForResponse((response) => {
     const url = new URL(response.url());
     return (
-      url.pathname === "/aliases/settings-e2e" &&
+      url.pathname === `/aliases/${aliasName}` &&
       response.request().method() === "PUT"
     );
   });
@@ -36,20 +39,24 @@ test("settings page manages query aliases from compact rows", async ({
   await expect((await saveResponse).ok()).toBeTruthy();
 
   await page.reload();
-  await expect(page.getByLabel("Alias name")).toHaveValue("settings-e2e");
-  await expect(page.getByLabel("EZQ expansion")).toHaveValue(
-    "tag:settings-e2e:major"
-  );
+  await expect(
+    page.locator(`input[aria-label="Alias name"][value="${aliasName}"]`)
+  ).toBeVisible();
+  await expect(
+    page.locator(`input[aria-label="EZQ expansion"][value="${aliasExpansion}"]`)
+  ).toBeVisible();
 
   const deleteResponse = page.waitForResponse((response) => {
     const url = new URL(response.url());
     return (
-      url.pathname === "/aliases/settings-e2e" &&
+      url.pathname === `/aliases/${aliasName}` &&
       response.request().method() === "DELETE"
     );
   });
 
-  await page.getByRole("button", { name: "Delete settings-e2e" }).click();
+  await page.getByRole("button", { name: `Delete ${aliasName}` }).click();
   await expect((await deleteResponse).ok()).toBeTruthy();
-  await expect(page.getByLabel("Alias name")).toHaveCount(0);
+  await expect(
+    page.locator(`input[aria-label="Alias name"][value="${aliasName}"]`)
+  ).toHaveCount(0);
 });
