@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
-import { signIn } from "../helpers/auth";
+import { createVerifiedUser, getLatestOtp, signIn } from "../helpers/auth";
+import { WEB_BASE_URL } from "../helpers/queryPage";
 import {
   TEST_AUTH_PASSWORD,
   TEST_AUTH_USERNAME,
@@ -84,6 +85,69 @@ test("auth resend-verification-code sends a fresh code", async ({
   expect(await response.json()).toEqual({
     message: "Verification code sent to your email",
   });
+});
+
+test("auth password reset uses email OTP and updates credentials", async ({
+  request,
+}) => {
+  const suffix = Date.now().toString(36);
+  const username = `forgot_${suffix}`;
+  const email = `forgot-${suffix}@test.local`;
+  const nextPassword = "Password456";
+
+  await createVerifiedUser(request, username, email);
+
+  const requestResponse = await request.post("/auth/password-reset/request", {
+    data: { email },
+  });
+  expect(requestResponse.ok()).toBeTruthy();
+  expect(await requestResponse.json()).toEqual({
+    message: "Password reset code sent to your email",
+  });
+
+  const otpCode = await getLatestOtp(email);
+  expect(otpCode).toBeTruthy();
+
+  const confirmResponse = await request.post("/auth/password-reset/confirm", {
+    data: {
+      email,
+      otpCode,
+      password: nextPassword,
+      confirmPassword: nextPassword,
+    },
+  });
+  expect(confirmResponse.ok()).toBeTruthy();
+
+  const oldPasswordResponse = await request.post("/auth/sign-in", {
+    data: { username, password: TEST_AUTH_PASSWORD },
+  });
+  expect(oldPasswordResponse.status()).toBe(401);
+
+  const newPasswordResponse = await request.post("/auth/sign-in", {
+    data: { username, password: nextPassword },
+  });
+  expect(newPasswordResponse.ok()).toBeTruthy();
+});
+
+test("forgot password uses a dedicated reset page", async ({ page }) => {
+  await page.goto(`${WEB_BASE_URL}/login`);
+
+  await expect(
+    page.getByRole("heading", { name: "Log In", exact: true })
+  ).toBeVisible();
+  await expect(page.getByLabel("Reset password")).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Forgot password?" }).click();
+  await expect(page).toHaveURL(`${WEB_BASE_URL}/forgot-password`);
+  await expect(
+    page.getByRole("heading", { name: "Reset password" })
+  ).toBeVisible();
+  await expect(page.getByLabel("Email")).toBeVisible();
+  await expect(page.getByLabel("Reset code")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Send code" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Back to login" })
+  ).toBeVisible();
 });
 
 test("auth logout clears the session", async ({ request }) => {

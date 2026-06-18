@@ -1,13 +1,38 @@
-import { ArrowRight, Plus, Save, Settings, Trash2 } from "lucide-react";
-import { type KeyboardEvent, useEffect, useMemo, useState } from "react";
+import {
+  ArrowRight,
+  Camera,
+  KeyRound,
+  Plus,
+  Save,
+  Settings,
+  Trash2,
+} from "lucide-react";
+import { AlertDialog } from "radix-ui";
+import {
+  type ChangeEvent,
+  type KeyboardEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { useNavigate } from "react-router";
+import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 import type { AliasMapping } from "@/features/aliases/contracts";
 import {
   useAliasMappings,
   useDeleteAliasMapping,
   useUpsertAliasMapping,
 } from "@/features/aliases/hooks";
+import {
+  useAuthSession,
+  useDeleteProfile,
+  useUpdateProfile,
+  useUpdateProfileAvatar,
+} from "@/features/auth/hooks";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/shared/api/client";
 
@@ -184,6 +209,10 @@ export function SettingsPage() {
 
       <div className="flex flex-1 justify-center pt-12 sm:pt-20 xl:pt-[94px]">
         <div className="flex w-full max-w-[548px] flex-col gap-12">
+          <AccountSettings />
+
+          <Separator />
+
           <section className="flex flex-col gap-8">
             <h2 className="text-xl font-semibold leading-6 text-[#E5E5E5]">
               Query settings
@@ -238,24 +267,246 @@ export function SettingsPage() {
               ) : null}
             </div>
           </section>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-          <section className="flex flex-col gap-8">
-            <h2 className="text-xl font-semibold leading-6 text-[#E5E5E5]">
-              Account Settings
-            </h2>
+function getReadableError(error: unknown) {
+  if (!error) return null;
+  if (typeof error === "string") return error;
+  if (error instanceof ApiError || error instanceof Error) return error.message;
+  return "Something went wrong";
+}
 
+function AccountSettings() {
+  const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const session = useAuthSession();
+  const updateProfile = useUpdateProfile();
+  const updateAvatar = useUpdateProfileAvatar();
+  const deleteProfile = useDeleteProfile();
+  const profile = session.data;
+  const [username, setUsername] = useState(profile?.username ?? "");
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
+  useEffect(() => {
+    setUsername(profile?.username ?? "");
+  }, [profile?.username]);
+
+  const usernameDirty = username.trim() !== (profile?.username ?? "");
+  const pending =
+    updateProfile.isPending ||
+    updateAvatar.isPending ||
+    deleteProfile.isPending;
+  const errorMessage =
+    localError ??
+    getReadableError(updateProfile.error) ??
+    getReadableError(updateAvatar.error) ??
+    getReadableError(deleteProfile.error);
+
+  async function handleUsernameSave() {
+    setLocalError(null);
+    setSuccessMessage(null);
+    const nextUsername = username.trim();
+
+    if (!nextUsername) {
+      setLocalError("Username is required.");
+      return;
+    }
+
+    await updateProfile.mutateAsync({ username: nextUsername });
+    setSuccessMessage("Username updated.");
+  }
+
+  async function handleAvatarChange(event: ChangeEvent<HTMLInputElement>) {
+    setLocalError(null);
+    setSuccessMessage(null);
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) return;
+
+    await updateAvatar.mutateAsync(file);
+    setSuccessMessage("Profile picture updated.");
+  }
+
+  async function handleDeleteProfile() {
+    setLocalError(null);
+    setSuccessMessage(null);
+    await deleteProfile.mutateAsync();
+    setDeleteDialogOpen(false);
+    navigate("/login", { replace: true });
+  }
+
+  return (
+    <section className="flex flex-col gap-8">
+      <h2 className="text-xl font-semibold leading-6 text-[#E5E5E5]">
+        Account Settings
+      </h2>
+
+      <div className="flex flex-col gap-6">
+        {errorMessage ? (
+          <div className="rounded-[8px] border border-[#7F1D1D] bg-[#450A0A]/40 px-3 py-2 text-sm leading-5 text-[#FCA5A5]">
+            {errorMessage}
+          </div>
+        ) : null}
+
+        {successMessage ? (
+          <div className="rounded-[8px] border border-[#3F3F46] bg-[#27272A] px-3 py-2 text-sm leading-5 text-[#D4D4D8]">
+            {successMessage}
+          </div>
+        ) : null}
+
+        <div className="grid gap-4 sm:grid-cols-[120px_minmax(0,1fr)] sm:items-center">
+          <ProfileAvatar
+            name={profile?.username ?? "User"}
+            avatarUrl={profile?.avatar_url}
+            className="h-20 w-20 border border-[#3F3F46] text-[28px]"
+          />
+
+          <div className="flex min-w-0 flex-col gap-3">
+            <div>
+              <p className="text-sm leading-5 text-[#D4D4D4]">
+                Profile picture
+              </p>
+              <p className="text-sm leading-5 text-[#A3A3A3]">
+                Upload a square image. It will show in the sidebar.
+              </p>
+            </div>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleAvatarChange}
+            />
+            <Button
+              type="button"
+              variant="surface"
+              disabled={pending}
+              onClick={() => fileInputRef.current?.click()}
+              className="h-9 w-fit rounded-[8px] px-3 text-sm"
+            >
+              <Camera size={16} />
+              Change picture
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <div>
+            <p className="text-sm leading-5 text-[#D4D4D4]">Username</p>
+            <p className="text-sm leading-5 text-[#A3A3A3]">
+              This is used when signing in.
+            </p>
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Input
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key !== "Enter" || event.nativeEvent.isComposing) {
+                  return;
+                }
+                event.preventDefault();
+                if (usernameDirty && !pending) {
+                  void handleUsernameSave();
+                }
+              }}
+              disabled={pending}
+              aria-label="Username"
+              className="min-w-0"
+            />
+            <Button
+              type="button"
+              variant={usernameDirty ? "brand" : "brand-muted"}
+              disabled={!usernameDirty || pending}
+              onClick={handleUsernameSave}
+              className="h-9 rounded-[8px] px-3 text-sm"
+            >
+              <Save size={16} />
+              Update username
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <div>
+            <p className="text-sm leading-5 text-[#D4D4D4]">Password reset</p>
+            <p className="text-sm leading-5 text-[#A3A3A3]">
+              Open the password reset flow in its own page.
+            </p>
+          </div>
+
+          <Button
+            type="button"
+            variant="surface"
+            className="h-9 w-fit rounded-[8px] px-3 text-sm"
+            onClick={() => navigate("/app/reset-password")}
+          >
+            <KeyRound size={16} />
+            Reset password
+          </Button>
+        </div>
+
+        <AlertDialog.Root
+          open={deleteDialogOpen}
+          onOpenChange={setDeleteDialogOpen}
+        >
+          <AlertDialog.Trigger asChild>
             <Button
               type="button"
               variant="danger-surface"
+              disabled={pending}
               className="h-9 w-fit rounded-[8px] px-3 text-sm"
             >
               <Trash2 size={16} />
               Permanently delete account
             </Button>
-          </section>
-        </div>
+          </AlertDialog.Trigger>
+
+          <AlertDialog.Portal>
+            <AlertDialog.Overlay className="fixed inset-0 z-[240] bg-[#18181B]/[0.86] backdrop-blur-[8px]" />
+            <AlertDialog.Content className="-translate-x-1/2 -translate-y-1/2 fixed left-1/2 top-1/2 z-[250] w-[calc(100vw-32px)] max-w-[420px] rounded-[12px] border border-[#3F3F46] bg-[#18181B] p-6 shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.25),0px_4px_6px_-4px_rgba(0,0,0,0.2)] outline-none">
+              <AlertDialog.Title className="text-[18px] font-semibold leading-7 text-[#FAFAFA]">
+                Delete account?
+              </AlertDialog.Title>
+              <AlertDialog.Description className="mt-2 text-[14px] leading-5 text-[#A1A1AA]">
+                This permanently deletes your account, library, collections, and
+                uploaded media.
+              </AlertDialog.Description>
+
+              <div className="mt-6 flex justify-end gap-2">
+                <AlertDialog.Cancel asChild>
+                  <Button type="button" variant="surface" size="lg">
+                    Cancel
+                  </Button>
+                </AlertDialog.Cancel>
+                <AlertDialog.Action asChild>
+                  <Button
+                    type="button"
+                    variant="danger-surface"
+                    size="lg"
+                    disabled={pending}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      void handleDeleteProfile();
+                    }}
+                  >
+                    Delete account
+                  </Button>
+                </AlertDialog.Action>
+              </div>
+            </AlertDialog.Content>
+          </AlertDialog.Portal>
+        </AlertDialog.Root>
       </div>
-    </div>
+    </section>
   );
 }
 

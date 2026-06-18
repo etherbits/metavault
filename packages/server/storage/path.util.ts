@@ -12,10 +12,18 @@ export function getUserMediaDir(userId: string) {
   return path.join(MEDIA_ROOT, "users", userId);
 }
 
+export function getUserProfileMediaDir(userId: string) {
+  return path.join(getUserMediaDir(userId), "profile");
+}
+
 export function getImagePublicPath(
   userId: string,
   entryId: string,
   filename: string
 ) {
   return `${MEDIA_BASE_URL}/users/${userId}/library/${entryId}/${filename}`;
+}
+
+export function getAvatarPublicPath(userId: string, filename: string) {
+  return `${MEDIA_BASE_URL}/users/${userId}/profile/${filename}`;
 }

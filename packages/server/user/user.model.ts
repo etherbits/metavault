@@ -55,6 +55,28 @@ class UserModel {
     return result.length > 0;
   }
 
+  async updateUser(id: string, data: UpdateUserData): Promise<User | null> {
+    const current = await this.getUserById(id);
+    if (!current) {
+      return null;
+    }
+
+    const result = await sql`
+      UPDATE users
+      SET
+        username = ${data.username ?? current.username},
+        email = ${data.email ?? current.email},
+        password_hash = ${data.password_hash ?? current.password_hash},
+        avatar_url = ${data.avatar_url ?? current.avatar_url},
+        is_verified = ${data.is_verified ?? current.is_verified},
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ${id}
+      RETURNING *
+    `;
+
+    return (result[0] as User) || null;
+  }
+
   async verifyUser(id: string): Promise<User | null> {
     const result = await sql`
     UPDATE users
@@ -74,6 +96,7 @@ export interface User {
   username: string;
   email: string;
   password_hash: string;
+  avatar_url: string | null;
   is_verified: number;
   created_at: string;
   updated_at: string;
@@ -90,5 +113,6 @@ export interface UpdateUserData {
   username?: string;
   email?: string;
   password_hash?: string;
+  avatar_url?: string | null;
   is_verified?: number;
 }

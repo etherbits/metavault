@@ -6,8 +6,9 @@ export async function createUsersTable(sql: SQL) {
       id TEXT PRIMARY KEY,
       username TEXT UNIQUE NOT NULL,
       email TEXT UNIQUE NOT NULL,
-      password_hash TEXT NOT NULL,
-      is_verified INTEGER NOT NULL DEFAULT 0,
+	      password_hash TEXT NOT NULL,
+	      avatar_url TEXT,
+	      is_verified INTEGER NOT NULL DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )

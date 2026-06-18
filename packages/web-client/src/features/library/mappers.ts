@@ -6,7 +6,7 @@ import type {
   ServerEntryStatus,
   ServerMediaType,
 } from "@/features/library/types";
-import { API_BASE_URL } from "@/shared/api/client";
+import { resolveMediaUrl } from "@/shared/api/media";
 
 const serverToUiType: Record<ServerMediaType, MediaType> = {
   movie: "Movie",
@@ -118,11 +118,5 @@ export function isMediaType(value: string): value is MediaType {
 }
 
 function toDisplayImageSrc(imageSrc: string | null) {
-  if (!imageSrc) return undefined;
-
-  if (imageSrc.startsWith("/media/")) {
-    return `${API_BASE_URL}${imageSrc}`;
-  }
-
-  return imageSrc;
+  return resolveMediaUrl(imageSrc);
 }

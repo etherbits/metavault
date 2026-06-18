@@ -114,6 +114,16 @@ export function LoginPage() {
             </span>
           </label>
 
+          <div className="-mt-4 flex justify-end">
+            <button
+              type="button"
+              className="text-sm leading-5 font-medium text-[#facc15] transition-colors hover:text-[#fde047] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#facc1566]"
+              onClick={() => navigate("/forgot-password")}
+            >
+              Forgot password?
+            </button>
+          </div>
+
           <div className="flex flex-col gap-4">
             {errorMessage ? (
               <p className="rounded-md border border-[#ef4444]/45 bg-[#450a0a] px-3 py-2 text-sm leading-5 text-[#fecaca]">
