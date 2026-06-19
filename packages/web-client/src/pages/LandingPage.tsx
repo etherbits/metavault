@@ -7,6 +7,7 @@ import {
   FileDown,
   HatGlasses,
   Library,
+  type LucideIcon,
   Search,
   Sparkles,
   Tags,
@@ -43,6 +44,13 @@ const restingTilt = {
   x: 4,
   y: -6,
 };
+const revealEase = [0.22, 1, 0.36, 1] as const;
+const chipClassName =
+  "inline-flex w-fit items-center gap-2 rounded-[8px] border border-[#3F3F46] bg-[#18181B]/95 px-3 py-2 text-sm font-medium text-[#D4D4D8] shadow-[0_10px_24px_rgba(0,0,0,0.16)]";
+const cardClassName =
+  "rounded-[8px] border border-[#3F3F46] bg-[#18181B]/95 shadow-[0_18px_38px_rgba(0,0,0,0.22),inset_0_1px_0_rgba(255,255,255,0.03)]";
+const iconTileClassName =
+  "shrink-0 rounded-[8px] border border-[#3F3F46] bg-[#09090B] text-[#FACC16]";
 
 const landingItems: MediaItem[] = [
   {
@@ -80,6 +88,12 @@ const landingItems: MediaItem[] = [
       },
     ],
   },
+];
+
+const heroHighlights = [
+  { label: "Own your data", icon: Library },
+  { label: "Feel secure", icon: HatGlasses },
+  { label: "Extend as desired", icon: Blocks },
 ];
 
 const commandFlows = [
@@ -305,18 +319,13 @@ function HeroScreen({ reduceMotion }: { reduceMotion: boolean | null }) {
           className="flex max-w-[780px] flex-col gap-4 sm:gap-8 lg:self-start"
         >
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex w-fit items-center gap-2 rounded-[8px] border border-[#3F3F46] bg-[#18181B]/95 px-3 py-2 text-sm font-medium text-[#D4D4D8] shadow-[0_10px_24px_rgba(0,0,0,0.16)]">
-              <Library size={16} className="text-[#FACC16]" />
-              Own your data
-            </span>
-            <span className="inline-flex w-fit items-center gap-2 rounded-[8px] border border-[#3F3F46] bg-[#18181B]/95 px-3 py-2 text-sm font-medium text-[#D4D4D8] shadow-[0_10px_24px_rgba(0,0,0,0.16)]">
-              <HatGlasses size={16} className="text-[#FACC16]" />
-              Feel secure
-            </span>
-            <div className="inline-flex w-fit items-center gap-2 rounded-[8px] border border-[#3F3F46] bg-[#18181B]/95 px-3 py-2 text-sm font-medium text-[#D4D4D8] shadow-[0_10px_24px_rgba(0,0,0,0.16)]">
-              <Blocks size={16} className="text-[#FACC16]" />
-              Extend as desired
-            </div>
+            {heroHighlights.map((highlight) => (
+              <HeroChip
+                key={highlight.label}
+                icon={highlight.icon}
+                label={highlight.label}
+              />
+            ))}
           </div>
 
           <div className="flex flex-col gap-4 sm:gap-6">
@@ -348,6 +357,15 @@ function HeroScreen({ reduceMotion }: { reduceMotion: boolean | null }) {
         <VaultFlowVisual reduceMotion={reduceMotion} />
       </div>
     </section>
+  );
+}
+
+function HeroChip({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
+  return (
+    <span className={chipClassName}>
+      <Icon size={16} className="text-[#FACC16]" />
+      {label}
+    </span>
   );
 }
 
@@ -392,10 +410,6 @@ function VaultFlowVisual({ reduceMotion }: { reduceMotion: boolean | null }) {
   }, [getRestingTilt, rotateX, rotateY]);
 
   useEffect(() => {
-    const tilt = getRestingTilt();
-    rotateX.set(tilt.x);
-    rotateY.set(tilt.y);
-
     if (reduceMotion) {
       setTypedCommand(command);
       setStage("results");
@@ -438,7 +452,7 @@ function VaultFlowVisual({ reduceMotion }: { reduceMotion: boolean | null }) {
       cancelled = true;
       timers.forEach(window.clearTimeout);
     };
-  }, [getRestingTilt, reduceMotion, rotateX, rotateY]);
+  }, [reduceMotion]);
 
   function handlePointerMove(event: PointerEvent<HTMLDivElement>) {
     const bounds = event.currentTarget.getBoundingClientRect();
@@ -581,45 +595,62 @@ function CommandScreen({ reduceMotion }: { reduceMotion: boolean | null }) {
         </div>
 
         <div className="grid gap-2 sm:grid-cols-2 sm:gap-4">
-          {commandFlows.map((flow, index) => {
-            const Icon = flow.icon;
-            return (
-              <motion.article
-                key={flow.command}
-                initial={reduceMotion ? false : { opacity: 0, y: 18 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ amount: 0.5, once: false }}
-                transition={{
-                  duration: 0.45,
-                  delay: index * 0.08,
-                  ease: [0.22, 1, 0.36, 1],
-                }}
-                className="flex min-h-[168px] flex-col justify-between gap-5 rounded-[8px] border border-[#3F3F46] bg-[#18181B]/95 p-4 shadow-[0_18px_38px_rgba(0,0,0,0.22),inset_0_1px_0_rgba(255,255,255,0.03)] sm:p-5"
-              >
-                <div className="flex flex-col gap-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[8px] border border-[#3F3F46] bg-[#09090B] text-[#FACC16]">
-                      <Icon size={18} />
-                    </span>
-                    <code className="min-w-0 max-w-full truncate rounded-[6px] border border-[#3F3F46] bg-[#09090B] px-2 py-1 font-mono text-[12px] leading-5 text-[#D4D4D8]">
-                      {flow.command}
-                    </code>
-                  </div>
-                  <div className="flex min-w-0 flex-col gap-2">
-                    <h3 className="text-[18px] font-semibold leading-6 text-[#FAFAFA]">
-                      {flow.title}
-                    </h3>
-                    <p className="text-[14px] leading-6 text-[#A1A1AA]">
-                      {flow.body}
-                    </p>
-                  </div>
-                </div>
-              </motion.article>
-            );
-          })}
+          {commandFlows.map((flow, index) => (
+            <CommandFlowCard
+              key={flow.command}
+              flow={flow}
+              index={index}
+              reduceMotion={reduceMotion}
+            />
+          ))}
         </div>
       </motion.div>
     </section>
+  );
+}
+
+function CommandFlowCard({
+  flow,
+  index,
+  reduceMotion,
+}: {
+  flow: (typeof commandFlows)[number];
+  index: number;
+  reduceMotion: boolean | null;
+}) {
+  const Icon = flow.icon;
+
+  return (
+    <motion.article
+      initial={reduceMotion ? false : { opacity: 0, y: 18 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ amount: 0.5, once: false }}
+      transition={{
+        duration: 0.45,
+        delay: index * 0.08,
+        ease: revealEase,
+      }}
+      className={`flex min-h-[168px] flex-col justify-between gap-5 p-4 sm:p-5 ${cardClassName}`}
+    >
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between gap-3">
+          <span
+            className={`grid h-9 w-9 place-items-center ${iconTileClassName}`}
+          >
+            <Icon size={18} />
+          </span>
+          <code className="min-w-0 max-w-full truncate rounded-[6px] border border-[#3F3F46] bg-[#09090B] px-2 py-1 font-mono text-[12px] leading-5 text-[#D4D4D8]">
+            {flow.command}
+          </code>
+        </div>
+        <div className="flex min-w-0 flex-col gap-2">
+          <h3 className="text-[18px] font-semibold leading-6 text-[#FAFAFA]">
+            {flow.title}
+          </h3>
+          <p className="text-[14px] leading-6 text-[#A1A1AA]">{flow.body}</p>
+        </div>
+      </div>
+    </motion.article>
   );
 }
 
@@ -637,35 +668,14 @@ function ArchiveScreen({ reduceMotion }: { reduceMotion: boolean | null }) {
         className="mx-auto grid w-full max-w-[1488px] items-center gap-5 sm:gap-14 lg:grid-cols-[1fr_0.78fr]"
       >
         <div className="order-2 grid gap-2 sm:grid-cols-2 sm:gap-4 lg:order-1">
-          {archiveFeatures.map((feature, index) => {
-            const Icon = feature.icon;
-            return (
-              <motion.article
-                key={feature.title}
-                initial={reduceMotion ? false : { opacity: 0, y: 18 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ amount: 0.45, once: false }}
-                transition={{
-                  duration: 0.45,
-                  delay: index * 0.07,
-                  ease: [0.22, 1, 0.36, 1],
-                }}
-                className="flex min-h-[132px] gap-4 rounded-[8px] border border-[#3F3F46] bg-[#18181B]/95 p-4 shadow-[0_18px_38px_rgba(0,0,0,0.22),inset_0_1px_0_rgba(255,255,255,0.03)] sm:min-h-[170px] sm:flex-col sm:justify-between sm:p-5"
-              >
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] border border-[#3F3F46] bg-[#09090B] text-[#FACC16] sm:h-10 sm:w-10">
-                  <Icon size={18} />
-                </div>
-                <div className="flex min-w-0 flex-col gap-2">
-                  <h2 className="text-[17px] font-semibold leading-6 text-[#F4F4F5] sm:text-[21px] sm:leading-7">
-                    {feature.title}
-                  </h2>
-                  <p className="text-[14px] leading-6 text-[#A1A1AA]">
-                    {feature.body}
-                  </p>
-                </div>
-              </motion.article>
-            );
-          })}
+          {archiveFeatures.map((feature, index) => (
+            <ArchiveFeatureCard
+              key={feature.title}
+              feature={feature}
+              index={index}
+              reduceMotion={reduceMotion}
+            />
+          ))}
         </div>
 
         <div className="order-1 flex max-w-[520px] flex-col gap-2 sm:gap-6 lg:order-2 lg:ml-auto">
@@ -683,5 +693,43 @@ function ArchiveScreen({ reduceMotion }: { reduceMotion: boolean | null }) {
         </div>
       </motion.div>
     </section>
+  );
+}
+
+function ArchiveFeatureCard({
+  feature,
+  index,
+  reduceMotion,
+}: {
+  feature: (typeof archiveFeatures)[number];
+  index: number;
+  reduceMotion: boolean | null;
+}) {
+  const Icon = feature.icon;
+
+  return (
+    <motion.article
+      initial={reduceMotion ? false : { opacity: 0, y: 18 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ amount: 0.45, once: false }}
+      transition={{
+        duration: 0.45,
+        delay: index * 0.07,
+        ease: revealEase,
+      }}
+      className={`flex min-h-[132px] gap-4 p-4 sm:min-h-[170px] sm:flex-col sm:justify-between sm:p-5 ${cardClassName}`}
+    >
+      <div
+        className={`flex h-9 w-9 items-center justify-center sm:h-10 sm:w-10 ${iconTileClassName}`}
+      >
+        <Icon size={18} />
+      </div>
+      <div className="flex min-w-0 flex-col gap-2">
+        <h2 className="text-[17px] font-semibold leading-6 text-[#F4F4F5] sm:text-[21px] sm:leading-7">
+          {feature.title}
+        </h2>
+        <p className="text-[14px] leading-6 text-[#A1A1AA]">{feature.body}</p>
+      </div>
+    </motion.article>
   );
 }
