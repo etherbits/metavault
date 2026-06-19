@@ -5,7 +5,9 @@ test("guest sees the landing page at the root", async ({ page }) => {
   await page.goto(WEB_BASE_URL);
 
   await expect(
-    page.getByRole("heading", { name: "Command your personal media vault." })
+    page.getByRole("heading", {
+      name: "Build one library for every kind of media.",
+    })
   ).toBeVisible();
   await expect(
     page.getByLabel("Public actions").getByRole("link", { name: "Log in" })
@@ -15,7 +17,7 @@ test("guest sees the landing page at the root", async ({ page }) => {
   ).toBeVisible();
   await expect(
     page.getByPlaceholder("Query your library with EZQ")
-  ).toHaveValue("/c title:Dune type:Book status:Planning");
+  ).toHaveValue("/c Dune type:Book status:Planning");
   await expect(page.getByText("Canonical", { exact: true })).toBeVisible();
   await expect(
     page.getByText("/create title:Dune type:Book status:Planning")
@@ -30,7 +32,9 @@ test("guest sees the landing page at the root", async ({ page }) => {
 test("landing page sections fill at least the viewport", async ({ page }) => {
   await page.goto(WEB_BASE_URL);
   await expect(
-    page.getByRole("heading", { name: "Command your personal media vault." })
+    page.getByRole("heading", {
+      name: "Build one library for every kind of media.",
+    })
   ).toBeVisible();
 
   const screenMetrics = await page
