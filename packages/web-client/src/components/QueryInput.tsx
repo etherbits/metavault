@@ -17,6 +17,7 @@ interface QueryInputProps {
   placeholder?: string;
   disabled?: boolean;
   readOnly?: boolean;
+  tabIndex?: number;
   inputRef?: Ref<HTMLInputElement>;
   action?: QueryInputAction;
 }
@@ -35,6 +36,7 @@ export function QueryInput({
   placeholder = "Query your library with EZQ",
   disabled = false,
   readOnly = false,
+  tabIndex,
   inputRef,
   action = "search",
 }: QueryInputProps) {
@@ -71,6 +73,7 @@ export function QueryInput({
         placeholder={placeholder}
         disabled={disabled}
         readOnly={readOnly}
+        tabIndex={tabIndex}
         className="pl-10"
       />
     </div>

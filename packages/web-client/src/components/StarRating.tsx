@@ -66,7 +66,7 @@ export function StarRating({
         ))}
       </span>
       <span
-        className="pointer-events-none absolute inset-y-0 left-0 flex overflow-hidden text-[#FACC15]"
+        className="pointer-events-none absolute inset-y-0 left-0 flex overflow-hidden text-[#FACC16]"
         style={{ width: fillWidth }}
         aria-hidden="true"
       >
@@ -123,7 +123,7 @@ export function StarRating({
           role="img"
           aria-label={ariaLabel}
           className={cn(
-            "relative inline-flex items-center justify-center overflow-hidden rounded-[4px] text-[#FACC15] leading-none align-middle",
+            "relative inline-flex items-center justify-center overflow-hidden rounded-[4px] text-[#FACC16] leading-none align-middle",
             config.button
           )}
         >
@@ -149,7 +149,7 @@ export function StarRating({
         onPointerDown={updateFromPointer}
         onKeyDown={updateFromKey}
         className={cn(
-          "relative inline-flex items-center justify-center overflow-hidden rounded-[4px] text-[#FACC15] leading-none outline-none transition-opacity align-middle focus-visible:ring-2 focus-visible:ring-[#FACC15]/50 disabled:cursor-wait disabled:opacity-70",
+          "relative inline-flex items-center justify-center overflow-hidden rounded-[4px] text-[#FACC16] leading-none outline-none transition-opacity align-middle focus-visible:ring-2 focus-visible:ring-[#FACC16]/50 disabled:cursor-wait disabled:opacity-70",
           "cursor-pointer",
           config.button
         )}

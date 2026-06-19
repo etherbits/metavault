@@ -383,7 +383,7 @@ function AiIntegrationProfileCard({
         <div className="flex items-center gap-2">
           <span
             className={`h-2.5 w-2.5 rounded-full ${
-              profile.is_active ? "bg-[#FACC15]" : "bg-[#71717A]"
+              profile.is_active ? "bg-[#FACC16]" : "bg-[#71717A]"
             }`}
           />
           <p className="text-[13px] font-medium uppercase leading-5 tracking-[0.08em] text-[#A1A1AA]">

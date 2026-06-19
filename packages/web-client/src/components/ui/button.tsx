@@ -11,9 +11,9 @@ const buttonVariants = cva(
       variant: {
         default: "bg-primary text-primary-foreground",
         brand:
-          "border-transparent bg-[#FACC15] text-[#09090B] hover:bg-[#EAB308] hover:text-[#09090B] aria-expanded:bg-[#EAB308] aria-expanded:text-[#09090B]",
+          "border-transparent bg-[#FACC16] text-[#09090B] hover:bg-[#EAB308] hover:text-[#09090B] aria-expanded:bg-[#EAB308] aria-expanded:text-[#09090B]",
         "brand-muted":
-          "border-transparent bg-[#FACC15]/50 text-[#09090B] hover:bg-[#FACC15]/60 hover:text-[#09090B]",
+          "border-transparent bg-[#FACC16]/50 text-[#09090B] hover:bg-[#FACC16]/60 hover:text-[#09090B]",
         surface:
           "border-[#3F3F46] bg-white/5 text-[#FAFAFA] shadow-sm hover:bg-white/10 hover:text-[#FAFAFA] aria-expanded:bg-white/5 aria-expanded:text-[#FAFAFA] data-[state=open]:bg-white/5 data-[state=open]:text-[#FAFAFA]",
         "danger-surface":

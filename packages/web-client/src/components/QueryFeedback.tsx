@@ -64,7 +64,7 @@ export function QueryExecutionState({
             repeat: Number.POSITIVE_INFINITY,
             ease: "linear",
           }}
-          className="h-4 w-4 rounded-full border border-[#3F3F46] border-t-[#FACC15]"
+          className="h-4 w-4 rounded-full border border-[#3F3F46] border-t-[#FACC16]"
         />
         {loadingLabel}
       </div>

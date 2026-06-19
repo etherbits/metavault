@@ -52,9 +52,9 @@ const statusConfig: Record<
     border: "border-[#71717A]",
   },
   "In Progress": {
-    bg: "bg-[#FACC15]/10",
-    text: "text-[#FACC15]",
-    border: "border-[#FACC15]",
+    bg: "bg-[#FACC16]/10",
+    text: "text-[#FACC16]",
+    border: "border-[#FACC16]",
   },
   Planning: {
     bg: "bg-[#A78BFA]/10",

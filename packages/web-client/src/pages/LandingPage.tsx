@@ -1,11 +1,11 @@
 import {
   Archive,
+  Blocks,
   Bot,
   CheckCircle2,
   Database,
   FileDown,
-  FileUp,
-  Keyboard,
+  HatGlasses,
   Library,
   Search,
   Sparkles,
@@ -13,11 +13,13 @@ import {
 } from "lucide-react";
 import {
   motion,
+  type TargetAndTransition,
   useMotionValue,
   useReducedMotion,
   useSpring,
 } from "motion/react";
 import {
+  type CSSProperties,
   type PointerEvent,
   useCallback,
   useEffect,
@@ -35,7 +37,7 @@ import { QueryInput } from "@/components/QueryInput";
 import { Button } from "@/components/ui/button";
 import type { MediaItem } from "@/features/library/types";
 
-const command = "/c title:Dune type:Book status:Planning";
+const command = "/c Dune type:Book status:Planning";
 const canonicalQuery = "/create title:Dune type:Book status:Planning";
 const restingTilt = {
   x: 4,
@@ -82,50 +84,50 @@ const landingItems: MediaItem[] = [
 
 const commandFlows = [
   {
-    command: "/c title:Dune type:Book status:Planning",
-    title: "Create entries from a single line",
-    body: "Add books, shows, games, and films with the fields you already know.",
+    command: "/c Dune type:Book status:Planning",
+    title: "Add a title without opening a form",
+    body: "Type what you know. It creates the entry and leaves you on the query page.",
     icon: Library,
   },
   {
-    command: "/s status:In_Progress tag:space",
-    title: "Search what is already in the library",
-    body: "Run focused searches from the same input used for creation.",
+    command: "/s In_Progress tag:space",
+    title: "Search the way you remember things",
+    body: "Use status, tags, ratings, collections, or a plain title in the same input.",
     icon: Search,
   },
   {
-    command: "/u title:Severance > status:Finished",
-    title: "Update entries without leaving the keyboard",
-    body: "Change status and other supported fields once an entry is in your vault.",
+    command: "/u Severance > status:Finished",
+    title: "Update progress quickly",
+    body: "Move something from planning to watching, finished, dropped, or whatever state fits.",
     icon: CheckCircle2,
   },
   {
-    command: "/d title:Old draft",
-    title: "Remove entries deliberately",
-    body: "Clean up the library through the query flow instead of hunting through menus.",
+    command: "/d Old draft",
+    title: "Clean up with a clear target",
+    body: "Use the same filters you search with when you need to remove entries.",
     icon: Archive,
   },
 ];
 
 const archiveFeatures = [
   {
-    title: "Metadata enrichment",
-    body: "Configured sources can fill in posters, dates, ratings, and tags for entries.",
+    title: "Fill in missing details",
+    body: "Pull posters, release years, public ratings, and tags from catalogue sources.",
     icon: Sparkles,
   },
   {
-    title: "Statuses and collections",
-    body: "Home groups entries by progress, recency, and custom collections.",
+    title: "Rate on your own scale",
+    body: "Personal ratings stay separate from public scores, so recommendations can reflect your taste.",
     icon: Tags,
   },
   {
-    title: "Import and export",
-    body: "Move a library archive out as a zip and bring it back in later.",
+    title: "Move your data",
+    body: "Export the library as a zip and import it again without rebuilding the archive manually.",
     icon: FileDown,
   },
   {
-    title: "Assistant with visible context",
-    body: "The assistant can use the current query and visible result set on the Query page.",
+    title: "Ask with context",
+    body: "Ask your personal AI assistant about the query and results currently on screen. Get recommendations.",
     icon: Bot,
   },
 ];
@@ -134,25 +136,145 @@ export function LandingPage() {
   const reduceMotion = useReducedMotion();
 
   return (
-    <main className="bg-[#18181B] text-[#FAFAFA]">
+    <main className="relative isolate overflow-hidden bg-[#18181B] text-[#FAFAFA]">
+      <LandingGridBackground reduceMotion={reduceMotion} />
       <HeroScreen reduceMotion={reduceMotion} />
-      <CommandScreen />
-      <ArchiveScreen />
+      <CommandScreen reduceMotion={reduceMotion} />
+      <ArchiveScreen reduceMotion={reduceMotion} />
     </main>
+  );
+}
+
+function LandingGridBackground({
+  reduceMotion,
+}: {
+  reduceMotion: boolean | null;
+}) {
+  const pulseMask =
+    "radial-gradient(circle at 64% 18%, transparent 0px, transparent var(--pulse-inner), rgba(0,0,0,0.42) var(--pulse-soft-inner), black var(--pulse-core), rgba(0,0,0,0.42) var(--pulse-soft-outer), transparent var(--pulse-outer))";
+  const pulseAnimation = reduceMotion
+    ? ({ opacity: 0.06 } satisfies TargetAndTransition)
+    : ({
+        opacity: [0, 0.26, 0.18, 0],
+        "--pulse-inner": ["18px", "1600px"],
+        "--pulse-soft-inner": ["84px", "1780px"],
+        "--pulse-core": ["152px", "1960px"],
+        "--pulse-soft-outer": ["222px", "2140px"],
+        "--pulse-outer": ["300px", "2320px"],
+      } as TargetAndTransition);
+  const pulseGridStyle = {
+    backgroundImage:
+      "linear-gradient(rgba(250,204,22,0.96) 1px, transparent 1px), linear-gradient(90deg, rgba(250,204,22,0.96) 1px, transparent 1px)",
+    backgroundPosition: "center top",
+    backgroundSize: "56px 56px",
+    filter: "drop-shadow(0 0 12px rgba(250,204,22,0.38))",
+    maskImage: reduceMotion
+      ? "radial-gradient(circle at 64% 18%, black 0px, transparent 520px)"
+      : pulseMask,
+    WebkitMaskImage: reduceMotion
+      ? "radial-gradient(circle at 64% 18%, black 0px, transparent 520px)"
+      : pulseMask,
+    "--pulse-inner": "24px",
+    "--pulse-soft-inner": "66px",
+    "--pulse-core": "122px",
+    "--pulse-soft-outer": "178px",
+    "--pulse-outer": "236px",
+  } as CSSProperties &
+    Record<
+      | "--pulse-core"
+      | "--pulse-inner"
+      | "--pulse-outer"
+      | "--pulse-soft-inner"
+      | "--pulse-soft-outer",
+      string
+    >;
+
+  return (
+    <div
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-0 z-0 overflow-hidden"
+    >
+      <div
+        className="absolute inset-0"
+        style={{
+          backgroundImage:
+            "linear-gradient(rgba(113,113,122,0.18) 1px, transparent 1px), linear-gradient(90deg, rgba(113,113,122,0.18) 1px, transparent 1px)",
+          backgroundPosition: "center top",
+          backgroundSize: "56px 56px",
+          opacity: 0.18,
+          maskImage:
+            "linear-gradient(to bottom, transparent 0%, black 7%, black 92%, transparent 100%)",
+          WebkitMaskImage:
+            "linear-gradient(to bottom, transparent 0%, black 7%, black 92%, transparent 100%)",
+        }}
+      />
+
+      <motion.div
+        className="absolute inset-0"
+        initial={false}
+        animate={pulseAnimation}
+        transition={
+          reduceMotion
+            ? undefined
+            : {
+                opacity: {
+                  duration: 7.6,
+                  ease: "linear",
+                  repeat: Infinity,
+                  repeatDelay: 0.35,
+                  times: [0, 0.24, 0.72, 1],
+                },
+                "--pulse-core": {
+                  duration: 7.6,
+                  ease: [0.37, 0, 0.63, 1],
+                  repeat: Infinity,
+                  repeatDelay: 0.35,
+                },
+                "--pulse-inner": {
+                  duration: 7.6,
+                  ease: [0.37, 0, 0.63, 1],
+                  repeat: Infinity,
+                  repeatDelay: 0.35,
+                },
+                "--pulse-outer": {
+                  duration: 7.6,
+                  ease: [0.37, 0, 0.63, 1],
+                  repeat: Infinity,
+                  repeatDelay: 0.35,
+                },
+                "--pulse-soft-inner": {
+                  duration: 7.6,
+                  ease: [0.37, 0, 0.63, 1],
+                  repeat: Infinity,
+                  repeatDelay: 0.35,
+                },
+                "--pulse-soft-outer": {
+                  duration: 7.6,
+                  ease: [0.37, 0, 0.63, 1],
+                  repeat: Infinity,
+                  repeatDelay: 0.35,
+                },
+              }
+        }
+        style={pulseGridStyle}
+      />
+
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,transparent_0%,rgba(24,24,27,0.08)_42%,rgba(9,9,11,0.38)_100%)]" />
+    </div>
   );
 }
 
 function HeroScreen({ reduceMotion }: { reduceMotion: boolean | null }) {
   return (
     <section
-      className="relative flex min-h-dvh overflow-hidden px-4 sm:px-8 lg:h-dvh"
+      className="relative z-10 flex min-h-dvh overflow-hidden px-4 sm:px-8 lg:h-dvh"
       data-landing-screen="hero"
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-[#3F3F46]" />
       <header className="absolute inset-x-0 top-0 z-20 mx-auto flex w-full max-w-[1728px] items-center justify-between px-4 py-5 sm:px-8">
         <Link
           to="/"
-          className="flex items-center gap-2 rounded-[8px] text-[#E4E4E7] outline-none focus-visible:ring-2 focus-visible:ring-[#FACC15]/70"
+          className="flex items-center gap-2 rounded-[8px] text-[#E4E4E7] outline-none focus-visible:ring-2 focus-visible:ring-[#FACC16]/70"
           aria-label="Metavault home"
         >
           <span className="grid h-8 w-8 place-items-center rounded-[8px] bg-[#27272A]">
@@ -165,26 +287,45 @@ function HeroScreen({ reduceMotion }: { reduceMotion: boolean | null }) {
           <Button asChild variant="ghost" className="text-[#D4D4D8]">
             <Link to="/login">Log in</Link>
           </Button>
-          <Button asChild variant="brand" className="h-9 px-3">
+          <Button
+            asChild
+            variant="brand"
+            className="h-9 px-3 max-[430px]:hidden"
+          >
             <Link to="/register">Create account</Link>
           </Button>
         </nav>
       </header>
 
       <div className="mx-auto grid min-h-dvh w-full max-w-[1728px] items-start gap-3 pt-[72px] pb-6 sm:gap-16 sm:pt-24 sm:pb-10 lg:h-full lg:min-h-0 lg:grid-cols-[minmax(620px,0.86fr)_minmax(0,1.14fr)] lg:pt-36 lg:pb-24 xl:gap-20 xl:pt-60 xl:pb-36 2xl:grid-cols-[minmax(650px,0.84fr)_minmax(943px,1fr)] 2xl:gap-24 [@media_(min-width:1024px)_and_(max-height:800px)]:grid-cols-[minmax(520px,0.8fr)_minmax(0,1.2fr)] [@media_(min-width:1024px)_and_(max-height:800px)]:pt-32 [@media_(min-width:1024px)_and_(max-height:800px)]:pb-12">
-        <div className="flex max-w-[780px] flex-col gap-4 sm:gap-8 lg:self-start">
-          <div className="inline-flex w-fit items-center gap-2 rounded-[8px] border border-[#3F3F46] bg-white/5 px-3 py-2 text-sm font-medium text-[#D4D4D8] shadow-[0_10px_24px_rgba(0,0,0,0.16)]">
-            <Keyboard size={16} className="text-[#FACC15]" />
-            Keyboard-first media tracking
+        <motion.div
+          initial={reduceMotion ? false : { opacity: 0, y: 36 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+          className="flex max-w-[780px] flex-col gap-4 sm:gap-8 lg:self-start"
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex w-fit items-center gap-2 rounded-[8px] border border-[#3F3F46] bg-[#18181B]/95 px-3 py-2 text-sm font-medium text-[#D4D4D8] shadow-[0_10px_24px_rgba(0,0,0,0.16)]">
+              <Library size={16} className="text-[#FACC16]" />
+              Own your data
+            </span>
+            <span className="inline-flex w-fit items-center gap-2 rounded-[8px] border border-[#3F3F46] bg-[#18181B]/95 px-3 py-2 text-sm font-medium text-[#D4D4D8] shadow-[0_10px_24px_rgba(0,0,0,0.16)]">
+              <HatGlasses size={16} className="text-[#FACC16]" />
+              Feel secure
+            </span>
+            <div className="inline-flex w-fit items-center gap-2 rounded-[8px] border border-[#3F3F46] bg-[#18181B]/95 px-3 py-2 text-sm font-medium text-[#D4D4D8] shadow-[0_10px_24px_rgba(0,0,0,0.16)]">
+              <Blocks size={16} className="text-[#FACC16]" />
+              Extend as desired
+            </div>
           </div>
 
           <div className="flex flex-col gap-4 sm:gap-6">
             <h1 className="max-w-[760px] text-[32px] font-semibold leading-[1.04] text-[#FAFAFA] sm:text-[66px] sm:leading-[1] lg:text-[70px] xl:text-[78px] [@media_(min-width:1024px)_and_(max-height:800px)]:text-[60px]">
-              Command your personal media vault.
+              Build one library for every kind of media.
             </h1>
             <p className="max-w-[700px] text-[15px] leading-6 text-[#D4D4D8] sm:text-[20px] sm:leading-9">
-              Metavault turns the things you mean to watch, read, and play into
-              a searchable library you can shape from one fast command line.
+              Add any media to one central place. Create entries, filter, rate,
+              and export when you need to. No lock-in.
             </p>
           </div>
 
@@ -192,17 +333,17 @@ function HeroScreen({ reduceMotion }: { reduceMotion: boolean | null }) {
             <Button asChild variant="brand" className="h-10 px-4">
               <Link to="/register">
                 <Library size={16} />
-                Create your vault
+                Create a vault
               </Link>
             </Button>
             <Button asChild variant="surface" className="h-10 px-4">
               <Link to="/login">
                 <Search size={16} />
-                Open existing vault
+                Open your vault
               </Link>
             </Button>
           </div>
-        </div>
+        </motion.div>
 
         <VaultFlowVisual reduceMotion={reduceMotion} />
       </div>
@@ -320,10 +461,20 @@ function VaultFlowVisual({ reduceMotion }: { reduceMotion: boolean | null }) {
   }
 
   return (
-    <div className="relative mx-auto w-full min-w-0 max-w-[943px] lg:mx-0 lg:translate-y-8 lg:self-center lg:justify-self-end xl:translate-y-6 [@media_(min-width:1024px)_and_(max-height:800px)]:max-w-[650px] [@media_(min-width:1024px)_and_(max-height:800px)]:translate-y-0">
-      <div className="absolute inset-x-12 top-10 h-56 rounded-full bg-[#FACC15]/10 blur-3xl" />
+    <motion.div
+      initial={reduceMotion ? false : { opacity: 0, y: 36 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{
+        duration: 0.58,
+        delay: reduceMotion ? 0 : 0.12,
+        ease: [0.22, 1, 0.36, 1],
+      }}
+      className="relative mx-auto w-full min-w-0 max-w-[943px] lg:mx-0 lg:translate-y-8 lg:self-center lg:justify-self-end xl:translate-y-0 [@media_(min-width:1024px)_and_(max-height:800px)]:max-w-[650px] [@media_(min-width:1024px)_and_(max-height:800px)]:translate-y-0"
+    >
+      <div className="absolute inset-x-12 top-10 h-56 rounded-full bg-[#FACC16]/10 blur-3xl" />
       <motion.div
         aria-hidden="true"
+        inert
         className="relative isolate w-full origin-center overflow-hidden rounded-[12px] border border-[#3F3F46] bg-[#09090B] p-2 shadow-[0_30px_90px_rgba(0,0,0,0.42)] transform-gpu sm:p-[30px] [@media_(min-width:1024px)_and_(max-height:800px)]:p-5"
         onPointerMove={handlePointerMove}
         onPointerLeave={handlePointerLeave}
@@ -335,7 +486,7 @@ function VaultFlowVisual({ reduceMotion }: { reduceMotion: boolean | null }) {
       >
         <div className="relative z-10 flex items-center justify-between border-[#3F3F46] border-b pb-3 sm:pb-5">
           <div className="flex items-center gap-2 text-sm font-medium text-[#D4D4D8]">
-            <Database size={16} className="text-[#FACC15]" />
+            <Database size={16} className="text-[#FACC16]" />
             Query console
           </div>
           <span className="rounded-[6px] border border-[#3F3F46] bg-white/5 px-2 py-1 text-[12px] font-semibold text-[#A1A1AA]">
@@ -348,6 +499,7 @@ function VaultFlowVisual({ reduceMotion }: { reduceMotion: boolean | null }) {
             value={typedCommand}
             action="create"
             readOnly
+            tabIndex={-1}
             placeholder="Query your library with EZQ"
           />
         </div>
@@ -397,35 +549,34 @@ function VaultFlowVisual({ reduceMotion }: { reduceMotion: boolean | null }) {
           </div>
         </div>
       </motion.div>
-    </div>
+    </motion.div>
   );
 }
 
-function CommandScreen() {
+function CommandScreen({ reduceMotion }: { reduceMotion: boolean | null }) {
   return (
     <section
-      className="flex min-h-dvh items-center overflow-hidden border-[#3F3F46]/70 border-t bg-[#09090B]/35 px-4 py-10 sm:px-8 lg:h-dvh lg:py-0"
+      className="relative z-10 flex min-h-dvh items-center overflow-hidden border-[#3F3F46]/70 border-t bg-[#09090B]/35 px-4 py-10 sm:px-8 lg:h-dvh lg:py-0"
       data-landing-screen="commands"
     >
       <motion.div
-        initial={{ opacity: 0, y: 36 }}
+        initial={reduceMotion ? false : { opacity: 0, y: 36 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ amount: 0.42, once: false }}
         transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
         className="mx-auto grid w-full max-w-[1488px] items-center gap-6 sm:gap-14 lg:grid-cols-[0.86fr_1.14fr]"
       >
         <div className="flex max-w-[560px] flex-col gap-3 sm:gap-5">
-          <span className="text-sm font-semibold text-[#FACC15]">
-            Command your library
+          <span className="text-sm font-semibold text-[#FACC16]">
+            Query, then act
           </span>
           <h2 className="text-[34px] font-semibold leading-[1.04] text-[#FAFAFA] sm:text-[58px]">
-            The input is the interface.
+            One line for the usual library work.
           </h2>
           <p className="text-[15px] leading-7 text-[#D4D4D8] sm:text-[17px] sm:leading-8">
-            EZQ is the working surface for creating, searching, updating, and
-            deleting library entries. When a command is valid, Metavault shows
-            the canonical version so the action is explicit before it changes
-            the library.
+            Add something, always have it accessible, update the status, or
+            clean it up from the same place. Short commands keep common actions
+            close.
           </p>
         </div>
 
@@ -435,7 +586,7 @@ function CommandScreen() {
             return (
               <motion.article
                 key={flow.command}
-                initial={{ opacity: 0, y: 18 }}
+                initial={reduceMotion ? false : { opacity: 0, y: 18 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ amount: 0.5, once: false }}
                 transition={{
@@ -443,24 +594,26 @@ function CommandScreen() {
                   delay: index * 0.08,
                   ease: [0.22, 1, 0.36, 1],
                 }}
-                className="flex flex-col justify-between gap-2 rounded-[8px] border border-[#3F3F46] bg-[#27272A] p-2.5 shadow-[0_18px_32px_rgba(0,0,0,0.18)] sm:min-h-[152px] sm:gap-4 sm:p-5"
+                className="flex min-h-[168px] flex-col justify-between gap-5 rounded-[8px] border border-[#3F3F46] bg-[#18181B]/95 p-4 shadow-[0_18px_38px_rgba(0,0,0,0.22),inset_0_1px_0_rgba(255,255,255,0.03)] sm:p-5"
               >
-                <div className="flex items-start gap-3">
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[8px] border border-[#3F3F46] bg-white/5 text-[#FACC15]">
-                    <Icon size={18} />
-                  </span>
-                  <div className="flex min-w-0 flex-col gap-1">
-                    <h3 className="text-[17px] font-semibold leading-5 text-[#FAFAFA] sm:text-[20px] sm:leading-7">
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[8px] border border-[#3F3F46] bg-[#09090B] text-[#FACC16]">
+                      <Icon size={18} />
+                    </span>
+                    <code className="min-w-0 max-w-full truncate rounded-[6px] border border-[#3F3F46] bg-[#09090B] px-2 py-1 font-mono text-[12px] leading-5 text-[#D4D4D8]">
+                      {flow.command}
+                    </code>
+                  </div>
+                  <div className="flex min-w-0 flex-col gap-2">
+                    <h3 className="text-[18px] font-semibold leading-6 text-[#FAFAFA]">
                       {flow.title}
                     </h3>
-                    <p className="text-[13px] leading-[18px] text-[#A1A1AA] sm:text-[15px] sm:leading-6">
+                    <p className="text-[14px] leading-6 text-[#A1A1AA]">
                       {flow.body}
                     </p>
                   </div>
                 </div>
-                <code className="w-fit max-w-full break-words rounded-[6px] bg-[#18181B] px-2 py-1 font-mono text-[13px] leading-5 text-[#FAFAFA]">
-                  {flow.command}
-                </code>
               </motion.article>
             );
           })}
@@ -470,14 +623,14 @@ function CommandScreen() {
   );
 }
 
-function ArchiveScreen() {
+function ArchiveScreen({ reduceMotion }: { reduceMotion: boolean | null }) {
   return (
     <section
-      className="flex min-h-dvh items-center overflow-hidden border-[#3F3F46]/70 border-t px-4 py-10 sm:px-8 lg:h-dvh lg:py-0"
+      className="relative z-10 flex min-h-dvh items-center overflow-hidden border-[#3F3F46]/70 border-t px-4 py-10 sm:px-8 lg:h-dvh lg:py-0"
       data-landing-screen="archive"
     >
       <motion.div
-        initial={{ opacity: 0, y: 36 }}
+        initial={reduceMotion ? false : { opacity: 0, y: 36 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ amount: 0.42, once: false }}
         transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
@@ -489,7 +642,7 @@ function ArchiveScreen() {
             return (
               <motion.article
                 key={feature.title}
-                initial={{ opacity: 0, y: 18 }}
+                initial={reduceMotion ? false : { opacity: 0, y: 18 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ amount: 0.45, once: false }}
                 transition={{
@@ -497,16 +650,16 @@ function ArchiveScreen() {
                   delay: index * 0.07,
                   ease: [0.22, 1, 0.36, 1],
                 }}
-                className="flex min-h-[96px] flex-col justify-between rounded-[8px] border border-[#3F3F46] bg-[#27272A] p-3 shadow-[0_18px_32px_rgba(0,0,0,0.18)] sm:min-h-[245px] sm:p-5"
+                className="flex min-h-[132px] gap-4 rounded-[8px] border border-[#3F3F46] bg-[#18181B]/95 p-4 shadow-[0_18px_38px_rgba(0,0,0,0.22),inset_0_1px_0_rgba(255,255,255,0.03)] sm:min-h-[170px] sm:flex-col sm:justify-between sm:p-5"
               >
-                <div className="flex h-8 w-8 items-center justify-center rounded-[8px] border border-[#3F3F46] bg-white/5 text-[#FACC15] sm:h-10 sm:w-10">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] border border-[#3F3F46] bg-[#09090B] text-[#FACC16] sm:h-10 sm:w-10">
                   <Icon size={18} />
                 </div>
-                <div className="mt-2 flex flex-col gap-1 sm:mt-8 sm:gap-3">
-                  <h2 className="text-[16px] font-semibold leading-5 text-[#F4F4F5] sm:text-[22px] sm:leading-7">
+                <div className="flex min-w-0 flex-col gap-2">
+                  <h2 className="text-[17px] font-semibold leading-6 text-[#F4F4F5] sm:text-[21px] sm:leading-7">
                     {feature.title}
                   </h2>
-                  <p className="text-[13px] leading-4 text-[#A1A1AA] sm:text-[15px] sm:leading-6">
+                  <p className="text-[14px] leading-6 text-[#A1A1AA]">
                     {feature.body}
                   </p>
                 </div>
@@ -516,28 +669,17 @@ function ArchiveScreen() {
         </div>
 
         <div className="order-1 flex max-w-[520px] flex-col gap-2 sm:gap-6 lg:order-2 lg:ml-auto">
-          <span className="text-sm font-semibold text-[#FACC15]">
-            Keep the archive alive
+          <span className="text-sm font-semibold text-[#FACC16]">
+            Your archive
           </span>
           <h2 className="text-[29px] font-semibold leading-[1.04] text-[#FAFAFA] sm:text-[58px]">
-            Organize what you collect, then take it with you.
+            Keep your notes separate from catalogue data.
           </h2>
           <p className="text-[14px] leading-6 text-[#D4D4D8] sm:text-[17px] sm:leading-8">
-            Metavault stays close to the actual library: statuses for progress,
-            collections for taste, enrichment for missing details, and archive
-            import/export when you want control over the data.
+            Your ratings, collections, and progress stay yours. Posters, release
+            dates, tags, and public scores can come from catalogue data without
+            muddying the parts you curate yourself.
           </p>
-          <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
-            <Button asChild variant="brand" className="h-10 px-4">
-              <Link to="/register">
-                <FileUp size={16} />
-                Start collecting
-              </Link>
-            </Button>
-            <Button asChild variant="surface" className="h-10 px-4">
-              <Link to="/login">Log in</Link>
-            </Button>
-          </div>
         </div>
       </motion.div>
     </section>

@@ -49,7 +49,7 @@ function AuthLoadingScreen() {
   return (
     <main className="grid min-h-screen place-items-center bg-[#18181B] px-4 text-[#D4D4D8]">
       <div className="flex items-center gap-3 rounded-[8px] border border-[#3F3F46] bg-[#27272A] px-4 py-3 shadow-[0_18px_32px_rgba(0,0,0,0.24)]">
-        <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#3F3F46] border-t-[#FACC15]" />
+        <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#3F3F46] border-t-[#FACC16]" />
         <span className="text-sm font-medium">Checking session...</span>
       </div>
     </main>

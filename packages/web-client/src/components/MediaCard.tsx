@@ -84,7 +84,7 @@ function MoreTagsPill({
       <Popover.Trigger asChild>
         <button
           type="button"
-          className="inline-flex h-5 items-center rounded-[8px] border border-[#3F3F46] bg-[#3F3F46]/70 px-2 text-[12px] font-semibold leading-4 text-[#D4D4D8] transition-colors hover:bg-[#52525B] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FACC15]"
+          className="inline-flex h-5 items-center rounded-[8px] border border-[#3F3F46] bg-[#3F3F46]/70 px-2 text-[12px] font-semibold leading-4 text-[#D4D4D8] transition-colors hover:bg-[#52525B] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FACC16]"
           onClick={(event) => event.stopPropagation()}
         >
           +{count}
@@ -169,7 +169,7 @@ export function MediaCard({
       className={cn(
         "relative h-full w-full overflow-visible rounded-[4px] border-none bg-[#27272A] py-0 text-white ring-0 shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)]",
         compact ? "min-h-[154px] sm:min-h-[214px]" : "min-h-[300px]",
-        selected && "ring-2 ring-[#FACC15]"
+        selected && "ring-2 ring-[#FACC16]"
       )}
       onClick={handleCardClick}
     >
@@ -241,7 +241,7 @@ export function MediaCard({
 
           <div className={cn("flex flex-col", compact ? "gap-2" : "gap-3")}>
             <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex h-5 shrink-0 items-center gap-1 whitespace-nowrap rounded-[8px] border border-[#FACC15] px-2 text-[12px] font-semibold leading-4 text-[#FACC15]">
+              <span className="inline-flex h-5 shrink-0 items-center gap-1 whitespace-nowrap rounded-[8px] border border-[#FACC16] px-2 text-[12px] font-semibold leading-4 text-[#FACC16]">
                 {getTypeIcon(item.type)}
                 {item.type}
               </span>
