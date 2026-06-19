@@ -5,16 +5,31 @@ import "./index.css";
 import App from "./App.tsx";
 import { AppProviders } from "./app/AppProviders";
 import { useAuthSession } from "./features/auth/hooks";
-import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { DetailPage } from "./pages/app/DetailPage";
 import { HomePage } from "./pages/app/HomePage";
 import { IntegrationsPage } from "./pages/app/IntegrationsPage";
 import { QueryPage } from "./pages/app/QueryPage";
 import { ResetPasswordPage } from "./pages/app/ResetPasswordPage";
 import { SettingsPage } from "./pages/app/SettingsPage";
+import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
+import { LandingPage } from "./pages/LandingPage";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { VerifyPage } from "./pages/VerifyPage";
+
+function PublicRootRoute() {
+  const session = useAuthSession();
+
+  if (session.data) {
+    return <Navigate to="/app" replace />;
+  }
+
+  if (session.isLoading || session.isFetching) {
+    return <AuthLoadingScreen />;
+  }
+
+  return <LandingPage />;
+}
 
 function ProtectedAppRoute() {
   const session = useAuthSession();
@@ -52,7 +67,7 @@ createRoot(rootElement).render(
     <AppProviders>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="/" element={<PublicRootRoute />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/signup" element={<Navigate to="/register" replace />} />
           <Route path="/login" element={<LoginPage />} />
@@ -69,7 +84,7 @@ createRoot(rootElement).render(
             <Route path="reset-password" element={<ResetPasswordPage />} />
             <Route path="settings" element={<SettingsPage />} />
           </Route>
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </AppProviders>

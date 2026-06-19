@@ -1,11 +1,11 @@
 import {
+  type LucideIcon,
   PencilLine,
   Plus,
   Search,
   Trash2,
-  type LucideIcon,
 } from "lucide-react";
-import { useState, type Ref } from "react";
+import { type Ref, useState } from "react";
 import { Input } from "@/components/ui/input";
 
 type QueryInputAction = "search" | "create" | "update" | "delete";
@@ -16,6 +16,7 @@ interface QueryInputProps {
   onSearch?: (value: string) => void;
   placeholder?: string;
   disabled?: boolean;
+  readOnly?: boolean;
   inputRef?: Ref<HTMLInputElement>;
   action?: QueryInputAction;
 }
@@ -33,6 +34,7 @@ export function QueryInput({
   onSearch,
   placeholder = "Query your library with EZQ",
   disabled = false,
+  readOnly = false,
   inputRef,
   action = "search",
 }: QueryInputProps) {
@@ -68,6 +70,7 @@ export function QueryInput({
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         disabled={disabled}
+        readOnly={readOnly}
         className="pl-10"
       />
     </div>

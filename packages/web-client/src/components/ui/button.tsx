@@ -19,11 +19,11 @@ const buttonVariants = cva(
         "danger-surface":
           "border-transparent bg-[#7F1D1D]/40 text-[#F87171] hover:bg-[#7F1D1D]/50 hover:text-[#F87171]",
         outline:
-          "border-border bg-background hover:bg-muted hover:text-[#FAFAFA] aria-expanded:bg-muted aria-expanded:text-[#FAFAFA] dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
+          "border-[#3F3F46] bg-transparent text-[#FAFAFA] hover:bg-[#27272A] hover:text-[#FAFAFA] aria-expanded:bg-[#27272A] aria-expanded:text-[#FAFAFA]",
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-secondary/80 hover:text-secondary-foreground aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
         ghost:
-          "hover:bg-muted hover:text-[#FAFAFA] aria-expanded:bg-muted aria-expanded:text-[#FAFAFA] dark:hover:bg-muted/50",
+          "bg-transparent text-[#D4D4D8] hover:bg-[#27272A] hover:text-[#FAFAFA] aria-expanded:bg-[#27272A] aria-expanded:text-[#FAFAFA]",
         destructive:
           "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
         link: "text-primary underline-offset-4 hover:underline",
