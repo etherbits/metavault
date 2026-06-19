@@ -5,10 +5,12 @@ import "./index.css";
 import App from "./App.tsx";
 import { AppProviders } from "./app/AppProviders";
 import { useAuthSession } from "./features/auth/hooks";
+import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { DetailPage } from "./pages/app/DetailPage";
 import { HomePage } from "./pages/app/HomePage";
 import { IntegrationsPage } from "./pages/app/IntegrationsPage";
 import { QueryPage } from "./pages/app/QueryPage";
+import { ResetPasswordPage } from "./pages/app/ResetPasswordPage";
 import { SettingsPage } from "./pages/app/SettingsPage";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
@@ -55,6 +57,7 @@ createRoot(rootElement).render(
           <Route path="/signup" element={<Navigate to="/register" replace />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signin" element={<Navigate to="/login" replace />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/verify" element={<VerifyPage />} />
           <Route path="/home" element={<Navigate to="/app" replace />} />
           <Route path="/app" element={<ProtectedAppRoute />}>
@@ -63,6 +66,7 @@ createRoot(rootElement).render(
             <Route path="query" element={<QueryPage />} />
             <Route path="detail/:itemId" element={<DetailPage />} />
             <Route path="integrations" element={<IntegrationsPage />} />
+            <Route path="reset-password" element={<ResetPasswordPage />} />
             <Route path="settings" element={<SettingsPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/login" replace />} />

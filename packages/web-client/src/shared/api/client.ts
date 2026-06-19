@@ -23,13 +23,14 @@ export async function apiRequest<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  const isFormData = options.body instanceof FormData;
   let response: Response;
 
   try {
     response = await fetch(`${API_BASE_URL}${normalizedPath}`, {
       credentials: "include",
       headers: {
-        "Content-Type": "application/json",
+        ...(isFormData ? {} : { "Content-Type": "application/json" }),
         ...options.headers,
       },
       ...options,

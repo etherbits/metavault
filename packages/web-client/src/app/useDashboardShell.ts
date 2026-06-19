@@ -17,6 +17,7 @@ export function useDashboardShell() {
     () => ({
       name: profile?.username ?? "User",
       email: profile?.email ?? "",
+      avatarUrl: profile?.avatar_url ?? null,
     }),
     [profile]
   );

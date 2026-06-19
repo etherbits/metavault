@@ -10,12 +10,14 @@ import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
 import { MetaIcon } from "@/components/MetaIcon";
+import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface SidebarUser {
   name: string;
   email: string;
+  avatarUrl?: string | null;
 }
 
 interface SidebarProps {
@@ -48,11 +50,6 @@ const labelTransition = {
   duration: 0.2,
   ease: [0.22, 1, 0.36, 1],
 } as const;
-
-function getInitials(name: string): string {
-  const first = name.trim()[0];
-  return first ? first.toUpperCase() : "U";
-}
 
 function SidebarLabel({
   isOpen,
@@ -285,9 +282,11 @@ function SidebarUserRow({
           isOpen ? "gap-2 px-2 py-1" : "justify-center"
         )}
       >
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#18181B] text-sm font-semibold text-[#FAFAFA]">
-          {getInitials(user.name)}
-        </div>
+        <ProfileAvatar
+          name={user.name}
+          avatarUrl={user.avatarUrl}
+          className="h-8 w-8"
+        />
 
         <AnimatePresence initial={false}>
           {isOpen ? (

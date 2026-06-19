@@ -1,10 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  confirmPasswordReset,
+  deleteProfile,
   getProfile,
   logout,
+  requestPasswordReset,
   resendVerificationCode,
   signIn,
   signUp,
+  updateProfile,
+  updateProfileAvatar,
   verifyUser,
 } from "@/features/auth/api";
 import {
@@ -71,6 +76,54 @@ export function useVerifyUser() {
 export function useResendVerificationCode() {
   return useMutation({
     mutationFn: resendVerificationCode,
+  });
+}
+
+function useProfileMutation<TVariables>(
+  mutationFn: (
+    variables: TVariables
+  ) => Promise<Awaited<ReturnType<typeof getProfile>>>
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn,
+    onSuccess: (profile) => {
+      writeCachedProfile(profile);
+      queryClient.setQueryData(queryKeys.auth.session, profile);
+    },
+  });
+}
+
+export function useUpdateProfile() {
+  return useProfileMutation(updateProfile);
+}
+
+export function useUpdateProfileAvatar() {
+  return useProfileMutation(updateProfileAvatar);
+}
+
+export function useRequestPasswordReset() {
+  return useMutation({
+    mutationFn: requestPasswordReset,
+  });
+}
+
+export function useConfirmPasswordReset() {
+  return useMutation({
+    mutationFn: confirmPasswordReset,
+  });
+}
+
+export function useDeleteProfile() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: deleteProfile,
+    onSuccess: () => {
+      clearAuthStorage();
+      queryClient.clear();
+    },
   });
 }
 

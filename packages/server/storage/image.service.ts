@@ -1,7 +1,12 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import sharp from "sharp";
-import { getImagePublicPath, getUserLibraryEntryDir } from "./path.util";
+import {
+  getAvatarPublicPath,
+  getImagePublicPath,
+  getUserLibraryEntryDir,
+  getUserProfileMediaDir,
+} from "./path.util";
 
 type SavedImages = {
   original: string;
@@ -39,4 +44,18 @@ export async function processAndSaveImage(
     medium: getImagePublicPath(userId, entryId, "medium.webp"),
     small: getImagePublicPath(userId, entryId, "small.webp"),
   };
+}
+
+export async function processAndSaveAvatar(fileBuffer: Buffer, userId: string) {
+  const dir = getUserProfileMediaDir(userId);
+  const filename = "avatar.webp";
+  const avatarPath = path.join(dir, filename);
+
+  await fs.mkdir(dir, { recursive: true });
+  await sharp(fileBuffer)
+    .resize({ width: 256, height: 256, fit: "cover" })
+    .webp({ quality: 82 })
+    .toFile(avatarPath);
+
+  return `${getAvatarPublicPath(userId, filename)}?v=${Date.now()}`;
 }

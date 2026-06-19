@@ -3,11 +3,14 @@ import { parsedEnv } from "../env";
 import { rateLimit } from "../middleware/rateLimit";
 import { validatedRoute } from "../middleware/validation";
 import {
+  passwordResetEmailConfirmSchema,
+  passwordResetEmailRequestSchema,
   resendVerificationSchema,
   signInSchema,
   signUpSchema,
   verifyUserSchema,
 } from "../user/user.schema";
+import { userService } from "../user/user.service";
 import { sendServiceError } from "../utils/http";
 import { authService } from "./auth.service";
 
@@ -72,6 +75,34 @@ const authRouter = Router()
 
       return res.json(result.data);
     })
+  )
+  .post(
+    "/password-reset/request",
+    ...validatedRoute(
+      { body: passwordResetEmailRequestSchema },
+      async (req, res) => {
+        const result = await userService.requestPasswordResetByEmail(req.body);
+        if (!result.ok) {
+          return sendServiceError(res, result.error);
+        }
+
+        return res.json(result.data);
+      }
+    )
+  )
+  .post(
+    "/password-reset/confirm",
+    ...validatedRoute(
+      { body: passwordResetEmailConfirmSchema },
+      async (req, res) => {
+        const result = await userService.confirmPasswordResetByEmail(req.body);
+        if (!result.ok) {
+          return sendServiceError(res, result.error);
+        }
+
+        return res.json(result.data);
+      }
+    )
   )
   .post(
     "/logout",

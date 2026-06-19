@@ -14,8 +14,30 @@ test("settings page manages query aliases from compact rows", async ({
     page.getByRole("heading", { name: "Settings", exact: true })
   ).toBeVisible();
   await expect(
+    page.getByRole("heading", { name: "Account Settings" })
+  ).toBeVisible();
+  await expect(
     page.getByRole("heading", { name: "Query settings" })
   ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Change picture" })
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Reset password" })
+  ).toBeVisible();
+  await expect(page.getByLabel("Reset code")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Update username" })
+  ).toBeDisabled();
+
+  await page.getByRole("button", { name: "Reset password" }).click();
+  await expect(page).toHaveURL(`${WEB_BASE_URL}/app/reset-password`);
+  await expect(
+    page.getByRole("heading", { name: "Reset password", exact: true })
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Send code" })).toBeVisible();
+  await page.getByRole("button", { name: "Back to settings" }).click();
+  await expect(page).toHaveURL(`${WEB_BASE_URL}/app/settings`);
 
   const saveButton = page.getByRole("button", { name: "Save" });
   await expect(saveButton).toBeDisabled();
@@ -59,4 +81,13 @@ test("settings page manages query aliases from compact rows", async ({
   await expect(
     page.locator(`input[aria-label="Alias name"][value="${aliasName}"]`)
   ).toHaveCount(0);
+
+  await page
+    .getByRole("button", { name: "Permanently delete account" })
+    .click();
+  await expect(
+    page.getByRole("alertdialog").getByText("Delete account?")
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await expect(page.getByText("Delete account?")).toHaveCount(0);
 });

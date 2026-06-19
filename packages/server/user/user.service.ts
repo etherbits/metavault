@@ -1,6 +1,16 @@
+import crypto from "node:crypto";
+import { authModel } from "../auth/auth.model";
+import { emailService } from "../email/email.service";
 import { logger } from "../logger";
+import { processAndSaveAvatar } from "../storage/image.service";
 import { deleteUserMediaDir } from "../storage/storage.service";
 import { err, ok, type Result } from "../utils/result";
+import type {
+  PasswordResetEmailConfirmInput,
+  PasswordResetEmailRequestInput,
+  PasswordResetConfirmInput,
+  UpdateProfileInput,
+} from "./user.schema";
 import type { User } from "./user.model";
 import { userModel } from "./user.model";
 
@@ -11,6 +21,17 @@ function toPublicUser({
   ...user
 }: User): PublicUser {
   return user;
+}
+
+function generateOTP(): string {
+  const otp = crypto.randomInt(0, 1000000);
+  return otp.toString().padStart(6, "0");
+}
+
+function hashPassword(password: string): Promise<string> {
+  return Bun.password.hash(password, {
+    algorithm: "argon2id",
+  });
 }
 
 class UserService {
@@ -37,6 +58,94 @@ class UserService {
     }
 
     return ok(toPublicUser(user));
+  }
+
+  async updateProfile(
+    id: string,
+    input: UpdateProfileInput
+  ): Promise<Result<PublicUser>> {
+    const existing = await userModel.getUserByUsername(input.username);
+    if (existing && existing.id !== id) {
+      return err(409, "Username is already taken");
+    }
+
+    const user = await userModel.updateUser(id, { username: input.username });
+    if (!user) {
+      return err(404, "User not found");
+    }
+
+    return ok(toPublicUser(user));
+  }
+
+  async updateAvatar(
+    id: string,
+    imageBuffer?: Buffer
+  ): Promise<Result<PublicUser>> {
+    if (!imageBuffer) {
+      return err(400, "Profile image is required");
+    }
+
+    const current = await userModel.getUserById(id);
+    if (!current) {
+      return err(404, "User not found");
+    }
+
+    const avatarUrl = await processAndSaveAvatar(imageBuffer, id);
+    const user = await userModel.updateUser(id, { avatar_url: avatarUrl });
+    if (!user) {
+      return err(404, "User not found");
+    }
+
+    return ok(toPublicUser(user));
+  }
+
+  async requestPasswordResetByEmail(
+    input: PasswordResetEmailRequestInput
+  ): Promise<Result<{ message: string }>> {
+    const user = await userModel.getUserByEmail(input.email);
+    if (!user) {
+      return err(404, "User not found");
+    }
+
+    return this.sendPasswordResetCode(user);
+  }
+
+  async confirmPasswordResetByEmail(
+    input: PasswordResetEmailConfirmInput
+  ): Promise<Result<{ message: string }>> {
+    const user = await userModel.getUserByEmail(input.email);
+    if (!user) {
+      return err(404, "User not found");
+    }
+
+    return this.updatePasswordWithOtp(user.id, input);
+  }
+
+  private async sendPasswordResetCode(
+    user: Pick<User, "id" | "email">
+  ): Promise<Result<{ message: string }>> {
+    await authModel.deleteOTP(user.id);
+    const otpCode = generateOTP();
+    await authModel.createOTP(user.id, otpCode);
+    await emailService.sendPasswordResetCode(user.email, otpCode);
+
+    return ok({ message: "Password reset code sent to your email" });
+  }
+
+  private async updatePasswordWithOtp(
+    userId: string,
+    input: PasswordResetConfirmInput
+  ): Promise<Result<{ message: string }>> {
+    const otp = await authModel.getValidOTP(userId, input.otpCode);
+    if (!otp) {
+      return err(400, "Invalid or expired OTP code");
+    }
+
+    const passwordHash = await hashPassword(input.password);
+    await userModel.updateUser(userId, { password_hash: passwordHash });
+    await authModel.deleteOTP(userId);
+
+    return ok({ message: "Password updated successfully" });
   }
 
   async deleteUserById(id: string): Promise<Result<{ message: string }>> {
