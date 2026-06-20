@@ -12,14 +12,8 @@ import {
 } from "../user/user.schema";
 import { userService } from "../user/user.service";
 import { sendServiceError } from "../utils/http";
+import { authCookieOptions } from "./auth.cookies";
 import { authService } from "./auth.service";
-
-const authCookieOptions = {
-  httpOnly: true,
-  secure: parsedEnv.NODE_ENV === "production",
-  sameSite: "lax" as const,
-  maxAge: 1000 * 60 * 60 * 24,
-};
 
 const authRouter = Router()
   .use(

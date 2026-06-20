@@ -144,6 +144,35 @@ test("collections reject invalid library entries", async ({ request }) => {
   });
 });
 
+test("collections reject duplicate names for one user", async ({ request }) => {
+  await signIn(request);
+  const suffix = Date.now();
+  const name = `Duplicate Collection ${suffix}`;
+
+  await createCollection(request, name);
+
+  const duplicateResponse = await request.post("/collections", {
+    data: { name: name.toUpperCase() },
+  });
+  expect(duplicateResponse.status()).toBe(409);
+  expect(await duplicateResponse.json()).toEqual({
+    message: "Collection name already exists",
+  });
+
+  const otherCollection = await createCollection(
+    request,
+    `Rename Target ${suffix}`
+  );
+  const updateResponse = await request.patch(
+    `/collections/${otherCollection.id}`,
+    { data: { name: name.toLowerCase() } }
+  );
+  expect(updateResponse.status()).toBe(409);
+  expect(await updateResponse.json()).toEqual({
+    message: "Collection name already exists",
+  });
+});
+
 test("query page adds an item to multiple collections from searchable picker", async ({
   request,
   page,
@@ -182,18 +211,20 @@ test("query page adds an item to multiple collections from searchable picker", a
   });
   await page.getByPlaceholder("Search collections").fill("Picker First");
   await pickerDialog
-    .getByRole("button", { name: firstCollection.name, exact: true })
+    .locator("button")
+    .filter({ hasText: firstCollection.name })
     .click();
   await expect(pickerDialog.getByText("1 selected")).toBeVisible();
   await page.getByPlaceholder("Search collections").fill("");
   await pickerDialog
-    .getByRole("button", { name: secondCollection.name, exact: true })
+    .locator("button")
+    .filter({ hasText: secondCollection.name })
     .click();
   await expect(pickerDialog.getByText("2 selected")).toBeVisible();
   await page.getByPlaceholder("New collection name").fill(createdName);
   await page.getByRole("button", { name: "Create collection" }).click();
   await expect(
-    pickerDialog.getByRole("button", { name: createdName, exact: true })
+    pickerDialog.locator("button").filter({ hasText: createdName })
   ).toBeVisible();
   await expect(pickerDialog.getByText("3 selected")).toBeVisible();
   await pickerDialog.getByRole("button", { name: "Save", exact: true }).click();
@@ -223,11 +254,15 @@ test("query page adds an item to multiple collections from searchable picker", a
     createdName,
   ]) {
     await pickerDialog
-      .getByRole("button", { name: collectionName, exact: true })
+      .locator("button")
+      .filter({ hasText: collectionName })
       .click();
   }
   await expect(pickerDialog.getByText("0 selected")).toBeVisible();
   await pickerDialog.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Add to collections" })
+  ).toHaveCount(0);
 
   const afterRemoval = await fetchCollections(request);
   for (const collectionName of [

@@ -2,7 +2,10 @@ import crypto from "node:crypto";
 import { authModel } from "../auth/auth.model";
 import { emailService } from "../email/email.service";
 import { logger } from "../logger";
-import { processAndSaveAvatar } from "../storage/image.service";
+import {
+  InvalidImageError,
+  processAndSaveAvatar,
+} from "../storage/image.service";
 import { deleteUserMediaDir } from "../storage/storage.service";
 import { err, ok, type Result } from "../utils/result";
 import type {
@@ -90,7 +93,17 @@ class UserService {
       return err(404, "User not found");
     }
 
-    const avatarUrl = await processAndSaveAvatar(imageBuffer, id);
+    let avatarUrl: string;
+    try {
+      avatarUrl = await processAndSaveAvatar(imageBuffer, id);
+    } catch (error) {
+      if (error instanceof InvalidImageError) {
+        return err(400, "Unsupported image file");
+      }
+
+      throw error;
+    }
+
     const user = await userModel.updateUser(id, { avatar_url: avatarUrl });
     if (!user) {
       return err(404, "User not found");
@@ -104,7 +117,7 @@ class UserService {
   ): Promise<Result<{ message: string }>> {
     const user = await userModel.getUserByEmail(input.email);
     if (!user) {
-      return err(404, "User not found");
+      return ok({ message: "Password reset code sent to your email" });
     }
 
     return this.sendPasswordResetCode(user);

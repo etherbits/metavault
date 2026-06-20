@@ -189,7 +189,7 @@ jobs:
           file: packages/web-client/Dockerfile.prod
           platforms: linux/amd64,linux/arm64
           build-args: |
-            VITE_API_URL=http://localhost:3435/
+            VITE_API_URL=/api
           push: true
           tags: ghcr.io/${{ github.repository }}/web-client:latest
           secrets: |

@@ -1,5 +1,6 @@
 import { Router } from "express";
-import { upload } from "../middleware/upload";
+import { authCookieOptions } from "../auth/auth.cookies";
+import { imageUpload } from "../middleware/upload";
 import { validatedRoute } from "../middleware/validation";
 import { sendServiceError } from "../utils/http";
 import { updateProfileSchema } from "./user.schema";
@@ -37,7 +38,7 @@ const userRouter = Router()
   .post(
     "/profile/avatar",
     ...validatedRoute(
-      { auth: true, middleware: [upload.single("image")] },
+      { auth: true, middleware: [imageUpload.single("image")] },
       async (req, res) => {
         const result = await userService.updateAvatar(
           req.user.userId,
@@ -59,7 +60,7 @@ const userRouter = Router()
         return sendServiceError(res, result.error);
       }
 
-      res.clearCookie("access_token");
+      res.clearCookie("access_token", authCookieOptions);
       return res.json(result.data);
     })
   );

@@ -25,7 +25,7 @@ services:
       context: .
       dockerfile: packages/web-client/Dockerfile.prod
       args:
-        VITE_API_URL: "${VITE_API_URL:-http://localhost:3435/}"
+        VITE_API_URL: "${VITE_API_URL:-/api}"
     restart: unless-stopped
     ports:
       - "3534:80"

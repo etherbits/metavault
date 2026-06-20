@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { fileTypeFromBuffer } from "file-type";
 import sharp from "sharp";
 import {
   getAvatarPublicPath,
@@ -14,11 +15,34 @@ type SavedImages = {
   small: string;
 };
 
+const SUPPORTED_IMAGE_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+]);
+
+export class InvalidImageError extends Error {
+  constructor() {
+    super("Unsupported image file");
+    this.name = "InvalidImageError";
+  }
+}
+
+async function assertSupportedImage(fileBuffer: Buffer) {
+  const fileType = await fileTypeFromBuffer(fileBuffer);
+  if (!fileType || !SUPPORTED_IMAGE_MIME_TYPES.has(fileType.mime)) {
+    throw new InvalidImageError();
+  }
+}
+
 export async function processAndSaveImage(
   fileBuffer: Buffer,
   userId: string,
   entryId: string
 ): Promise<SavedImages> {
+  await assertSupportedImage(fileBuffer);
+
   const dir = getUserLibraryEntryDir(userId, entryId);
 
   await fs.mkdir(dir, { recursive: true });
@@ -47,6 +71,8 @@ export async function processAndSaveImage(
 }
 
 export async function processAndSaveAvatar(fileBuffer: Buffer, userId: string) {
+  await assertSupportedImage(fileBuffer);
+
   const dir = getUserProfileMediaDir(userId);
   const filename = "avatar.webp";
   const avatarPath = path.join(dir, filename);

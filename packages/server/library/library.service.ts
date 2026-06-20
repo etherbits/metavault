@@ -2,7 +2,10 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import { logger } from "../logger";
-import { processAndSaveImage } from "../storage/image.service";
+import {
+  InvalidImageError,
+  processAndSaveImage,
+} from "../storage/image.service";
 import { MEDIA_BASE_URL, MEDIA_ROOT } from "../storage/path.util";
 import { deleteLibraryEntryDir } from "../storage/storage.service";
 import { err, ok, type Result } from "../utils/result";
@@ -293,7 +296,15 @@ class LibraryService {
     let imagePaths = null;
 
     if (imageBuffer) {
-      imagePaths = await processAndSaveImage(imageBuffer, userId, entryId);
+      try {
+        imagePaths = await processAndSaveImage(imageBuffer, userId, entryId);
+      } catch (error) {
+        if (error instanceof InvalidImageError) {
+          return err(400, "Unsupported image file");
+        }
+
+        throw error;
+      }
     }
 
     const entry = await libraryModel.create({
@@ -342,7 +353,16 @@ class LibraryService {
     let imageSrc: string | undefined;
 
     if (imageBuffer) {
-      const imagePaths = await processAndSaveImage(imageBuffer, userId, id);
+      let imagePaths: Awaited<ReturnType<typeof processAndSaveImage>>;
+      try {
+        imagePaths = await processAndSaveImage(imageBuffer, userId, id);
+      } catch (error) {
+        if (error instanceof InvalidImageError) {
+          return err(400, "Unsupported image file");
+        }
+
+        throw error;
+      }
 
       imageSrc = imagePaths.original;
     }

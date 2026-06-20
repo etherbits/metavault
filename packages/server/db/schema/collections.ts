@@ -16,4 +16,9 @@ export async function createCollectionsTable(sql: SQL) {
     CREATE INDEX IF NOT EXISTS idx_collections_user_id
     ON collections(user_id)
   `;
+
+  await sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_collections_user_name
+    ON collections(user_id, lower(name))
+  `;
 }

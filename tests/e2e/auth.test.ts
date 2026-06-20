@@ -129,6 +129,19 @@ test("auth password reset uses email OTP and updates credentials", async ({
   expect(newPasswordResponse.ok()).toBeTruthy();
 });
 
+test("auth password reset request does not reveal unknown emails", async ({
+  request,
+}) => {
+  const response = await request.post("/auth/password-reset/request", {
+    data: { email: `missing-${Date.now()}@test.local` },
+  });
+
+  expect(response.ok()).toBeTruthy();
+  expect(await response.json()).toEqual({
+    message: "Password reset code sent to your email",
+  });
+});
+
 test("forgot password uses a dedicated reset page", async ({ page }) => {
   await page.goto(`${WEB_BASE_URL}/login`);
 

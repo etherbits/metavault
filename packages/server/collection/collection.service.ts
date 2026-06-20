@@ -46,6 +46,14 @@ class CollectionService {
       return err(400, "One or more library entries do not belong to the user");
     }
 
+    const existingName = await collectionModel.getByUserAndName(
+      userId,
+      body.name
+    );
+    if (existingName) {
+      return err(409, "Collection name already exists");
+    }
+
     const collection = await collectionModel.create({
       id: crypto.randomUUID(),
       user_id: userId,
@@ -104,6 +112,17 @@ class CollectionService {
           400,
           "One or more library entries do not belong to the user"
         );
+      }
+    }
+
+    if (body.name) {
+      const existingName = await collectionModel.getByUserAndName(
+        userId,
+        body.name,
+        id
+      );
+      if (existingName) {
+        return err(409, "Collection name already exists");
       }
     }
 

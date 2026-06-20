@@ -5,12 +5,12 @@ const collectionEntrySchema = z.object({
 });
 
 export const createCollectionSchema = z.object({
-  name: z.string().min(1),
+  name: z.string().trim().min(1),
   entries: z.array(collectionEntrySchema).optional(),
 });
 
 export const updateCollectionSchema = z.object({
-  name: z.string().min(1).optional(),
+  name: z.string().trim().min(1).optional(),
   entries: z.array(collectionEntrySchema).optional(),
 });
 
