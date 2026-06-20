@@ -6,7 +6,7 @@ MetaVault is a multi-user, API-first personal media library for tracking any kin
 
 MetaVault is a self-hostable media library for tracking any media in one searchable place. The current app supports:
 
-- Public landing page with login, registration, and email verification flows.
+- Login, registration, and email verification flows.
 - Account settings for username changes, avatar uploads, password resets, and account deletion.
 - Group library entries on the Home page by status, recency, and custom collections.
 - Search and modify the library from the Query page using EZQ, the Easy Query language.
