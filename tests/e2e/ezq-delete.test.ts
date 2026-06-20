@@ -206,11 +206,11 @@ test("query page /delete !(attack on titan) deletes non-matching title entries",
   await createVerifiedUser(request, username, email);
   await signIn(request, username, TEST_AUTH_PASSWORD);
 
-  const keptTitle = "attack on titan";
+  const keptTitle = `attack on titan ${suffix}`;
   const deletedTitle = `not attack ${suffix}`;
 
   const keptCreate = await request.post("/ezq", {
-    data: { query: "/create attack_on_titan" },
+    data: { query: `/create ${keptTitle.replace(/ /g, "_")}` },
   });
   expect(keptCreate.ok()).toBeTruthy();
 
@@ -220,7 +220,7 @@ test("query page /delete !(attack on titan) deletes non-matching title entries",
   expect(deletedCreate.ok()).toBeTruthy();
 
   const deleteResponse = await request.post("/ezq", {
-    data: { query: "/delete !(attack on titan)" },
+    data: { query: `/delete !(${keptTitle})` },
   });
   expect(deleteResponse.ok()).toBeTruthy();
   const deletedRows = (await deleteResponse.json()).rows as Array<{
@@ -245,7 +245,7 @@ test("query page /delete !(attack on titan) deletes non-matching title entries",
   expect(recreateResponse.ok()).toBeTruthy();
 
   await openQueryPage(page, username, TEST_AUTH_PASSWORD);
-  await executeQuery(page, "/delete !(attack on titan)");
+  await executeQuery(page, `/delete !(${keptTitle})`);
   await executeQuery(page, "/s");
   await expect(page.getByRole("heading", { name: keptTitle })).toBeVisible();
   await expectNoQueryResult(page, deletedTitle);
