@@ -2,49 +2,67 @@ direction: right
 
 user: User { shape: person }
 
-sources: Source APIs {
-  igdb: IGDB
-  openlibrary: OpenLibrary
-  tmdb: TMDB
-  anilist: AniList
-}
-
-ai: AI Service { shape: rectangle }
-
 system: MetaVault {
-  auth: Authentication {
+  grid-columns: 2
+  auth: Account {
     grid-columns: 2
-    register: Register { shape: oval }
-    verify: Verify Account { shape: oval }
-    login: Login { shape: oval }
-    logout: Logout { shape: oval }
+    signup: Sign Up { shape: oval }
+    verify: Verify Email { shape: oval }
+    signin: Sign In { shape: oval }
+    signout: Sign Out { shape: oval }
+    username: Change Username { shape: oval }
+    reset: Reset Password { shape: oval }
+    avatar: Upload Avatar { shape: oval }
+    delete_account: Delete Account { shape: oval }
   }
   library: Library {
-    grid-columns: 4
+    grid-columns: 3
     add: Add Entries { shape: oval }
-    update: Update Entries { shape: oval }
+    edit: Edit Entries { shape: oval }
     delete: Delete Entries { shape: oval }
-    search: Search Entries { shape: oval }
-    import: Import Media { shape: oval }
-    export: Export Media { shape: oval }
+    search: Search Library { shape: oval }
+    import: Import Library { shape: oval }
+    export: Export Library { shape: oval }
+    collections: Manage Collections { shape: oval }
+    content_nodes: Manage Content Nodes { shape: oval }
+    aliases: Use Query Aliases { shape: oval }
   }
   integrations: Integrations {
     grid-columns: 2
-    toggle_source: Toggle Source Integration { shape: oval }
-    toggle_ai: Toggle AI Integration { shape: oval }
+    source_profiles: Manage Source Profiles { shape: oval }
+    source_config: Configure Source Settings { shape: oval }
+    ai_profiles: Manage AI Profiles { shape: oval }
+    active_ai: Select Active AI Profile { shape: oval }
   }
-  ai_chat: AI Chat { shape: oval }
+  recommendations: Assistant and Recommendations {
+    grid-columns: 2
+    chat: Chat With Assistant { shape: oval }
+    stream: Stream Assistant Replies { shape: oval }
+    recommend: Generate Recommendations { shape: oval }
+    rank: Rank Recommendation Candidates { shape: oval }
+  }
+  catalogue: Catalogue {
+    grid-columns: 3
+    configure: Configure Catalogue { shape: oval }
+    refresh: Refresh Catalogue { shape: oval }
+    embed: Embed Entries { shape: oval }
+  }
 }
 
-# User interacts with each feature group
-user -> system.auth
-user -> system.library
-user -> system.integrations
-user -> system.ai_chat
+external: External Services {
+  direction: down
+  sources: Source APIs {
+    grid-columns: 2
+    igdb: IGDB
+    openlibrary: OpenLibrary
+    tmdb: TMDB
+    anilist: AniList
+  }
+  ai: AI Provider { shape: rectangle }
+}
 
-# Collapse the source connections to the container level
-# to prevent the layout engine from exploding
-system.library -> sources
-system.integrations.toggle_source -> sources
-system.ai_chat -> ai
-system.integrations.toggle_ai -> ai
+# Main product user
+user -> system: Uses
+
+# External integration providers
+system -> external: Integrates with

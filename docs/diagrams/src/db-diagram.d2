@@ -1,115 +1,158 @@
-direction: down
+direction: right
 
-users: {
-  shape: sql_table
-  id: UUID {constraint: primary_key}
-  username: TEXT {constraint: unique}
-  email: TEXT {constraint: unique}
-  password_hash: TEXT
-  is_verified: BOOL
-  created_at: DATETIME
-  updated_at: DATETIME
+account: "Account data" {
+  users: {
+    shape: sql_table
+    id: TEXT {constraint: primary_key}
+    username: TEXT {constraint: unique}
+    email: TEXT {constraint: unique}
+    avatar_url: TEXT
+    is_verified: INTEGER
+  }
+
+  otp_codes: {
+    shape: sql_table
+    id: TEXT {constraint: primary_key}
+    user_id: TEXT {constraint: foreign_key}
+    otp_code: TEXT
+    otp_code_expiration_date: DATETIME
+  }
 }
 
-library_entries: {
-  shape: sql_table
-  id: UUID {constraint: primary_key}
-  title: TEXT
-  user_id: UUID {constraint: foreign_key}
-  media_id: TEXT
-  source_id: UUID {constraint: foreign_key}
-  image_src: TEXT
-  media_type: TEXT
-  status: TEXT
-  public_rating: REAL
-  personal_rating: REAL
-  released_at: DATETIME
-  created_at: DATETIME
-  updated_at: DATETIME
+library: "User library" {
+  library_entries: {
+    shape: sql_table
+    id: TEXT {constraint: primary_key}
+    title: TEXT
+    user_id: TEXT {constraint: foreign_key}
+    source_id: TEXT {constraint: foreign_key}
+    media_id: TEXT
+    image_src: TEXT
+    media_type: TEXT
+    status: TEXT
+    adult: INTEGER
+    public_rating: REAL
+    personal_rating: REAL
+    released_at: DATETIME
+  }
+
+  tags: {
+    shape: sql_table
+    id: TEXT {constraint: primary_key}
+    user_id: TEXT {constraint: foreign_key}
+    value: TEXT
+    weight: TEXT
+  }
+
+  library_entry_tags: {
+    shape: sql_table
+    library_entry_id: TEXT {constraint: "PK, FK"}
+    tag_id: TEXT {constraint: "PK, FK"}
+  }
+
+  collections: {
+    shape: sql_table
+    id: TEXT {constraint: primary_key}
+    user_id: TEXT {constraint: foreign_key}
+    name: TEXT
+  }
+
+  collection_entries: {
+    shape: sql_table
+    id: TEXT {constraint: primary_key}
+    collection_id: TEXT {constraint: foreign_key}
+    library_entry_id: TEXT {constraint: foreign_key}
+  }
+
+  content_nodes: {
+    shape: sql_table
+    id: TEXT {constraint: primary_key}
+    library_entry_id: TEXT {constraint: foreign_key}
+    title: TEXT
+    link: TEXT
+    order_index: INTEGER
+  }
 }
 
-source_integrations: {
-	shape: sql_table
-	id: UUID {constraint: primary_key}
-	is_active: BOOL
-	integration_type: TEXT
-	user_id: UUID {constraint: foreign_key}
-	config_json: TEXT
+settings: "User settings" {
+  source_integrations: {
+    shape: sql_table
+    id: TEXT {constraint: primary_key}
+    user_id: TEXT {constraint: foreign_key}
+    integration_type: TEXT
+    is_active: INTEGER
+    config_json: TEXT
+  }
+
+  ai_integrations: {
+    shape: sql_table
+    id: TEXT {constraint: primary_key}
+    user_id: TEXT {constraint: foreign_key}
+    name: TEXT
+    integration_type: TEXT
+    is_active: INTEGER
+    config_json: TEXT
+  }
+
+  alias_mappings: {
+    shape: sql_table
+    id: TEXT {constraint: primary_key}
+    user_id: TEXT {constraint: foreign_key}
+    alias: TEXT
+    expansion: TEXT
+  }
 }
 
-ai_integrations: {
-	shape: sql_table
-	id: UUID {constraint: primary_key}
-	is_active: BOOL
-	integration_type: TEXT
-	user_id: UUID {constraint: foreign_key}
-	config_json: TEXT
+assistant: "Assistant history" {
+  assistant_sessions: {
+    shape: sql_table
+    id: TEXT {constraint: primary_key}
+    user_id: TEXT {constraint: foreign_key}
+    title: TEXT
+  }
+
+  assistant_messages: {
+    shape: sql_table
+    id: TEXT {constraint: primary_key}
+    session_id: TEXT {constraint: foreign_key}
+    role: TEXT
+    position: INTEGER
+  }
 }
 
-alias_mappings: {
-	shape: sql_table
-	id: UUID {constraint: primary_key}
-	user_id: UUID {constraint: foreign_key}
-	alias: TEXT
-	expansion: TEXT
+catalogue: "Recommendation catalogue" {
+  catalogue_entries: {
+    shape: sql_table
+    id: TEXT {constraint: primary_key}
+    source_type: TEXT
+    source_media_id: TEXT
+    media_type: TEXT
+    title: TEXT
+    image_src: TEXT
+    adult: INTEGER
+    public_rating: REAL
+    popularity: INTEGER
+    released_at: DATETIME
+    genres_json: TEXT
+    tags_json: TEXT
+    embedding_text_hash: TEXT
+  }
+
+  catalogue_embeddings: {
+    shape: sql_table
+    catalogue_entry_id: TEXT {constraint: "PK, FK"}
+    embedding_model: TEXT {constraint: primary_key}
+    dimensions: INTEGER
+    embedding_blob: BLOB
+    embedding_text_hash: TEXT
+  }
 }
 
-content_nodes: {
-	shape: sql_table
-	id: UUID {constraint: primary_key}
-	title: TEXT
-	link: TEXT
-	order_index: INT
-	library_entry_id: UUID {constraint: foreign_key}
-}
-
-tags: {
-	shape: sql_table
-	id: UUID {constraint: primary_key}
-	user_id: UUID {constraint: foreign_key}
-	value: TEXT
-	weight: TEXT
-}
-
-library_entry_tags: {
-	shape: sql_table
-	library_entry_id: UUID {constraint: [primary_key; foreign_key]}
-	tag_id: UUID {constraint: [primary_key; foreign_key]}
-}
-
-collections: {
-	shape: sql_table
-	id: UUID {constraint: primary_key}
-	name: TEXT
-	created_at: DATETIME
-	updated_at: DATETIME
-}
-
-collection_entries: {
-	shape: sql_table
-	id: UUID {constraint: primary_key}
-	collection_id: UUID {constraint: foreign_key}
-	library_entry_id: UUID {constraint: foreign_key}
-}
-
-otp_codes: {
-	shape: sql_table
-	id: UUID {constraint: primary_key}
-	user_id: UUID {constraint: foreign_key}
-	otp_code: TEXT
-	otp_code_expiration_date: DATETIME
-	created_at: DATETIME
-}
-
-library_entries.user_id -> users.id
-library_entries.source_id -> source_integrations.id
-source_integrations.user_id -> users.id
-ai_integrations.user_id -> users.id
-alias_mappings.user_id -> users.id
-content_nodes.library_entry_id -> library_entries.id
-tags.user_id -> users.id
-library_entry_tags.library_entry_id -> library_entries.id
-library_entry_tags.tag_id -> tags.id
-collection_entries.collection_id -> collections.id
-collection_entries.library_entry_id -> library_entries.id
-otp_codes.user_id -> users.id
+settings.source_integrations.id -> library.library_entries.source_id
+library.library_entries.id -> library.library_entry_tags.library_entry_id
+library.tags.id -> library.library_entry_tags.tag_id
+library.collections.id -> library.collection_entries.collection_id
+library.library_entries.id -> library.collection_entries.library_entry_id
+library.library_entries.id -> library.content_nodes.library_entry_id
+assistant.assistant_sessions.id -> assistant.assistant_messages.session_id
+catalogue.catalogue_entries.id -> catalogue.catalogue_embeddings.catalogue_entry_id
