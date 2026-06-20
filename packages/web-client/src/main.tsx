@@ -5,16 +5,31 @@ import "./index.css";
 import App from "./App.tsx";
 import { AppProviders } from "./app/AppProviders";
 import { useAuthSession } from "./features/auth/hooks";
-import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { DetailPage } from "./pages/app/DetailPage";
 import { HomePage } from "./pages/app/HomePage";
 import { IntegrationsPage } from "./pages/app/IntegrationsPage";
 import { QueryPage } from "./pages/app/QueryPage";
 import { ResetPasswordPage } from "./pages/app/ResetPasswordPage";
 import { SettingsPage } from "./pages/app/SettingsPage";
+import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
+import { LandingPage } from "./pages/LandingPage";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { VerifyPage } from "./pages/VerifyPage";
+
+function PublicRootRoute() {
+  const session = useAuthSession();
+
+  if (session.data) {
+    return <Navigate to="/app" replace />;
+  }
+
+  if (session.isLoading || session.isFetching) {
+    return <AuthLoadingScreen />;
+  }
+
+  return <LandingPage />;
+}
 
 function ProtectedAppRoute() {
   const session = useAuthSession();
@@ -34,7 +49,7 @@ function AuthLoadingScreen() {
   return (
     <main className="grid min-h-screen place-items-center bg-[#18181B] px-4 text-[#D4D4D8]">
       <div className="flex items-center gap-3 rounded-[8px] border border-[#3F3F46] bg-[#27272A] px-4 py-3 shadow-[0_18px_32px_rgba(0,0,0,0.24)]">
-        <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#3F3F46] border-t-[#FACC15]" />
+        <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#3F3F46] border-t-[#FACC16]" />
         <span className="text-sm font-medium">Checking session...</span>
       </div>
     </main>
@@ -52,7 +67,7 @@ createRoot(rootElement).render(
     <AppProviders>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="/" element={<PublicRootRoute />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/signup" element={<Navigate to="/register" replace />} />
           <Route path="/login" element={<LoginPage />} />
@@ -69,7 +84,7 @@ createRoot(rootElement).render(
             <Route path="reset-password" element={<ResetPasswordPage />} />
             <Route path="settings" element={<SettingsPage />} />
           </Route>
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </AppProviders>

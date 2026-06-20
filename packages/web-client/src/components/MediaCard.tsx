@@ -23,6 +23,8 @@ import { cn } from "@/lib/utils";
 
 interface MediaCardProps {
   item: MediaItem;
+  variant?: "default" | "compact";
+  showActions?: boolean;
   selectMode?: boolean;
   selected?: boolean;
   onToggleSelect?: (id: string) => void;
@@ -82,7 +84,7 @@ function MoreTagsPill({
       <Popover.Trigger asChild>
         <button
           type="button"
-          className="inline-flex h-5 items-center rounded-[8px] border border-[#3F3F46] bg-[#3F3F46]/70 px-2 text-[12px] font-semibold leading-4 text-[#D4D4D8] transition-colors hover:bg-[#52525B] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FACC15]"
+          className="inline-flex h-5 items-center rounded-[8px] border border-[#3F3F46] bg-[#3F3F46]/70 px-2 text-[12px] font-semibold leading-4 text-[#D4D4D8] transition-colors hover:bg-[#52525B] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FACC16]"
           onClick={(event) => event.stopPropagation()}
         >
           +{count}
@@ -124,6 +126,8 @@ function sortTagsForDisplay(tags: MediaItem["tags"]) {
 
 export function MediaCard({
   item,
+  variant = "default",
+  showActions = true,
   selectMode = false,
   selected = false,
   onToggleSelect,
@@ -151,6 +155,7 @@ export function MediaCard({
   const canEditLibraryFields = !item.id.startsWith("catalogue:");
   const canEditPersonalRating =
     Boolean(onChangePersonalRating) && canEditLibraryFields;
+  const compact = variant === "compact";
 
   function handleCardClick() {
     if (selectMode) {
@@ -162,13 +167,26 @@ export function MediaCard({
     <Card
       data-media-card-id={item.id}
       className={cn(
-        "relative h-full min-h-[300px] w-full overflow-visible rounded-[4px] border-none bg-[#27272A] py-0 text-white ring-0 shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)]",
-        selected && "ring-2 ring-[#FACC15]"
+        "relative h-full w-full overflow-visible rounded-[4px] border-none bg-[#27272A] py-0 text-white ring-0 shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)]",
+        compact ? "min-h-[154px] sm:min-h-[214px]" : "min-h-[300px]",
+        selected && "ring-2 ring-[#FACC16]"
       )}
       onClick={handleCardClick}
     >
-      <div className="flex h-full min-w-0 flex-col sm:flex-row">
-        <div className="relative isolate aspect-[2/3] w-full shrink-0 overflow-visible rounded-t-[4px] sm:h-auto sm:w-[42%] sm:max-w-[200px] sm:rounded-l-[4px] sm:rounded-tr-none">
+      <div
+        className={cn(
+          "flex h-full min-w-0",
+          compact ? "flex-row" : "flex-col sm:flex-row"
+        )}
+      >
+        <div
+          className={cn(
+            "relative isolate aspect-[2/3] shrink-0 overflow-visible",
+            compact
+              ? "h-auto w-[38%] max-w-[96px] rounded-l-[4px] sm:max-w-[128px]"
+              : "w-full rounded-t-[4px] sm:h-auto sm:w-[42%] sm:max-w-[200px] sm:rounded-l-[4px] sm:rounded-tr-none"
+          )}
+        >
           <img
             src={posterSrc}
             alt=""
@@ -176,9 +194,21 @@ export function MediaCard({
             width={400}
             height={600}
             decoding="async"
-            className="pointer-events-none absolute inset-0 z-0 h-full w-full scale-105 rounded-t-[4px] object-cover opacity-25 blur-xl sm:rounded-l-[4px] sm:rounded-tr-none"
+            className={cn(
+              "pointer-events-none absolute inset-0 z-0 h-full w-full scale-105 object-cover opacity-25 blur-xl",
+              compact
+                ? "rounded-l-[4px]"
+                : "rounded-t-[4px] sm:rounded-l-[4px] sm:rounded-tr-none"
+            )}
           />
-          <div className="relative z-10 h-full w-full overflow-hidden rounded-t-[4px] bg-[#27272A] sm:rounded-l-[4px] sm:rounded-tr-none">
+          <div
+            className={cn(
+              "relative z-10 h-full w-full overflow-hidden bg-[#27272A]",
+              compact
+                ? "rounded-l-[4px]"
+                : "rounded-t-[4px] sm:rounded-l-[4px] sm:rounded-tr-none"
+            )}
+          >
             <img
               src={posterSrc}
               alt={item.title}
@@ -190,14 +220,28 @@ export function MediaCard({
           </div>
         </div>
 
-        <CardContent className="flex min-h-[300px] w-full min-w-0 flex-1 flex-col gap-3 px-4 py-3">
-          <h3 className="line-clamp-3 text-lg font-medium leading-7 text-[#F4F4F5] sm:text-[20px]">
+        <CardContent
+          className={cn(
+            "flex w-full min-w-0 flex-1 flex-col px-4 py-3",
+            compact
+              ? "min-h-[154px] gap-2 sm:min-h-[214px]"
+              : "min-h-[300px] gap-3"
+          )}
+        >
+          <h3
+            className={cn(
+              "line-clamp-3 font-medium text-[#F4F4F5]",
+              compact
+                ? "text-[16px] leading-6 sm:text-[17px]"
+                : "text-lg leading-7 sm:text-[20px]"
+            )}
+          >
             {item.title}
           </h3>
 
-          <div className="flex flex-col gap-3">
+          <div className={cn("flex flex-col", compact ? "gap-2" : "gap-3")}>
             <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex h-5 shrink-0 items-center gap-1 whitespace-nowrap rounded-[8px] border border-[#FACC15] px-2 text-[12px] font-semibold leading-4 text-[#FACC15]">
+              <span className="inline-flex h-5 shrink-0 items-center gap-1 whitespace-nowrap rounded-[8px] border border-[#FACC16] px-2 text-[12px] font-semibold leading-4 text-[#FACC16]">
                 {getTypeIcon(item.type)}
                 {item.type}
               </span>
@@ -237,7 +281,12 @@ export function MediaCard({
             </div>
           </div>
 
-          <div className="flex min-w-0 flex-wrap gap-2 overflow-hidden">
+          <div
+            className={cn(
+              "flex min-w-0 flex-wrap gap-2 overflow-hidden",
+              compact && "hidden lg:flex"
+            )}
+          >
             {visibleMajorTags.map((tag) => (
               <TagPill key={tag.id} value={tag.value} />
             ))}
@@ -247,33 +296,35 @@ export function MediaCard({
             <MoreTagsPill count={hiddenTagCount} tags={item.tags} />
           </div>
 
-          <div className="mt-auto flex flex-wrap items-center justify-end gap-3 pt-1">
-            <MediaCardMenu
-              selectMode={selectMode}
-              currentStatus={item.status}
-              onSelect={() => onEnterSelectMode?.(item.id)}
-              onChangeStatus={(status) => onChangeStatus?.(item.id, status)}
-              onAddToCollection={() => onAddToCollection?.(item.id)}
-              onUploadImage={
-                onUploadImage ? () => onUploadImage(item.id) : undefined
-              }
-              onDelete={() => onDelete?.(item.id)}
-              onRemoveStatus={() => onRemoveStatus?.(item.id)}
-            />
+          {showActions ? (
+            <div className="mt-auto flex flex-wrap items-center justify-end gap-3 pt-1">
+              <MediaCardMenu
+                selectMode={selectMode}
+                currentStatus={item.status}
+                onSelect={() => onEnterSelectMode?.(item.id)}
+                onChangeStatus={(status) => onChangeStatus?.(item.id, status)}
+                onAddToCollection={() => onAddToCollection?.(item.id)}
+                onUploadImage={
+                  onUploadImage ? () => onUploadImage(item.id) : undefined
+                }
+                onDelete={() => onDelete?.(item.id)}
+                onRemoveStatus={() => onRemoveStatus?.(item.id)}
+              />
 
-            <Button
-              type="button"
-              variant="brand"
-              onClick={(event) => {
-                event.stopPropagation();
-                onViewDetails?.(item);
-              }}
-              className="rounded-[8px] px-[10px] text-[14px] leading-5"
-            >
-              <Maximize2 size={16} />
-              View Details
-            </Button>
-          </div>
+              <Button
+                type="button"
+                variant="brand"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onViewDetails?.(item);
+                }}
+                className="rounded-[8px] px-[10px] text-[14px] leading-5"
+              >
+                <Maximize2 size={16} />
+                View Details
+              </Button>
+            </div>
+          ) : null}
         </CardContent>
       </div>
     </Card>

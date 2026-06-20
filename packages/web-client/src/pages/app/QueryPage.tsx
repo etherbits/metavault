@@ -4,11 +4,15 @@ import { useNavigate } from "react-router";
 import { AddToCollectionDialog } from "@/components/AddToCollectionDialog";
 import { MediaCard } from "@/components/MediaCard";
 import { Pagination } from "@/components/Pagination";
+import {
+  CanonicalQueryPreview,
+  QueryExecutionState,
+} from "@/components/QueryFeedback";
 import { QueryInput } from "@/components/QueryInput";
 import { Button } from "@/components/ui/button";
 import {
-  AssistantPanel,
   type AssistantMessage,
+  AssistantPanel,
   type AssistantSession,
 } from "@/features/assistant/AssistantPanel";
 import { streamAssistantMessage } from "@/features/assistant/api";
@@ -25,9 +29,9 @@ import {
   useDeleteLibraryEntry,
   useExportLibraryEntries,
   useImportLibraryEntries,
-  useUploadLibraryEntryImage,
   useUpdateLibraryEntry,
   useUpdateLibraryEntryPersonalRating,
+  useUploadLibraryEntryImage,
 } from "@/features/library/hooks";
 import { toServerMediaType, toServerStatus } from "@/features/library/mappers";
 import { paginateItems } from "@/features/library/pagination";
@@ -412,45 +416,29 @@ export function QueryPage() {
             disabled={search.isQueryExecuting}
           />
 
-          {search.canonicalQuery !== "" ? (
-            <div className="flex w-full items-start gap-3 rounded-[8px] border border-[#27272A] bg-[#18181B]/70 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-              <span className="shrink-0 text-[12px] font-medium uppercase leading-5 tracking-[0.08em] text-[#71717A]">
-                Canonical
-              </span>
-              <code className="min-w-0 flex-1 break-words font-mono text-[13px] leading-5 text-[#D4D4D8]">
-                {search.canonicalQuery}
-              </code>
-            </div>
-          ) : search.canonicalQueryError ? (
-            <div className="flex w-full items-start gap-3 rounded-[8px] border border-[#7F1D1D]/70 bg-[#450A0A]/20 px-3 py-2">
-              <span className="shrink-0 text-[12px] font-medium uppercase leading-5 tracking-[0.08em] text-[#FCA5A5]">
-                Canonical
-              </span>
-              <p className="min-w-0 flex-1 text-[13px] leading-5 text-[#F87171]">
-                {search.canonicalQueryError}
-              </p>
-            </div>
-          ) : null}
+          <CanonicalQueryPreview
+            query={search.canonicalQuery}
+            error={search.canonicalQueryError}
+          />
 
           {search.isQueryExecuting ? (
-            <p className="text-[14px] leading-5 text-[#A1A1AA]">
-              Executing query...
-            </p>
+            <QueryExecutionState
+              isExecuting={search.isQueryExecuting}
+              resultCount={search.queryResults.length}
+            />
           ) : search.queryResults.length === 0 ? (
-            search.queryError ? (
-              <p className="w-fit max-w-[358px] text-[14px] leading-5 text-[#F87171]">
-                {search.queryError}
-              </p>
-            ) : (
-              <p className="text-[14px] leading-5 text-[#A1A1AA]">
-                No results found
-              </p>
-            )
+            <QueryExecutionState
+              isExecuting={search.isQueryExecuting}
+              resultCount={search.queryResults.length}
+              error={search.queryError}
+            />
           ) : (
             <div className="flex w-full flex-wrap items-center justify-between gap-3 sm:flex-nowrap">
-              <p className="text-[14px] leading-5 text-[#A1A1AA]">
-                Retrieved {search.queryResults.length} results
-              </p>
+              <QueryExecutionState
+                isExecuting={search.isQueryExecuting}
+                resultCount={search.queryResults.length}
+                error={search.queryError}
+              />
 
               <div className="flex items-center justify-start sm:justify-end">
                 <Pagination

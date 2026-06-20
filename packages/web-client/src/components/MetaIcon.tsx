@@ -24,11 +24,11 @@ export function MetaIcon({ className }: MetaIconProps) {
       />
       <path
         d="M18.5 21L22 19.5L21.3143 7H18.2667L18.5 12.75V21Z"
-        fill="#FACC15"
+        fill="#FACC16"
       />
       <path
         d="M6 19.5L9.25 21L9.5 12.75L9.73333 7H6.68571L6 19.5Z"
-        fill="#FACC15"
+        fill="#FACC16"
       />
     </svg>
   );

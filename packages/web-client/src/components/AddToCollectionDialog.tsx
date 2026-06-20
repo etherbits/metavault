@@ -173,7 +173,7 @@ export function AddToCollectionDialog({
                       className={cn(
                         "flex size-5 shrink-0 items-center justify-center rounded-[5px] border border-[#52525B]",
                         selected &&
-                          "border-[#FACC15] bg-[#FACC15] text-[#09090B]"
+                          "border-[#FACC16] bg-[#FACC16] text-[#09090B]"
                       )}
                       aria-hidden="true"
                     >

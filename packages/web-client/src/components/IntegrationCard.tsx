@@ -94,7 +94,7 @@ export function IntegrationCard({
             onClick={handleToggle}
             disabled={isLoading || isSaving}
             className={`relative inline-flex h-[18px] w-[33px] shrink-0 items-center rounded-[12px] border-0 p-0 shadow-[0px_1px_2px_rgba(0,0,0,0.05)] transition-colors focus-visible:outline-none ${
-              enabled ? "bg-[#FACC15]" : "bg-[#3F3F46]"
+              enabled ? "bg-[#FACC16]" : "bg-[#3F3F46]"
             } disabled:cursor-not-allowed disabled:opacity-60`}
           >
             <span

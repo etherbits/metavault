@@ -285,7 +285,7 @@ function StepIndicator({ step }: { step: ResetStep }) {
           <div
             className={
               index <= activeIndex
-                ? "h-1 rounded-full bg-[#FACC15]"
+                ? "h-1 rounded-full bg-[#FACC16]"
                 : "h-1 rounded-full bg-[#3F3F46]"
             }
           />

@@ -135,7 +135,7 @@ function SidebarRowButton({
           "h-8 w-full overflow-hidden rounded-md py-1 text-sm shadow-none",
           "hover:bg-[#18181B] hover:text-[#D4D4D8]",
           active
-            ? "bg-[#18181B] text-[#FACC15] hover:bg-[#18181B] hover:text-[#FACC15]"
+            ? "bg-[#18181B] text-[#FACC16] hover:bg-[#18181B] hover:text-[#FACC16]"
             : "text-[#D4D4D8]",
           isOpen ? "justify-start px-4" : "justify-center p-0"
         )}
@@ -167,7 +167,7 @@ function SidebarRowLink({
           "h-8 w-full overflow-hidden rounded-md py-1 text-sm shadow-none",
           "hover:bg-[#18181B] hover:text-[#D4D4D8]",
           active
-            ? "bg-[#18181B] text-[#FACC15] hover:bg-[#18181B] hover:text-[#FACC15]"
+            ? "bg-[#18181B] text-[#FACC16] hover:bg-[#18181B] hover:text-[#FACC16]"
             : "text-[#D4D4D8]",
           isOpen ? "justify-start px-4" : "justify-center p-0"
         )}

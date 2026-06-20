@@ -188,7 +188,7 @@ export function AssistantPanel({
                       {session.title}
                     </span>
                     {session.id === activeSessionId ? (
-                      <Check size={14} className="text-[#FACC15]" />
+                      <Check size={14} className="text-[#FACC16]" />
                     ) : null}
                   </DropdownMenu.Item>
                 ))}
@@ -328,7 +328,7 @@ export function AssistantPanel({
                 size="icon"
                 onClick={onSubmit}
                 disabled={isSending || draft.trim().length === 0}
-                className="absolute bottom-3.5 right-3.5 h-8 w-8 rounded-[8px] border border-[#FDE047]/20 bg-[#B99A20] text-[#09090B] shadow-[0_8px_18px_rgba(0,0,0,0.24)] transition-all hover:bg-[#FACC15] hover:shadow-[0_10px_22px_rgba(250,204,21,0.18)] disabled:border-transparent disabled:bg-[#3F3F46] disabled:text-[#71717A] disabled:shadow-none"
+                className="absolute bottom-3.5 right-3.5 h-8 w-8 rounded-[8px] border border-[#FDE047]/20 bg-[#B99A20] text-[#09090B] shadow-[0_8px_18px_rgba(0,0,0,0.24)] transition-all hover:bg-[#FACC16] hover:shadow-[0_10px_22px_rgba(250,204,21,0.18)] disabled:border-transparent disabled:bg-[#3F3F46] disabled:text-[#71717A] disabled:shadow-none"
                 aria-label="Send assistant message"
               >
                 <ArrowUp size={16} strokeWidth={2.4} />
