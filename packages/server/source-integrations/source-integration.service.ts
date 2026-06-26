@@ -1,4 +1,5 @@
 import { sourceIntegrationRegistry } from "../enrichment/source-integration-registry";
+import type { SourceIntegrationConfigFieldMetadata } from "../enrichment/types";
 import { err, ok, type Result } from "../utils/result";
 import {
   type SourceIntegrationRow,
@@ -9,6 +10,8 @@ import type {
   SourceIntegrationType,
   UpdateSourceIntegrationInput,
 } from "./source-integration.schema";
+
+const SAVED_SECRET_PLACEHOLDER = "Saved - leave blank to keep existing value";
 
 class SourceIntegrationService {
   async getSettings(
@@ -23,8 +26,11 @@ class SourceIntegrationService {
         return {
           integration_type: integration.sourceType,
           is_active: row?.is_active === 1,
-          config: row ? this.parseConfig(integration.sourceType, row) : {},
-          config_fields: integration.configFields,
+          config: row ? this.maskConfig(integration.sourceType, row) : {},
+          config_fields: this.configFieldsForClient(
+            integration.configFields,
+            row ? this.parseConfig(integration.sourceType, row) : {}
+          ),
         };
       })
     );
@@ -45,10 +51,17 @@ class SourceIntegrationService {
       return err(404, "Source integration not found");
     }
 
+    const existingRow = await sourceIntegrationModel.getByUserAndType(
+      userId,
+      integrationType
+    );
     const parsedConfig = this.parseConfigInput(
       configSchema,
+      sourceIntegrationRegistry.getKnownIntegration(integrationType)
+        ?.configFields ?? [],
       body.config,
-      body.is_active
+      body.is_active,
+      existingRow
     );
     if (!parsedConfig) {
       return err(400, "Invalid source integration config");
@@ -64,10 +77,12 @@ class SourceIntegrationService {
     return ok({
       integration_type: integrationType,
       is_active: row.is_active === 1,
-      config: this.parseConfig(integrationType, row),
-      config_fields:
+      config: this.maskConfig(integrationType, row),
+      config_fields: this.configFieldsForClient(
         sourceIntegrationRegistry.getKnownIntegration(integrationType)
           ?.configFields ?? [],
+        this.parseConfig(integrationType, row)
+      ),
     });
   }
 
@@ -91,11 +106,19 @@ class SourceIntegrationService {
     configSchema: NonNullable<
       ReturnType<typeof sourceIntegrationRegistry.getConfigSchema>
     >,
+    configFields: SourceIntegrationConfigFieldMetadata[],
     rawConfig: Record<string, unknown>,
-    isActive: boolean
+    isActive: boolean,
+    existingRow: SourceIntegrationRow | null
   ) {
+    const config = this.mergeExistingSecrets({
+      configFields,
+      rawConfig,
+      existingConfig: this.parseRawConfig(existingRow?.config_json ?? null),
+      shouldKeepExistingSecrets: isActive || Object.keys(rawConfig).length > 0,
+    });
     const parsed = this.schemaForActiveState(configSchema, isActive).safeParse(
-      rawConfig
+      config
     );
 
     return parsed.success ? parsed.data : null;
@@ -110,15 +133,98 @@ class SourceIntegrationService {
     return isActive ? configSchema : configSchema.partial();
   }
 
-  private parseRawConfig(configJson: string | null) {
+  private parseRawConfig(configJson: string | null): Record<string, unknown> {
     if (!configJson) return {};
 
     try {
       const parsed = JSON.parse(configJson) as unknown;
-      return parsed && typeof parsed === "object" ? parsed : {};
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+        ? (parsed as Record<string, unknown>)
+        : {};
     } catch {
       return {};
     }
+  }
+
+  private mergeExistingSecrets({
+    configFields,
+    rawConfig,
+    existingConfig,
+    shouldKeepExistingSecrets,
+  }: {
+    configFields: SourceIntegrationConfigFieldMetadata[];
+    rawConfig: Record<string, unknown>;
+    existingConfig: Record<string, unknown>;
+    shouldKeepExistingSecrets: boolean;
+  }) {
+    if (!shouldKeepExistingSecrets) {
+      return rawConfig;
+    }
+
+    const merged = { ...rawConfig };
+    for (const field of configFields) {
+      if (!field.secret) continue;
+
+      const nextValue = merged[field.key];
+      const existingValue = existingConfig[field.key];
+      if (
+        (nextValue === undefined ||
+          (typeof nextValue === "string" && nextValue.trim() === "")) &&
+        typeof existingValue === "string" &&
+        existingValue.trim().length > 0
+      ) {
+        merged[field.key] = existingValue;
+      }
+    }
+
+    return merged;
+  }
+
+  private maskConfig(
+    integrationType: SourceIntegrationType,
+    row: SourceIntegrationRow
+  ) {
+    const config = this.parseConfig(integrationType, row);
+    const fields =
+      sourceIntegrationRegistry.getKnownIntegration(integrationType)
+        ?.configFields ?? [];
+
+    return this.maskSecretFields(config, fields);
+  }
+
+  private maskSecretFields(
+    config: Record<string, unknown>,
+    configFields: SourceIntegrationConfigFieldMetadata[]
+  ) {
+    const masked = { ...config };
+    for (const field of configFields) {
+      if (field.secret && typeof masked[field.key] === "string") {
+        masked[field.key] = "";
+      }
+    }
+
+    return masked;
+  }
+
+  private configFieldsForClient(
+    configFields: SourceIntegrationConfigFieldMetadata[],
+    config: Record<string, unknown>
+  ) {
+    return configFields.map((field) => {
+      const value = config[field.key];
+      if (
+        !field.secret ||
+        typeof value !== "string" ||
+        value.trim().length === 0
+      ) {
+        return field;
+      }
+
+      return {
+        ...field,
+        placeholder: field.placeholder ?? SAVED_SECRET_PLACEHOLDER,
+      };
+    });
   }
 }
 

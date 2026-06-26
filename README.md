@@ -73,6 +73,7 @@ bun install
 To run locally:
 
 ```bash
+cp packages/server/.env.example packages/server/.env
 bun dev
 ```
 
@@ -160,6 +161,12 @@ Just download the compose file and run it:
 
 ```bash
 curl -O https://raw.githubusercontent.com/Etherbits/metavault/main/docker-compose.ghcr.yml
+export JWT_SECRET="$(openssl rand -hex 32)"
+export EMAIL_HOST="smtp.example.com"
+export EMAIL_USER="metavault@example.com"
+export EMAIL_PASS="your-smtp-password"
+export CLIENT_ORIGIN="http://localhost:3534"
+export AUTH_COOKIE_SECURE=false
 docker compose -f docker-compose.ghcr.yml up -d
 ```
 
@@ -170,7 +177,13 @@ Clone the repo and run the docker-compose.prod.yml
 ```bash
 git clone https://github.com/Etherbits/metavault.git
 cd metavault
+export JWT_SECRET="$(openssl rand -hex 32)"
+export EMAIL_HOST="smtp.example.com"
+export EMAIL_USER="metavault@example.com"
+export EMAIL_PASS="your-smtp-password"
+export CLIENT_ORIGIN="http://localhost:3534"
+export AUTH_COOKIE_SECURE=false
 docker compose -f docker-compose.prod.yml up -d
 ```
 
-After this, you should be able to access the web app at `http://localhost:3534`.
+After this, you should be able to access the web app at `http://localhost:3534`. The compose files keep SQLite data and uploaded media in named Docker volumes. For a public HTTPS deployment, set `CLIENT_ORIGIN` to the deployed web origin and leave `AUTH_COOKIE_SECURE` enabled.

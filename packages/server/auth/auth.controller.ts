@@ -12,7 +12,7 @@ import {
 } from "../user/user.schema";
 import { userService } from "../user/user.service";
 import { sendServiceError } from "../utils/http";
-import { authCookieOptions } from "./auth.cookies";
+import { authCookieClearOptions, authCookieOptions } from "./auth.cookies";
 import { authService } from "./auth.service";
 
 const authRouter = Router()
@@ -20,6 +20,20 @@ const authRouter = Router()
     rateLimit({
       windowMs: parsedEnv.RATE_LIMIT_WINDOW_MS,
       max: parsedEnv.AUTH_RATE_LIMIT_MAX,
+      key: (req) => {
+        const body =
+          req.body && typeof req.body === "object"
+            ? (req.body as { username?: unknown; email?: unknown })
+            : {};
+        const accountKey =
+          typeof body.username === "string"
+            ? body.username.trim().toLowerCase()
+            : typeof body.email === "string"
+              ? body.email.trim().toLowerCase()
+              : "";
+
+        return [req.ip ?? "unknown", accountKey].join(":");
+      },
     })
   )
   .post(
@@ -101,7 +115,7 @@ const authRouter = Router()
   .post(
     "/logout",
     ...validatedRoute({ auth: true }, async (_req, res) => {
-      res.clearCookie("access_token", authCookieOptions);
+      res.clearCookie("access_token", authCookieClearOptions);
       return res.json({ message: "Logged out successfully" });
     })
   );

@@ -36,23 +36,41 @@ export async function apiRequest<T>(
       ...options,
     });
   } catch {
-    throw new Error(
-      `Cannot reach API server at ${API_BASE_URL}. Make sure backend is running.`
-    );
+    throw new Error("Unable to reach the API server. Please try again.");
   }
 
   const payload = (await response.json().catch(() => null)) as unknown;
 
   if (!response.ok) {
-    const message =
-      payload &&
-      typeof payload === "object" &&
-      "message" in payload &&
-      typeof payload.message === "string"
-        ? payload.message
-        : "Request failed";
+    const message = getApiErrorMessage(payload, response.status);
     throw new ApiError(message, response.status);
   }
 
   return responseSchema.parse(payload);
+}
+
+export function getApiErrorMessage(payload: unknown, status?: number) {
+  if (status && status >= 500) {
+    return "Something went wrong. Please try again.";
+  }
+
+  if (!payload || typeof payload !== "object" || !("message" in payload)) {
+    return "Request failed";
+  }
+
+  const { message } = payload;
+  if (typeof message === "string") {
+    return message;
+  }
+
+  if (Array.isArray(message)) {
+    const messages = message.filter(
+      (item): item is string => typeof item === "string"
+    );
+    if (messages.length > 0) {
+      return messages.join("\n");
+    }
+  }
+
+  return "Request failed";
 }

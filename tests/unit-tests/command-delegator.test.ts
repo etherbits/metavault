@@ -30,6 +30,7 @@ let EnrichmentCommandExecutor: typeof import("../../packages/server/enrichment/e
 let EnrichmentService: typeof import("../../packages/server/enrichment/enrichment.service").EnrichmentService;
 let SourceIntegrationRegistry: typeof import("../../packages/server/enrichment/source-integration-registry").SourceIntegrationRegistry;
 let AliasCommandExecutor: typeof import("../../packages/server/aliases/alias-command-executor").AliasCommandExecutor;
+let aliasMappingService: typeof import("../../packages/server/aliases/alias.service").aliasMappingService;
 let PullCommandExecutor: typeof import("../../packages/server/catalogue/pull-command-executor").PullCommandExecutor;
 let sql: typeof import("../../packages/server/db").sql;
 
@@ -40,6 +41,9 @@ beforeAll(async () => {
   );
   const aliasCommandExecutor = await import(
     "../../packages/server/aliases/alias-command-executor"
+  );
+  const aliasService = await import(
+    "../../packages/server/aliases/alias.service"
   );
   const pullCommandExecutor = await import(
     "../../packages/server/catalogue/pull-command-executor"
@@ -56,6 +60,7 @@ beforeAll(async () => {
   SourceIntegrationRegistry =
     sourceIntegrationRegistry.SourceIntegrationRegistry;
   AliasCommandExecutor = aliasCommandExecutor.AliasCommandExecutor;
+  aliasMappingService = aliasService.aliasMappingService;
   PullCommandExecutor = pullCommandExecutor.PullCommandExecutor;
   sql = db.sql;
 
@@ -103,6 +108,29 @@ async function ensureUser(userId: string) {
   await sql`
     INSERT OR IGNORE INTO users (id, username, email, password_hash, is_verified)
     VALUES (${userId}, ${userId}, ${`${userId}@test.local`}, 'hash', 1)
+  `;
+}
+
+async function insertSourceIntegration(input: {
+  id: string;
+  userId: string;
+  sourceType: string;
+}) {
+  await sql`
+    INSERT INTO source_integrations (
+      id,
+      user_id,
+      integration_type,
+      is_active,
+      config_json
+    )
+    VALUES (
+      ${input.id},
+      ${input.userId},
+      ${input.sourceType},
+      1,
+      '{}'
+    )
   `;
 }
 
@@ -345,6 +373,27 @@ describe("AliasCommandExecutor", () => {
       params.rows
     );
   });
+
+  it("rejects alias expansions that contain command tokens", async () => {
+    const userId = "alias-command-validation-user";
+    await ensureUser(userId);
+
+    const result = await aliasMappingService.upsertMapping({
+      userId,
+      body: {
+        alias: "nested-command",
+        expansion: "personal_rating:>7 #ALIAS:other",
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.status).toBe(400);
+      expect(result.error.message).toBe(
+        "Alias expansions cannot contain commands"
+      );
+    }
+  });
 });
 
 describe("PullCommandExecutor", () => {
@@ -362,6 +411,11 @@ describe("PullCommandExecutor", () => {
   it("previews top catalogue entries for search without creating library rows", async () => {
     const userId = "pull-search-user";
     await ensureUser(userId);
+    await insertSourceIntegration({
+      id: "pull-search-anilist-source",
+      userId,
+      sourceType: "anilist",
+    });
     const existingRows = [row({ id: "existing-search-row" })];
     await insertCatalogueEntry({
       id: "pull-search-low",
@@ -394,6 +448,7 @@ describe("PullCommandExecutor", () => {
       id: "catalogue:pull-search-high",
       title: "Pull Search High",
       media_id: "pull-search-high-media",
+      source_id: "pull-search-anilist-source",
       media_type: "anime",
       status: null,
       tags: [expect.objectContaining({ value: "action", weight: "major" })],
@@ -411,6 +466,11 @@ describe("PullCommandExecutor", () => {
   it("creates pulled catalogue entries only for create actions and skips existing library media", async () => {
     const userId = "pull-create-user";
     await ensureUser(userId);
+    await insertSourceIntegration({
+      id: "pull-create-igdb-source",
+      userId,
+      sourceType: "igdb",
+    });
     await insertCatalogueEntry({
       id: "pull-create-game",
       sourceType: "igdb",
@@ -453,6 +513,7 @@ describe("PullCommandExecutor", () => {
     expect(result.rows[0]).toMatchObject({
       title: "Pull Create Game",
       media_id: "pull-create-game-media",
+      source_id: "pull-create-igdb-source",
       media_type: "game",
       status: null,
       tags: [expect.objectContaining({ value: "favorite", weight: "major" })],
@@ -466,6 +527,11 @@ describe("PullCommandExecutor", () => {
       ORDER BY media_id ASC
     `;
     expect(createdRows).toHaveLength(2);
+    expect(
+      createdRows.find((row) => row.media_id === "pull-create-game-media")
+    ).toMatchObject({
+      source_id: "pull-create-igdb-source",
+    });
   });
 });
 

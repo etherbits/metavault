@@ -10,10 +10,11 @@ import { EntryMediaTypeSchema } from "../db/schema/libraryEntries";
 import type { LibraryEntryWithTags } from "../ezq/ezq.schema";
 import { libraryModel } from "../library/library.model";
 import { logger } from "../logger";
+import { sourceIntegrationModel } from "../source-integrations/source-integration.model";
 import {
-  catalogueModel,
   type CatalogueEntry,
   type CataloguePullMediaType,
+  catalogueModel,
 } from "./catalogue.model";
 
 const pullMediaTypeSchema = z.union([
@@ -87,11 +88,15 @@ export class PullCommandExecutor implements CommandExecutor {
 
   private async previewPullRows(command: PullCommand, userId: string) {
     const entries = await this.getPullEntries(command, userId);
-    return entries.map((entry) => this.toPreviewRow(entry, userId));
+    const sourceIdsByType = await this.getSourceIdsByType(userId);
+    return entries.map((entry) =>
+      this.toPreviewRow(entry, userId, sourceIdsByType)
+    );
   }
 
   private async createPulledRows(command: PullCommand, userId: string) {
     const entries = await this.getPullEntries(command, userId);
+    const sourceIdsByType = await this.getSourceIdsByType(userId);
     const rows: LibraryEntryWithTags[] = [];
 
     for (const entry of entries) {
@@ -100,6 +105,7 @@ export class PullCommandExecutor implements CommandExecutor {
         user_id: userId,
         title: entry.title,
         media_id: entry.source_media_id,
+        source_id: sourceIdsByType.get(entry.source_type) ?? null,
         media_type: entry.media_type,
         adult: entry.adult,
         image_src: entry.image_src ?? undefined,
@@ -134,14 +140,15 @@ export class PullCommandExecutor implements CommandExecutor {
 
   private toPreviewRow(
     entry: CatalogueEntry,
-    userId: string
+    userId: string,
+    sourceIdsByType: Map<CatalogueEntry["source_type"], string>
   ): LibraryEntryWithTags {
     return {
       id: `catalogue:${entry.id}`,
       user_id: userId,
       title: entry.title,
       media_id: entry.source_media_id,
-      source_id: null,
+      source_id: sourceIdsByType.get(entry.source_type) ?? null,
       image_src: entry.image_src,
       media_type: entry.media_type,
       status: null,
@@ -170,5 +177,15 @@ export class PullCommandExecutor implements CommandExecutor {
 
   private parseCommand(command: string) {
     return parseCommandWithSchema(pullCommandSchema, command);
+  }
+
+  private async getSourceIdsByType(userId: string) {
+    const rows = await sourceIntegrationModel.getByUser(userId);
+    return new Map(
+      rows.map((row) => [
+        row.integration_type as CatalogueEntry["source_type"],
+        row.id,
+      ])
+    );
   }
 }

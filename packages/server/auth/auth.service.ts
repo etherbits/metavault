@@ -15,6 +15,10 @@ import { err, ok, type Result } from "../utils/result";
 import { authModel } from "./auth.model";
 
 function generateOTP(): string {
+  if (parsedEnv.NODE_ENV === "test") {
+    return "123456";
+  }
+
   const otp = crypto.randomInt(0, 1000000);
   return otp.toString().padStart(6, "0");
 }
@@ -40,6 +44,11 @@ export class AuthService {
     const existingUser = await userModel.getUserByEmail(email);
     if (existingUser) {
       return err(400, "User already exists");
+    }
+
+    const existingUsername = await userModel.getUserByUsername(username);
+    if (existingUsername) {
+      return err(409, "Username is already taken");
     }
 
     const passwordHash = await hashPassword(password);
@@ -110,11 +119,13 @@ export class AuthService {
 
     const user = await userModel.getUserByEmail(email);
     if (!user) {
-      return err(404, "User not found");
+      logger.warn({ email }, "Verification attempted for unknown email");
+      return err(400, "Invalid or expired OTP code");
     }
 
     if (user.is_verified) {
-      return err(400, "User already verified");
+      logger.info({ email }, "Verification skipped for already verified user");
+      return ok({ message: "Account verified successfully" });
     }
 
     const otp = await authModel.getValidOTP(user.id, otpCode);
@@ -139,10 +150,12 @@ export class AuthService {
 
     const user = await userModel.getUserByEmail(email);
     if (!user) {
-      return err(404, "User not found");
+      logger.warn({ email }, "Verification code requested for unknown email");
+      return ok({ message: "Verification code sent to your email" });
     }
     if (user.is_verified) {
-      return err(400, "User already verified");
+      logger.info({ email }, "Verification code skipped for verified user");
+      return ok({ message: "Verification code sent to your email" });
     }
 
     await authModel.deleteOTP(user.id);

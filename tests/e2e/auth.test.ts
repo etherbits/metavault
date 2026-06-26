@@ -25,6 +25,37 @@ test("auth sign-up creates an unverified user", async ({ request }) => {
   });
 });
 
+test("auth sign-up rejects duplicate usernames cleanly", async ({
+  request,
+}) => {
+  const suffix = Date.now().toString(36);
+  const username = `signup_dupe_${suffix}`;
+
+  const firstResponse = await request.post("/auth/sign-up", {
+    data: {
+      email: `signup-dupe-a-${suffix}@test.local`,
+      username,
+      password: "Password123",
+      confirmPassword: "Password123",
+    },
+  });
+  expect(firstResponse.ok()).toBeTruthy();
+
+  const duplicateResponse = await request.post("/auth/sign-up", {
+    data: {
+      email: `signup-dupe-b-${suffix}@test.local`,
+      username,
+      password: "Password123",
+      confirmPassword: "Password123",
+    },
+  });
+
+  expect(duplicateResponse.status()).toBe(409);
+  expect(await duplicateResponse.json()).toEqual({
+    message: "Username is already taken",
+  });
+});
+
 test("auth sign-in sets the access cookie and returns the user", async ({
   request,
 }) => {
@@ -139,6 +170,47 @@ test("auth password reset request does not reveal unknown emails", async ({
   expect(response.ok()).toBeTruthy();
   expect(await response.json()).toEqual({
     message: "Password reset code sent to your email",
+  });
+});
+
+test("auth password reset confirm does not reveal unknown emails", async ({
+  request,
+}) => {
+  const response = await request.post("/auth/password-reset/confirm", {
+    data: {
+      email: `missing-confirm-${Date.now()}@test.local`,
+      otpCode: "000000",
+      password: "Password456",
+      confirmPassword: "Password456",
+    },
+  });
+
+  expect(response.status()).toBe(400);
+  expect(await response.json()).toEqual({
+    message: "Invalid or expired OTP code",
+  });
+});
+
+test("auth verification resend does not reveal unknown or verified emails", async ({
+  request,
+}) => {
+  const unknownResponse = await request.post("/auth/resend-verification-code", {
+    data: { email: `missing-resend-${Date.now()}@test.local` },
+  });
+  expect(unknownResponse.ok()).toBeTruthy();
+  expect(await unknownResponse.json()).toEqual({
+    message: "Verification code sent to your email",
+  });
+
+  const verifiedResponse = await request.post(
+    "/auth/resend-verification-code",
+    {
+      data: { email: "e2e-auth@test.local" },
+    }
+  );
+  expect(verifiedResponse.ok()).toBeTruthy();
+  expect(await verifiedResponse.json()).toEqual({
+    message: "Verification code sent to your email",
   });
 });
 

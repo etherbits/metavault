@@ -72,7 +72,7 @@ describe.serial("SourceIntegrationService", () => {
   });
 
   it.serial(
-    "upserts source integration settings and returns parsed config",
+    "upserts source integration settings without returning saved secrets",
     async () => {
       const userId = await createUser("upsert");
 
@@ -86,23 +86,30 @@ describe.serial("SourceIntegrationService", () => {
         integrationType: "anilist",
         body: { is_active: false, config: { apiKey: "second" } },
       });
+      const third = await sourceIntegrationService.updateSettings({
+        userId,
+        integrationType: "anilist",
+        body: { is_active: true, config: { apiKey: "" } },
+      });
       const settings = await sourceIntegrationService.getSettings(userId);
 
       expect(first.ok).toBe(true);
       expect(second.ok).toBe(true);
+      expect(third.ok).toBe(true);
       expect(settings.ok).toBe(true);
       if (!settings.ok) return;
       expect(
         settings.data.find((item) => item.integration_type === "anilist")
       ).toMatchObject({
         integration_type: "anilist",
-        is_active: false,
-        config: { apiKey: "second" },
+        is_active: true,
+        config: { apiKey: "" },
         config_fields: [
           expect.objectContaining({
             key: "apiKey",
             label: "API Key",
             secret: true,
+            placeholder: expect.stringContaining("leave blank"),
           }),
         ],
       });

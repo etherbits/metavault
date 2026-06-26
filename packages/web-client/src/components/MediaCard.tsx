@@ -153,12 +153,13 @@ export function MediaCard({
     minorTags.length -
     visibleMinorTags.length;
   const canEditLibraryFields = !item.id.startsWith("catalogue:");
+  const canUseLibraryActions = showActions && canEditLibraryFields;
   const canEditPersonalRating =
     Boolean(onChangePersonalRating) && canEditLibraryFields;
   const compact = variant === "compact";
 
   function handleCardClick() {
-    if (selectMode) {
+    if (selectMode && canEditLibraryFields) {
       onToggleSelect?.(item.id);
     }
   }
@@ -296,7 +297,7 @@ export function MediaCard({
             <MoreTagsPill count={hiddenTagCount} tags={item.tags} />
           </div>
 
-          {showActions ? (
+          {canUseLibraryActions ? (
             <div className="mt-auto flex flex-wrap items-center justify-end gap-3 pt-1">
               <MediaCardMenu
                 selectMode={selectMode}

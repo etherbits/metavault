@@ -52,6 +52,9 @@ test("assistant chat uses OpenAI-compatible integration config", async ({
     }
   );
   expect(configResponse.ok()).toBeTruthy();
+  expect(await configResponse.json()).toMatchObject({
+    config: { apiKey: "" },
+  });
 
   const chatResponse = await request.post("/assistant/chat", {
     data: {

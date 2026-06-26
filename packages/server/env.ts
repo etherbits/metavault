@@ -1,6 +1,13 @@
 import "dotenv/config";
 import { z } from "zod";
 
+const booleanEnvSchema = z.preprocess((value) => {
+  if (typeof value !== "string") return value;
+  if (value.toLowerCase() === "true") return true;
+  if (value.toLowerCase() === "false") return false;
+  return value;
+}, z.boolean());
+
 const envSchema = z
   .object({
     NODE_ENV: z
@@ -8,6 +15,7 @@ const envSchema = z
       .default("development"),
     PORT: z.coerce.number().default(3435),
     CLIENT_ORIGIN: z.string().default("http://localhost:3534"),
+    AUTH_COOKIE_SECURE: booleanEnvSchema.optional(),
     DATABASE_URL: z.string().default("sqlite://./data/db.sqlite"),
     JWT_SECRET: z.string().min(1, "JWT_SECRET is required"),
     GLOBAL_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(120),

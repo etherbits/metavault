@@ -1,7 +1,16 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
+import {
+  strFromU8,
+  strToU8,
+  type UnzipFileInfo,
+  unzipSync,
+  zipSync,
+} from "fflate";
+import type { EntryMediaType } from "../db/schema/libraryEntries";
 import { logger } from "../logger";
+import { sourceIntegrationModel } from "../source-integrations/source-integration.model";
+import type { SourceIntegrationType } from "../source-integrations/source-integration.schema";
 import {
   InvalidImageError,
   processAndSaveImage,
@@ -77,6 +86,16 @@ type BundleExportResult = {
 };
 
 const REQUIRED_CSV_HEADERS: (keyof CsvLibraryRow)[] = ["title"];
+const SOURCE_TYPE_BY_MEDIA_TYPE: Partial<
+  Record<EntryMediaType, SourceIntegrationType>
+> = {
+  anime: "anilist",
+  manga: "anilist",
+  movie: "tmdb",
+  tv_show: "tmdb",
+  game: "igdb",
+  book: "openlibrary",
+};
 
 const CSV_HEADERS: (keyof CsvLibraryRow)[] = [
   "title",
@@ -95,6 +114,8 @@ const CSV_HEADERS: (keyof CsvLibraryRow)[] = [
 
 const BUNDLE_CSV_FILE = "library.csv";
 const BUNDLE_WARNINGS_FILE = "warnings.json";
+const MAX_BUNDLE_FILE_COUNT = 256;
+const MAX_BUNDLE_UNCOMPRESSED_BYTES = 150 * 1024 * 1024;
 
 function escapeCsvCell(value: string): string {
   const normalizedValue = value.replace(/\r?\n/g, " ");
@@ -268,6 +289,77 @@ function isUnsafeZipPath(filePath: string): boolean {
   );
 }
 
+function validateBundleFiles(files: Record<string, Uint8Array>) {
+  const entries = Object.entries(files);
+  if (entries.length > MAX_BUNDLE_FILE_COUNT) {
+    return "Bundle file contains too many files";
+  }
+
+  let totalBytes = 0;
+  for (const [filePath, bytes] of entries) {
+    if (isUnsafeZipPath(filePath)) {
+      return "Bundle file contains unsafe paths";
+    }
+
+    totalBytes += bytes.byteLength;
+    if (totalBytes > MAX_BUNDLE_UNCOMPRESSED_BYTES) {
+      return "Bundle file is too large after extraction";
+    }
+  }
+
+  return null;
+}
+
+function readBundleFiles(
+  bundleBuffer: Buffer
+): Result<Record<string, Uint8Array>> {
+  let validationError: string | null = null;
+  let fileCount = 0;
+  let totalBytes = 0;
+
+  const validateFileInfo = (file: UnzipFileInfo) => {
+    if (validationError) {
+      return false;
+    }
+
+    fileCount += 1;
+    if (fileCount > MAX_BUNDLE_FILE_COUNT) {
+      validationError = "Bundle file contains too many files";
+      return false;
+    }
+
+    if (isUnsafeZipPath(file.name)) {
+      validationError = "Bundle file contains unsafe paths";
+      return false;
+    }
+
+    totalBytes += file.originalSize;
+    if (totalBytes > MAX_BUNDLE_UNCOMPRESSED_BYTES) {
+      validationError = "Bundle file is too large after extraction";
+      return false;
+    }
+
+    return true;
+  };
+
+  try {
+    const files = unzipSync(bundleBuffer, { filter: validateFileInfo });
+    if (validationError) {
+      return err(400, validationError);
+    }
+
+    const bundleValidationError = validateBundleFiles(files);
+    if (bundleValidationError) {
+      return err(400, bundleValidationError);
+    }
+
+    return ok(files);
+  } catch (error) {
+    logger.warn({ error }, "Invalid library bundle upload");
+    return err(400, "Bundle file is malformed");
+  }
+}
+
 function toCsvRow(entry: LibraryEntry, tags: LibraryTag[] = []): CsvLibraryRow {
   return {
     title: entry.title,
@@ -307,12 +399,18 @@ class LibraryService {
       }
     }
 
+    const sourceId = await this.resolveSourceIdForUser({
+      userId,
+      requestedSourceId: body.source_id,
+      mediaType: body.media_type,
+    });
+
     const entry = await libraryModel.create({
       id: entryId,
       user_id: userId,
       title: body.title,
       media_id: body.media_id,
-      source_id: body.source_id,
+      source_id: sourceId,
       media_type: body.media_type,
       status: body.status,
       adult: body.adult,
@@ -367,8 +465,19 @@ class LibraryService {
       imageSrc = imagePaths.original;
     }
 
+    const sourceId = Object.hasOwn(body, "source_id")
+      ? await this.resolveSourceIdForUser({
+          userId,
+          requestedSourceId: body.source_id,
+          mediaType: body.media_type,
+        })
+      : undefined;
+
+    const bodyWithoutSourceId = { ...body };
+    delete bodyWithoutSourceId.source_id;
     const updated = await libraryModel.update(id, userId, {
-      ...body,
+      ...bodyWithoutSourceId,
+      ...(sourceId !== undefined ? { source_id: sourceId } : {}),
       ...(imageSrc ? { image_src: imageSrc } : {}),
     });
 
@@ -522,20 +631,10 @@ class LibraryService {
       return err(400, "Bundle file is required");
     }
 
-    let files: Record<string, Uint8Array>;
-    try {
-      files = unzipSync(bundleBuffer);
-    } catch (error) {
-      logger.warn({ error }, "Invalid library bundle upload");
-      return err(400, "Bundle file is malformed");
-    }
+    const filesResult = readBundleFiles(bundleBuffer);
+    if (!filesResult.ok) return filesResult;
 
-    for (const filePath of Object.keys(files)) {
-      if (isUnsafeZipPath(filePath)) {
-        return err(400, "Bundle file contains unsafe paths");
-      }
-    }
-
+    const files = filesResult.data;
     const csvFile = files[BUNDLE_CSV_FILE];
     if (!csvFile) {
       return err(400, "Bundle file must include library.csv");
@@ -630,12 +729,18 @@ class LibraryService {
         const shouldImportBundledImage = imageSrc && isLocalImageSrc(imageSrc);
         const initialImageSrc =
           imageSrc && !shouldImportBundledImage ? imageSrc : undefined;
+        const sourceId = await this.resolveSourceIdForUser({
+          userId,
+          requestedSourceId: parsed.data.source_id,
+          mediaType: parsed.data.media_type,
+        });
+
         const created = await libraryModel.create({
           id: entryId,
           user_id: userId,
           title: parsed.data.title,
           media_id: parsed.data.media_id,
-          source_id: parsed.data.source_id,
+          source_id: sourceId,
           media_type: parsed.data.media_type,
           status: parsed.data.status,
           adult: parsed.data.adult,
@@ -735,6 +840,40 @@ class LibraryService {
       entries: createdEntries,
       warnings,
     });
+  }
+
+  private async resolveSourceIdForUser({
+    userId,
+    requestedSourceId,
+    mediaType,
+  }: {
+    userId: string;
+    requestedSourceId?: string;
+    mediaType?: EntryMediaType;
+  }) {
+    if (requestedSourceId) {
+      const sourceIntegration = await sourceIntegrationModel.getByIdForUser(
+        requestedSourceId,
+        userId
+      );
+      if (sourceIntegration) {
+        return sourceIntegration.id;
+      }
+    }
+
+    if (!mediaType) {
+      return null;
+    }
+
+    const sourceType = SOURCE_TYPE_BY_MEDIA_TYPE[mediaType];
+    if (!sourceType) {
+      return null;
+    }
+
+    return (
+      (await sourceIntegrationModel.getByUserAndType(userId, sourceType))?.id ??
+      null
+    );
   }
 }
 

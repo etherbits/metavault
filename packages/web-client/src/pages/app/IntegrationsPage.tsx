@@ -1,4 +1,4 @@
-import { ChevronUp, Eye, EyeOff, Home, Plus } from "lucide-react";
+import { ChevronUp, Eye, EyeOff, PlugZap, Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { IntegrationCard } from "@/components/IntegrationCard";
 import { Button } from "@/components/ui/button";
@@ -10,9 +10,9 @@ import type {
 } from "@/features/ai-integrations/contracts";
 import {
   useActivateAiIntegrationProfile,
+  useAiIntegrations,
   useCreateAiIntegrationProfile,
   useDeleteAiIntegrationProfile,
-  useAiIntegrations,
   useUpdateAiIntegrationProfile,
 } from "@/features/ai-integrations/hooks";
 import type { SourceIntegrationType } from "@/features/source-integrations/contracts";
@@ -139,9 +139,9 @@ export function IntegrationsPage() {
   return (
     <div className="mx-auto flex w-full max-w-[1488px] flex-col gap-12">
       <div className="flex items-center gap-3">
-        <Home size={28} className="text-[#A1A1AA]" />
+        <PlugZap size={28} className="text-[#A1A1AA]" />
         <h1 className="text-2xl font-semibold leading-none text-[#D4D4D8] sm:text-[30px]">
-          Home
+          Integrations
         </h1>
       </div>
 

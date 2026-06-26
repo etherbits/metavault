@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { authModel } from "../auth/auth.model";
 import { emailService } from "../email/email.service";
+import { parsedEnv } from "../env";
 import { logger } from "../logger";
 import {
   InvalidImageError,
@@ -27,6 +28,10 @@ function toPublicUser({
 }
 
 function generateOTP(): string {
+  if (parsedEnv.NODE_ENV === "test") {
+    return "123456";
+  }
+
   const otp = crypto.randomInt(0, 1000000);
   return otp.toString().padStart(6, "0");
 }
@@ -117,6 +122,10 @@ class UserService {
   ): Promise<Result<{ message: string }>> {
     const user = await userModel.getUserByEmail(input.email);
     if (!user) {
+      logger.warn(
+        { email: input.email },
+        "Password reset requested for unknown email"
+      );
       return ok({ message: "Password reset code sent to your email" });
     }
 
@@ -128,7 +137,11 @@ class UserService {
   ): Promise<Result<{ message: string }>> {
     const user = await userModel.getUserByEmail(input.email);
     if (!user) {
-      return err(404, "User not found");
+      logger.warn(
+        { email: input.email },
+        "Password reset confirmation attempted for unknown email"
+      );
+      return err(400, "Invalid or expired OTP code");
     }
 
     return this.updatePasswordWithOtp(user.id, input);

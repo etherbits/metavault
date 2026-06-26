@@ -97,7 +97,7 @@ export function LoginPage() {
                 type={showPassword ? "text" : "password"}
                 name="login-password"
                 placeholder="********"
-                autoComplete="new-password"
+                autoComplete="current-password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 required

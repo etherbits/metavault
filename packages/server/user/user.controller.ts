@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authCookieOptions } from "../auth/auth.cookies";
+import { authCookieClearOptions } from "../auth/auth.cookies";
 import { imageUpload } from "../middleware/upload";
 import { validatedRoute } from "../middleware/validation";
 import { sendServiceError } from "../utils/http";
@@ -60,7 +60,7 @@ const userRouter = Router()
         return sendServiceError(res, result.error);
       }
 
-      res.clearCookie("access_token", authCookieOptions);
+      res.clearCookie("access_token", authCookieClearOptions);
       return res.json(result.data);
     })
   );

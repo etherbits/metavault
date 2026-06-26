@@ -4,12 +4,14 @@ type RateLimitOptions = {
   windowMs: number;
   max: number;
   key?: (req: Request) => string;
+  skip?: (req: Request) => boolean;
 };
 
 export function rateLimit({
   windowMs,
   max,
   key = (req) => req.ip ?? "unknown",
+  skip,
 }: RateLimitOptions): RequestHandler {
   const hits = new Map<string, number[]>();
   let lastPrune = 0;
@@ -26,6 +28,10 @@ export function rateLimit({
   };
 
   return (req, res, next) => {
+    if (req.method === "OPTIONS" || skip?.(req)) {
+      return next();
+    }
+
     const now = Date.now();
     const cutoff = now - windowMs;
     if (now - lastPrune > windowMs) {

@@ -50,6 +50,21 @@ const chatCompletionStreamChunkSchema = z.object({
         delta: z
           .object({
             content: z.string().nullable().optional(),
+            tool_calls: z
+              .array(
+                z.object({
+                  index: z.number(),
+                  id: z.string().optional(),
+                  type: z.literal("function").optional(),
+                  function: z
+                    .object({
+                      name: z.string().optional(),
+                      arguments: z.string().optional(),
+                    })
+                    .optional(),
+                })
+              )
+              .optional(),
           })
           .nullable()
           .optional(),
@@ -148,6 +163,10 @@ type ChatCompletionMessage = {
     };
   }>;
 };
+
+type StreamingToolCall = NonNullable<
+  ChatCompletionMessage["tool_calls"]
+>[number];
 
 const ALL_MEDIA_TYPES: EntryMediaType[] = [
   "movie",
@@ -251,11 +270,12 @@ class AssistantService {
     const { config, messages, url } = requestResult.data;
 
     try {
-      const firstResult = await this.requestChatCompletion({
+      const firstResult = await this.requestChatCompletionStream({
         config,
         messages,
         url,
         tools: [RECOMMENDATION_TOOL],
+        onDelta,
       });
       if (!firstResult.ok) return firstResult;
 
@@ -279,7 +299,6 @@ class AssistantService {
         if (!content) {
           return err(502, "AI assistant returned an empty response");
         }
-        await onDelta(content);
         return ok({ message: content });
       }
 
@@ -293,62 +312,16 @@ class AssistantService {
         ...toolMessagesResult.data.messages,
       ];
 
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${config.apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: config.model,
-          messages: finalMessages,
-          stream: true,
-        }),
+      const finalResult = await this.requestChatCompletionStream({
+        config,
+        messages: finalMessages,
+        url,
+        onDelta,
       });
+      if (!finalResult.ok) return finalResult;
 
-      if (!response.ok || !response.body) {
-        logger.warn(
-          { status: response.status },
-          "OpenAI-compatible streaming chat completion request failed"
-        );
-        return err(response.status || 502, "AI assistant request failed");
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let message = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split(/\r?\n/);
-        buffer = lines.pop() ?? "";
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed.startsWith("data:")) continue;
-
-          const data = trimmed.slice("data:".length).trim();
-          if (data === "[DONE]") {
-            return ok({ message });
-          }
-
-          const parsedJson = safeJsonParse(data);
-          const parsed = chatCompletionStreamChunkSchema.safeParse(parsedJson);
-          if (!parsed.success) continue;
-
-          const delta = parsed.data.choices?.[0]?.delta?.content;
-          if (!delta) continue;
-
-          message += delta;
-          await onDelta(delta);
-        }
-      }
-
-      if (!message.trim()) {
+      const message = finalResult.data.content?.trim();
+      if (!message) {
         return err(502, "AI assistant returned an empty response");
       }
 
@@ -455,6 +428,145 @@ class AssistantService {
       content: message.content ?? null,
       tool_calls: message.tool_calls,
     });
+  }
+
+  private async requestChatCompletionStream({
+    config,
+    messages,
+    url,
+    tools,
+    onDelta,
+  }: {
+    config: { apiKey: string; model: string };
+    messages: ChatCompletionMessage[];
+    url: URL;
+    tools?: unknown[];
+    onDelta: (delta: string) => void | Promise<void>;
+  }): Promise<Result<ChatCompletionMessage>> {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${config.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages,
+        stream: true,
+        ...(tools ? { tools, tool_choice: "auto" } : {}),
+      }),
+    });
+
+    if (!response.ok || !response.body) {
+      logger.warn(
+        { status: response.status },
+        "OpenAI-compatible streaming chat completion request failed"
+      );
+      return err(response.status || 502, "AI assistant request failed");
+    }
+
+    const contentType = response.headers.get("content-type") ?? "";
+    if (!contentType.includes("text/event-stream")) {
+      const parsed = chatCompletionResponseSchema.safeParse(
+        await response.json().catch(() => null)
+      );
+      if (!parsed.success) {
+        logger.warn(
+          { error: parsed.error },
+          "OpenAI-compatible streaming chat completion response was invalid"
+        );
+        return err(502, "AI assistant response was invalid");
+      }
+
+      const message = parsed.data.choices?.[0]?.message;
+      if (!message) {
+        return err(502, "AI assistant returned an empty response");
+      }
+
+      return ok({
+        role: "assistant",
+        content: message.content ?? null,
+        tool_calls: message.tool_calls,
+      });
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    const streamedToolCalls = new Map<number, StreamingToolCall>();
+    let buffer = "";
+    let content = "";
+
+    const finish = () =>
+      ok({
+        role: "assistant" as const,
+        content,
+        tool_calls:
+          streamedToolCalls.size > 0
+            ? Array.from(streamedToolCalls.entries())
+                .sort(([left], [right]) => left - right)
+                .map(([, toolCall]) => toolCall)
+            : undefined,
+      });
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split(/\r?\n/);
+      buffer = lines.pop() ?? "";
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith("data:")) continue;
+
+        const data = trimmed.slice("data:".length).trim();
+        if (data === "[DONE]") {
+          return finish();
+        }
+
+        const parsedJson = safeJsonParse(data);
+        const parsed = chatCompletionStreamChunkSchema.safeParse(parsedJson);
+        if (!parsed.success) continue;
+
+        const delta = parsed.data.choices?.[0]?.delta;
+        if (!delta) continue;
+
+        if (delta.content) {
+          content += delta.content;
+          await onDelta(delta.content);
+        }
+
+        for (const toolCallDelta of delta.tool_calls ?? []) {
+          const current = streamedToolCalls.get(toolCallDelta.index) ?? {
+            id: toolCallDelta.id ?? "",
+            type: "function" as const,
+            function: {
+              name: "",
+              arguments: "",
+            },
+          };
+
+          streamedToolCalls.set(toolCallDelta.index, {
+            id: toolCallDelta.id ?? current.id,
+            type: "function",
+            function: {
+              name:
+                toolCallDelta.function?.name === undefined
+                  ? current.function.name
+                  : current.function.name + toolCallDelta.function.name,
+              arguments:
+                toolCallDelta.function?.arguments === undefined
+                  ? current.function.arguments
+                  : current.function.arguments +
+                    toolCallDelta.function.arguments,
+            },
+          });
+        }
+      }
+    }
+
+    return finish();
   }
 
   private async resolveRecommendationToolCalls(input: {

@@ -1,5 +1,6 @@
 import cookieParser from "cookie-parser";
 import cors from "cors";
+import crypto from "node:crypto";
 import express from "express";
 import { aiIntegrationRouter } from "./ai-integrations/ai-integration.controller";
 import { aliasMappingRouter } from "./aliases/alias.controller";
@@ -15,10 +16,10 @@ import libraryRouter from "./library/library.controller";
 import collectionRouter from "./collection/collection.controller";
 import { applySchema } from "./db";
 import { logger } from "./logger";
+import { mediaRouter } from "./media/media.controller";
 import { unexpectedErrorMiddleware } from "./middleware/error";
 import { loggerMiddleware } from "./middleware/logger";
 import { rateLimit } from "./middleware/rateLimit";
-import { MEDIA_ROOT } from "./storage/path.util";
 import { recommendationRouter } from "./recommendations/recommendation.controller";
 import { sourceIntegrationRouter } from "./source-integrations/source-integration.controller";
 import userRouter from "./user/user.controller";
@@ -29,18 +30,32 @@ app.use(loggerMiddleware);
 app.use(express.json());
 app.use(cookieParser());
 app.use(
-  rateLimit({
-    windowMs: parsedEnv.RATE_LIMIT_WINDOW_MS,
-    max: parsedEnv.GLOBAL_RATE_LIMIT_MAX,
-  })
-);
-app.use(
   cors({
     origin: parsedEnv.CLIENT_ORIGIN,
     credentials: true,
   })
 );
-app.use("/media", express.static(MEDIA_ROOT));
+app.use("/health", healthRouter);
+app.use(
+  rateLimit({
+    windowMs: parsedEnv.RATE_LIMIT_WINDOW_MS,
+    max: parsedEnv.GLOBAL_RATE_LIMIT_MAX,
+    key: (req) => {
+      const accessToken = req.cookies?.access_token;
+      if (typeof accessToken === "string" && accessToken.length > 0) {
+        const sessionKey = crypto
+          .createHash("sha256")
+          .update(accessToken)
+          .digest("hex");
+        return `session:${sessionKey}`;
+      }
+
+      return `ip:${req.ip ?? "unknown"}`;
+    },
+    skip: (req) => req.path.startsWith("/auth/"),
+  })
+);
+app.use("/media", mediaRouter);
 app.use("/ezq", ezqRouter);
 app.use("/auth", authRouter);
 app.use("/library", libraryRouter);
@@ -53,7 +68,6 @@ app.use("/assistant", assistantRouter);
 app.use("/catalogue", catalogueRouter);
 app.use("/recommendations", recommendationRouter);
 app.use("/users", userRouter);
-app.use("/health", healthRouter);
 app.use(unexpectedErrorMiddleware);
 
 await applySchema();

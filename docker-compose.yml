@@ -10,6 +10,7 @@ services:
       - ./packages/server:/app/packages/server
     environment:
       DATABASE_URL: sqlite:///app/packages/server/data/db.sqlite
+      JWT_SECRET: "dev-secret-change-me"
       PORT: "3435"
       CLIENT_ORIGIN: "http://localhost:3534"
 

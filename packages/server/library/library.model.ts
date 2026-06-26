@@ -39,7 +39,7 @@ export interface CreateLibraryEntryData {
   title?: string;
 
   media_id?: string;
-  source_id?: string;
+  source_id?: string | null;
 
   media_type?: EntryMediaType;
   status?: EntryStatus;
@@ -57,7 +57,7 @@ export interface UpdateLibraryEntryData {
   title?: string;
 
   media_id?: string;
-  source_id?: string;
+  source_id?: string | null;
 
   media_type?: EntryMediaType;
   status?: EntryStatus | null;
@@ -183,12 +183,13 @@ class LibraryModel {
   ): Promise<LibraryEntry | null> {
     const hasStatus = Object.hasOwn(data, "status");
     const hasAdult = Object.hasOwn(data, "adult");
+    const hasSourceId = Object.hasOwn(data, "source_id");
     const result = await sql`
       UPDATE library_entries
       SET
         title = COALESCE(${data.title}, title),
         media_id = COALESCE(${data.media_id}, media_id),
-        source_id = COALESCE(${data.source_id}, source_id),
+        source_id = CASE WHEN ${hasSourceId} THEN ${data.source_id ?? null} ELSE source_id END,
         media_type = COALESCE(${data.media_type}, media_type),
         status = CASE WHEN ${hasStatus} THEN ${data.status ?? null} ELSE status END,
         adult = CASE WHEN ${hasAdult} THEN ${data.adult ? 1 : 0} ELSE adult END,

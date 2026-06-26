@@ -29,6 +29,21 @@ class SourceIntegrationModel {
     return rows as SourceIntegrationRow[];
   }
 
+  async getByIdForUser(
+    id: string,
+    userId: string
+  ): Promise<SourceIntegrationRow | null> {
+    const rows = await sql`
+      SELECT *
+      FROM source_integrations
+      WHERE id = ${id}
+      AND user_id = ${userId}
+      LIMIT 1
+    `;
+
+    return (rows[0] as SourceIntegrationRow | undefined) ?? null;
+  }
+
   async getByUserAndType(
     userId: string,
     integrationType: SourceIntegrationType

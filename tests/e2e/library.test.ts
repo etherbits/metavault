@@ -1,9 +1,11 @@
+import { execFileSync } from "node:child_process";
 import { unlink } from "node:fs/promises";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import { signIn } from "../helpers/auth";
 import { signInPage, WEB_BASE_URL } from "../helpers/queryPage";
+import { TEST_AUTH_USER_ID } from "../test-user";
 
 const CSV_HEADERS =
   "title,media_id,source_id,media_type,status,image_src,released_at,public_rating,personal_rating,major_tags,minor_tags";
@@ -88,6 +90,38 @@ function imageSrcToFsPath(imageSrc: string) {
   }
 
   return path.resolve(mediaRoot, imageSrc.slice("/media/".length));
+}
+
+function getSourceIntegrationId(userId: string, integrationType: string) {
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) {
+    throw new Error("DATABASE_URL is required for source integration lookup");
+  }
+
+  const output = execFileSync(
+    "bun",
+    [
+      "-e",
+      `
+        const { SQL } = await import("bun");
+        const sql = new SQL(Bun.argv[1]);
+        const rows = await sql\`
+          SELECT id
+          FROM source_integrations
+          WHERE user_id = \${Bun.argv[2]}
+          AND integration_type = \${Bun.argv[3]}
+          LIMIT 1
+        \`;
+        console.log(rows[0]?.id ?? "");
+      `,
+      databaseUrl,
+      userId,
+      integrationType,
+    ],
+    { cwd: process.cwd(), encoding: "utf8" }
+  ).trim();
+
+  return output || undefined;
 }
 
 test("library CRUD works for an authenticated user", async ({ request }) => {
@@ -355,6 +389,54 @@ test("library CSV import accepts title-only files", async ({ request }) => {
     media_id: null,
     media_type: null,
     status: null,
+  });
+});
+
+test("library CSV import maps old source IDs to the current user's integration", async ({
+  request,
+}) => {
+  await signIn(request);
+
+  const settingsResponse = await request.put("/source-integrations/tmdb", {
+    data: {
+      is_active: true,
+      config: { apiKey: "tmdb-import-map-key" },
+    },
+  });
+  expect(settingsResponse.ok()).toBeTruthy();
+
+  const tmdbSourceId = getSourceIntegrationId(TEST_AUTH_USER_ID, "tmdb");
+  expect(tmdbSourceId).toBeTruthy();
+
+  const title = `CSV Source Map ${Date.now()}`;
+  const importResponse = await request.post("/library/import/csv", {
+    multipart: {
+      file: csvUpload(
+        [
+          CSV_HEADERS,
+          csvLine([
+            title,
+            "source-map-media",
+            "old-export-source-id",
+            "movie",
+            "planning",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+          ]),
+        ].join("\n")
+      ),
+    },
+  });
+
+  expect(importResponse.status()).toBe(201);
+  const result = await importResponse.json();
+  expect(result.entries[0]).toMatchObject({
+    title,
+    source_id: tmdbSourceId,
   });
 });
 
