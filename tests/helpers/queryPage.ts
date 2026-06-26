@@ -1,4 +1,5 @@
 import { expect, type Page } from "@playwright/test";
+import { canonicalizeEzqQuery } from "../../packages/web-client/src/features/library/ezqCanonical";
 import { TEST_AUTH_PASSWORD, TEST_AUTH_USERNAME } from "../test-user";
 
 export const WEB_BASE_URL = process.env.WEB_BASE_URL ?? "http://localhost:3534";
@@ -39,6 +40,7 @@ export async function executeQuery(page: Page, query: string) {
   const currentQuery =
     new URL(page.url()).searchParams.get("query")?.trim() ?? "";
   const submittedQuery = query.trim();
+  const expectedQuery = normalizeEzqForRequestMatch(submittedQuery);
   const submittedIsAllSearch =
     submittedQuery === "/s" || submittedQuery === "/search";
   const currentIsAllSearch =
@@ -48,19 +50,50 @@ export async function executeQuery(page: Page, query: string) {
 
   await input.fill(query);
 
-  const responsePromise = shouldWaitForResponse
-    ? page.waitForResponse((response) => {
-        const url = new URL(response.url());
-        return (
-          url.pathname === "/ezq" && response.request().method() === "POST"
-        );
-      })
+  const requestPromise = shouldWaitForResponse
+    ? page
+        .waitForRequest(
+          (request) => {
+            const url = new URL(request.url());
+            if (url.pathname !== "/ezq" || request.method() !== "POST") {
+              return false;
+            }
+
+            const bodyQuery = getEzqRequestQuery(request.postData());
+            return (
+              typeof bodyQuery === "string" &&
+              normalizeEzqForRequestMatch(bodyQuery) === expectedQuery
+            );
+          },
+          { timeout: 5000 }
+        )
+        .catch(() => null)
     : null;
 
   await input.press("Enter");
-  const response = await responsePromise;
+  const request = await requestPromise;
+  const response = request ? await request.response() : null;
   if (response) expect(response.ok()).toBeTruthy();
   await expect(page.getByText("Executing query...")).toHaveCount(0);
+}
+
+function normalizeEzqForRequestMatch(query: string) {
+  try {
+    return canonicalizeEzqQuery(query);
+  } catch {
+    return query.trim();
+  }
+}
+
+function getEzqRequestQuery(postData: string | null) {
+  if (!postData) return undefined;
+
+  try {
+    const body = JSON.parse(postData) as { query?: unknown };
+    return body.query;
+  } catch {
+    return undefined;
+  }
 }
 
 export async function expectQueryResult(page: Page, title: string) {
