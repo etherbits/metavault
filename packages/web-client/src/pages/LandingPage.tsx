@@ -166,6 +166,14 @@ function LandingGridBackground({
 }) {
   const pulseMask =
     "radial-gradient(circle at 64% 18%, transparent 0px, transparent var(--pulse-inner), rgba(0,0,0,0.42) var(--pulse-soft-inner), black var(--pulse-core), rgba(0,0,0,0.42) var(--pulse-soft-outer), transparent var(--pulse-outer))";
+  const pulseStart = {
+    opacity: 0,
+    "--pulse-inner": "18px",
+    "--pulse-soft-inner": "84px",
+    "--pulse-core": "152px",
+    "--pulse-soft-outer": "222px",
+    "--pulse-outer": "300px",
+  } as TargetAndTransition;
   const pulseAnimation = reduceMotion
     ? ({ opacity: 0.06 } satisfies TargetAndTransition)
     : ({
@@ -225,7 +233,7 @@ function LandingGridBackground({
 
       <motion.div
         className="absolute inset-0"
-        initial={false}
+        initial={reduceMotion ? false : pulseStart}
         animate={pulseAnimation}
         transition={
           reduceMotion
@@ -488,7 +496,6 @@ function VaultFlowVisual({ reduceMotion }: { reduceMotion: boolean | null }) {
       <div className="absolute inset-x-12 top-10 h-56 rounded-full bg-[#FACC16]/10 blur-3xl" />
       <motion.div
         aria-hidden="true"
-        inert
         className="relative isolate w-full origin-center overflow-hidden rounded-[12px] border border-[#3F3F46] bg-[#09090B] p-2 shadow-[0_30px_90px_rgba(0,0,0,0.42)] transform-gpu sm:p-[30px] [@media_(min-width:1024px)_and_(max-height:800px)]:p-5"
         onPointerMove={handlePointerMove}
         onPointerLeave={handlePointerLeave}
