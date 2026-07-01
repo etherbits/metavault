@@ -214,8 +214,8 @@ test("query page /u with negated tag removes that tag from all user entries", as
   request,
   page,
 }) => {
-  const suffix = Date.now();
-  const username = `utag${String(suffix).slice(-9)}`;
+  const suffix = `${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
+  const username = `utag${suffix.slice(-9)}`;
   const email = `update-remove-tag-${suffix}@test.local`;
   await createVerifiedUser(request, username, email);
   await signIn(request, username, TEST_AUTH_PASSWORD);

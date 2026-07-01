@@ -503,7 +503,7 @@ impl SqlGenerator {
                 }
                 "collection" => {
                     let collection = CollectionWrite {
-                        name: first_segment(&segments, leaf)?.replace('_', " "),
+                        name: decode_keyword_space(first_segment(&segments, leaf)?),
                     };
                     if item.remove {
                         collection_removals.push(collection);
@@ -518,7 +518,7 @@ impl SqlGenerator {
                     if title_value.is_some() {
                         return Err(SqlGenerateError::MultipleTitlesNotAllowed);
                     }
-                    title_value = Some(first_segment(&segments, leaf)?.replace('_', " "));
+                    title_value = Some(decode_keyword_space(first_segment(&segments, leaf)?));
                 }
                 other => return Err(SqlGenerateError::UnknownQualifier(other.to_string())),
             }
@@ -582,7 +582,7 @@ impl SqlGenerator {
                 )
             }
             "collection" => {
-                params.push(first_segment(&segments, leaf)?.replace('_', " "));
+                params.push(decode_keyword_space(first_segment(&segments, leaf)?));
                 Ok(
                     "library_entries.id IN (SELECT collection_entries.library_entry_id FROM collection_entries JOIN collections ON collections.id = collection_entries.collection_id WHERE lower(collections.name) = lower(?))"
                         .to_string(),
@@ -590,7 +590,7 @@ impl SqlGenerator {
             }
             "title" => {
                 let value = first_segment(&segments, leaf)?;
-                params.push(format!("%{}%", value.replace('_', " ")));
+                params.push(format!("%{}%", decode_keyword_space(value)));
                 Ok("library_entries.title LIKE ?".to_string())
             }
             other => Err(SqlGenerateError::UnknownQualifier(other.to_string())),
@@ -909,6 +909,27 @@ fn split_op_value(value: &str) -> (String, String) {
     (op.to_string(), num.to_string())
 }
 
+fn decode_keyword_space(value: &str) -> String {
+    let mut output = String::with_capacity(value.len());
+    let mut chars = value.chars().peekable();
+
+    while let Some(char) = chars.next() {
+        if char != '_' {
+            output.push(char);
+            continue;
+        }
+
+        if chars.peek() == Some(&'_') {
+            chars.next();
+            output.push('_');
+        } else {
+            output.push(' ');
+        }
+    }
+
+    output
+}
+
 fn reformat_date(date_str: &str) -> Result<String, SqlGenerateError> {
     NaiveDate::parse_from_str(date_str, "%d-%m-%Y")
         .map(|d| d.format("%Y-%m-%d").to_string())
@@ -1055,6 +1076,14 @@ mod tests {
         assert!(sql[0].sql.contains("JOIN collections"));
         assert!(sql[0].sql.contains("lower(collections.name) = lower(?)"));
         assert_eq!(sql[0].params, vec!["watch list".to_string()]);
+    }
+
+    #[test]
+    fn search_collection_filter_preserves_escaped_underscores() {
+        let ast = root("search", leaf("collection:my__list"));
+        let sql = generator().generate(ast, Extras::default()).unwrap();
+
+        assert_eq!(sql[0].params, vec!["my_list".to_string()]);
     }
 
     #[test]

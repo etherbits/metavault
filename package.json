@@ -31,6 +31,7 @@
   "workspaces": [
     "packages/server",
     "packages/web-client",
+    "packages/info-web",
     "tests"
   ],
   "dependencies": {

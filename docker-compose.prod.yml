@@ -6,11 +6,20 @@ services:
     restart: unless-stopped
     volumes:
       - sqlite_data:/app/packages/server/data
+      - media_data:/app/packages/server/media
     environment:
       DATABASE_URL: sqlite:///app/packages/server/data/db.sqlite
+      MEDIA_ROOT: /app/packages/server/media
       NODE_ENV: production
       PORT: "3435"
       CLIENT_ORIGIN: "${CLIENT_ORIGIN:-http://localhost:3534}"
+      AUTH_COOKIE_SECURE: "${AUTH_COOKIE_SECURE:-true}"
+      JWT_SECRET: "${JWT_SECRET:?JWT_SECRET is required}"
+      EMAIL_HOST: "${EMAIL_HOST:?EMAIL_HOST is required}"
+      EMAIL_PORT: "${EMAIL_PORT:-587}"
+      EMAIL_USER: "${EMAIL_USER:?EMAIL_USER is required}"
+      EMAIL_PASS: "${EMAIL_PASS:?EMAIL_PASS is required}"
+      EMAIL_FROM: "${EMAIL_FROM:-}"
     ports:
       - "3435:3435"
     healthcheck:
@@ -25,7 +34,7 @@ services:
       context: .
       dockerfile: packages/web-client/Dockerfile.prod
       args:
-        VITE_API_URL: "${VITE_API_URL:-http://localhost:3435/}"
+        VITE_API_URL: "${VITE_API_URL:-/api}"
     restart: unless-stopped
     ports:
       - "3534:80"
@@ -33,5 +42,15 @@ services:
       server:
         condition: service_healthy
 
+  info-web:
+    profiles: ["info"]
+    build:
+      context: .
+      dockerfile: packages/info-web/Dockerfile.prod
+    restart: unless-stopped
+    ports:
+      - "3536:80"
+
 volumes:
   sqlite_data:
+  media_data:

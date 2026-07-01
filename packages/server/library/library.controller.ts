@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { bundleUpload, upload } from "../middleware/upload";
+import { bundleUpload, imageUpload, upload } from "../middleware/upload";
 import { validatedRoute } from "../middleware/validation";
 import { sendServiceError } from "../utils/http";
 import {
@@ -17,7 +17,7 @@ const libraryRouter = Router()
       {
         auth: true,
         body: createLibraryEntrySchema,
-        middleware: [upload.single("image")],
+        middleware: [imageUpload.single("image")],
       },
       async (req, res) => {
         const result = await libraryService.createEntry({
@@ -68,7 +68,7 @@ const libraryRouter = Router()
         auth: true,
         params: libraryIdSchema,
         body: updateLibraryEntrySchema,
-        middleware: [upload.single("image")],
+        middleware: [imageUpload.single("image")],
       },
       async (req, res) => {
         const result = await libraryService.updateEntry({
@@ -92,7 +92,7 @@ const libraryRouter = Router()
         auth: true,
         params: libraryIdSchema,
         body: updateLibraryEntrySchema,
-        middleware: [upload.single("image")],
+        middleware: [imageUpload.single("image")],
       },
       async (req, res) => {
         const result = await libraryService.updateEntry({

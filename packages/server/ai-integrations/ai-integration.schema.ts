@@ -59,7 +59,7 @@ export const aiIntegrationSettingsSchema = z.discriminatedUnion("is_active", [
   z.object({
     integration_type: aiIntegrationTypeSchema,
     is_active: z.literal(true),
-    config: aiIntegrationConfigInputSchema,
+    config: aiIntegrationDraftConfigInputSchema,
     config_fields: z.array(aiIntegrationConfigFieldSchema),
   }),
   z.object({

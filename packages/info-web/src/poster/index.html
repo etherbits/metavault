@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>MetaVault Design Day Poster</title>
+    <link rel="stylesheet" href="./poster.css">
+  </head>
+  <body>
+    <main class="poster">
+      <header class="poster-header">
+        <div class="title-block">
+          <p class="label">Senior Design Project, Spring 2026</p>
+          <h1>MetaVault</h1>
+          <p class="subtitle">
+            A self-hostable media library for personal records, search, and
+            recommendations
+          </p>
+          <p class="team">
+            Nikoloz Kvrivishvili, Guga Akopashvili, Giorgi Ratiani
+          </p>
+        </div>
+
+        <div class="header-side">
+          <div class="institution">
+            <div class="logo-tile ilia-mark">
+              <img src="./ilia-logo.png" alt="Ilia State University logo">
+            </div>
+            <div>
+              <p class="school">Ilia State University</p>
+              <p>Faculty of Business, Technology and Education</p>
+              <p>School of Technology - Computer Science</p>
+            </div>
+          </div>
+
+          <div class="project-meta">
+            <div>
+              <span>Supervisor</span>
+              <strong>Prof. Dr. Erekle Magradze</strong>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <section class="abstract">
+        <p>
+          MetaVault is a self-hostable web application for tracking movies, TV
+          shows, anime, games, books, manga, and other media in one place. The
+          core library works without external services: users can create
+          records, search them, organize them, and export their data. Source
+          integrations and AI are opt-in. TMDB, AniList, IGDB, or OpenLibrary
+          can fill metadata, and a local or hosted OpenAI-compatible model can
+          power chat and recommendations.
+        </p>
+      </section>
+
+      <section class="presenter presenter-one">
+        Motivation and product scope
+      </section>
+      <section class="grid row-one">
+        <article class="card values-card">
+          <h2>Why MetaVault exists</h2>
+          <p class="lead">
+            People who track several media types usually split their history
+            across separate tools. Ratings, statuses, tags, unfinished items,
+            and backups end up spread across different accounts.
+          </p>
+
+          <div class="thesis-box">
+            <span>Opt-in integrations</span>
+            <p>
+              The library, EZQ, import/export, and account flows do not require
+              metadata sources or an AI provider. Enrichment and assistant
+              features are enabled per user.
+            </p>
+          </div>
+
+          <div class="value-grid">
+            <div>
+              <h3>Data ownership</h3>
+              <p>
+                Library data lives in SQLite with local images and export
+                bundles, so it can be backed up, inspected, or moved.
+              </p>
+            </div>
+            <div>
+              <h3>Shared media model</h3>
+              <p>
+                Movies, shows, anime, games, books, and manga share one record
+                shape for status, ratings, tags, and collections.
+              </p>
+            </div>
+            <div>
+              <h3>Less manual entry</h3>
+              <p>
+                Configured source APIs can fill titles, covers, dates, public
+                ratings, source IDs, and tags when the user asks for enrichment.
+              </p>
+            </div>
+            <div>
+              <h3>Portable setup</h3>
+              <p>
+                Docker and the open repository make the project easier to run,
+                audit, modify, and reuse.
+              </p>
+            </div>
+          </div>
+        </article>
+
+        <article class="card mvp-card">
+          <h2>What the MVP supports</h2>
+          <p class="lead">
+            The current app covers the main flows: accounts, media records,
+            collections, EZQ, enrichment, assistant chat, recommendations, and
+            import/export.
+          </p>
+
+          <div class="capability-grid">
+            <div>
+              <strong>Accounts and access</strong
+              ><span
+                >Register, verify email, sign in, update profile, upload avatar,
+                reset password, and delete the account.</span
+              >
+            </div>
+            <div>
+              <strong>Media library</strong
+              ><span
+                >Create, view, update, delete, rate, tag, upload covers, and
+                track status across supported media types.</span
+              >
+            </div>
+            <div>
+              <strong>Organization</strong
+              ><span
+                >Collections and content nodes for lists, episodes, chapters,
+                volumes, and related links.</span
+              >
+            </div>
+            <div>
+              <strong>Search and EZQ</strong
+              ><span
+                >One input for search, create, update, delete, aliases,
+                enrichment, and catalogue pull commands.</span
+              >
+            </div>
+            <div>
+              <strong>Source enrichment</strong
+              ><span
+                >Use configured TMDB, AniList, IGDB, or OpenLibrary sources to
+                fill missing metadata.</span
+              >
+            </div>
+            <div>
+              <strong>Recommendations</strong
+              ><span
+                >Generate catalogue-backed suggestions ranked with embeddings,
+                filters, and scoring rules.</span
+              >
+            </div>
+            <div>
+              <strong>Portability</strong
+              ><span
+                >Self-host with Docker, keep the SQLite database, and move data
+                through import/export bundles.</span
+              >
+            </div>
+            <div>
+              <strong>AI assistant</strong
+              ><span
+                >Use a chosen OpenAI-compatible local or hosted model for chat,
+                query context, and recommendation explanations.</span
+              >
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section class="presenter presenter-two">
+        System design and query model
+      </section>
+      <section class="grid row-two">
+        <article class="card diagram-card">
+          <h2>Architecture</h2>
+          <p class="lead">
+            The browser handles screens and immediate feedback. The server
+            handles auth, user-scoped records, EZQ execution, imports,
+            recommendations, and SQLite writes.
+          </p>
+
+          <div
+            class="arch-figure arch-repo"
+            role="img"
+            aria-label="MetaVault high-level component architecture"
+          >
+            <div class="arch-main">
+              <div class="arch-system">
+                <span>Front-End</span>
+                <strong>React client</strong>
+                <p>
+                  Library screens, forms, account flow, and live EZQ feedback
+                </p>
+              </div>
+              <div class="arch-link">
+                <span>HTTP API</span>
+                <small>actions</small>
+              </div>
+              <div class="arch-system server-system">
+                <span>Back-End</span>
+                <strong>Express (Bun)</strong>
+                <p>
+                  Auth, media records, imports, recommendations, and user-scoped
+                  writes
+                </p>
+              </div>
+              <div class="arch-link">
+                <span>SQL</span>
+                <small>persistence</small>
+              </div>
+              <div class="arch-system">
+                <span>Storage</span>
+                <strong>SQLite DB</strong>
+                <p>Entries, tags, collections, ratings, and source metadata</p>
+              </div>
+            </div>
+            <div class="optional-row">
+              <div>
+                <strong>EZQ crate</strong>
+                <small
+                  >Rust/WASM parser used for browser feedback and server
+                  execution.</small
+                >
+              </div>
+              <div>
+                <strong>Source integrations</strong>
+                <small
+                  >Configured providers enrich entries and refresh catalogue
+                  records.</small
+                >
+              </div>
+              <div>
+                <strong>AI integrations</strong>
+                <small
+                  >Profiles can point to local or hosted OpenAI-compatible
+                  models.</small
+                >
+              </div>
+            </div>
+          </div>
+          <p class="figure-caption">
+            Figure 1. High-level architecture based on the project component
+            diagram.
+          </p>
+        </article>
+
+        <article class="card query-card">
+          <h2>Shared data model and EZQ</h2>
+          <p class="lead">
+            Movies, books, games, shows, anime, and manga use the same record
+            shape. EZQ gives repeated library actions a short command syntax
+            without exposing SQL.
+          </p>
+
+          <div class="query-examples">
+            <p>
+              <code>/s status:In_Progress type:Movie</code
+              ><span>search in-progress movies</span>
+            </p>
+            <p>
+              <code>/c Dune type:Book status:Planning</code
+              ><span>create an entry</span>
+            </p>
+            <p>
+              <code>/u Severance &gt; status:Finished</code
+              ><span>update progress</span>
+            </p>
+            <p><code>/s fantasy #enrich</code><span>search and enrich</span></p>
+          </div>
+
+          <div class="trust-note">
+            <strong>EZQ execution:</strong>
+            the client expands and validates commands for quick feedback. The
+            server parses the same query again, builds the action, and runs
+            controlled database operations for the signed-in user.
+          </div>
+          <p class="figure-caption">
+            Figure 2. Shared record model plus example EZQ commands.
+          </p>
+        </article>
+      </section>
+
+      <section class="presenter presenter-three">
+        Integrations, evidence, and next steps
+      </section>
+      <section class="grid row-three">
+        <article class="card diagram-card">
+          <h2>Enrichment and recommendations</h2>
+          <p class="lead">
+            Source integrations can enrich saved entries and build the
+            recommendation catalogue. Recommendation requests embed the prompt,
+            filter catalogue candidates, and rank the matches before the
+            assistant explains them.
+          </p>
+
+          <div
+            class="rec-flow"
+            role="img"
+            aria-label="Recommendation pipeline diagram"
+          >
+            <div class="library-anchor">
+              <strong>Recommendation overview</strong>
+              <p>
+                MetaVault embeds the prompt and compares it with catalogue
+                vectors using cosine similarity. The final score also considers
+                keyword overlap, public rating, and popularity.
+              </p>
+            </div>
+            <div class="rec-row">
+              <div>
+                <span>1</span><strong>Source<br>APIs</strong
+                ><small>fetch records</small>
+              </div>
+              <div>
+                <span>2</span><strong>Normalize<br>fields</strong
+                ><small>map provider data</small>
+              </div>
+              <div>
+                <span>3</span><strong>Catalogue<br>store</strong
+                ><small>store candidates</small>
+              </div>
+              <div>
+                <span>4</span><strong>Score<br>candidates</strong
+                ><small>filter and rank</small>
+              </div>
+              <div>
+                <span>5</span><strong>Assistant<br>answer</strong
+                ><small>explain ranked items</small>
+              </div>
+            </div>
+          </div>
+
+          <p class="caption">
+            The assistant writes the answer after the server returns ranked
+            catalogue records.
+          </p>
+          <p class="figure-caption">
+            Figure 3. Source metadata becomes catalogue candidates before the
+            assistant explains recommendations.
+          </p>
+        </article>
+
+        <article class="card evidence-card">
+          <h2>Recommendation study outcomes</h2>
+          <p class="lead">
+            Five participants evaluated 25 prompts. Each prompt returned five
+            items, for 125 item ratings.
+          </p>
+
+          <div
+            class="target-chart"
+            role="img"
+            aria-label="Recommendation study outcomes"
+          >
+            <div class="target-group percent-targets">
+              <div class="target-row">
+                <div>
+                  <span>Useful items</span>
+                  <strong>76%</strong>
+                </div>
+                <div class="target-measure">
+                  <div class="target-track" aria-hidden="true">
+                    <i style="width: 76%"></i>
+                    <em style="left: 60%">target 60%</em>
+                  </div>
+                  <div class="target-scale" aria-hidden="true">
+                    <span>0%</span><span>50%</span><span>100%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="target-group percent-targets">
+              <div class="target-row">
+                <div>
+                  <span>Lists with at least one good result</span>
+                  <strong>92%</strong>
+                </div>
+                <div class="target-measure">
+                  <div class="target-track" aria-hidden="true">
+                    <i style="width: 92%"></i>
+                    <em style="left: 80%">target 80%</em>
+                  </div>
+                  <div class="target-scale" aria-hidden="true">
+                    <span>0%</span><span>50%</span><span>100%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="target-group rating-targets">
+              <div class="target-row rating-row">
+                <div>
+                  <span>Average score</span>
+                  <strong>3.37 / 5.00</strong>
+                </div>
+                <div class="target-measure">
+                  <div class="target-track rating-track" aria-hidden="true">
+                    <i style="width: 59.25%"></i>
+                    <em style="left: 50%">target 3.0</em>
+                  </div>
+                  <div class="target-scale" aria-hidden="true">
+                    <span>1.0</span><span>3.0</span><span>5.0</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <p class="study-note">
+              Targets were set before scoring. Useful means rating 3+, and good
+              means rating 4 or 5.
+            </p>
+          </div>
+          <p class="figure-caption">Figure 4. Recommendation study summary.</p>
+        </article>
+      </section>
+
+      <section class="future-work">
+        <h2>Next planned work</h2>
+        <div>
+          <p>
+            <strong>Recommendation quality:</strong>
+            tune scoring weights, handle negative constraints better, and
+            refresh a broader catalogue.
+          </p>
+          <p>
+            <strong>Ownership workflow:</strong>
+            add release tracking, service links, optional owned-file links, and
+            richer import/export formats.
+          </p>
+          <p>
+            <strong>Search vocabulary:</strong>
+            improve EZQ docs and normalize cross-media tags for movies, anime,
+            games, books, manga, and shows.
+          </p>
+        </div>
+      </section>
+
+      <footer class="poster-footer">
+        <div class="footer-main">
+          <div class="footer-logo">
+            <img src="./Meta.png" alt="MetaVault logo">
+          </div>
+          <strong>MetaVault</strong>
+        </div>
+        <div class="qr-group" aria-label="Project links">
+          <figure>
+            <img src="./github-qr.svg" alt="GitHub QR code">
+            <figcaption>GitHub</figcaption>
+          </figure>
+        </div>
+      </footer>
+    </main>
+  </body>
+</html>

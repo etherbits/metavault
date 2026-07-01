@@ -47,10 +47,29 @@ class UserModel {
   }
 
   async deleteUser(id: string): Promise<boolean> {
-    const result = await sql`
-      DELETE FROM users WHERE id = ${id}
-      RETURNING id
-    `;
+    const result = await sql.begin(async (tx) => {
+      const current = await tx`
+        SELECT id FROM users WHERE id = ${id}
+      `;
+
+      if (current.length === 0) {
+        return [];
+      }
+
+      await tx`DELETE FROM assistant_sessions WHERE user_id = ${id}`;
+      await tx`DELETE FROM otp_codes WHERE user_id = ${id}`;
+      await tx`DELETE FROM alias_mappings WHERE user_id = ${id}`;
+      await tx`DELETE FROM ai_integrations WHERE user_id = ${id}`;
+      await tx`DELETE FROM collections WHERE user_id = ${id}`;
+      await tx`DELETE FROM library_entries WHERE user_id = ${id}`;
+      await tx`DELETE FROM tags WHERE user_id = ${id}`;
+      await tx`DELETE FROM source_integrations WHERE user_id = ${id}`;
+
+      return tx`
+        DELETE FROM users WHERE id = ${id}
+        RETURNING id
+      `;
+    });
 
     return result.length > 0;
   }

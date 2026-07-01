@@ -189,11 +189,10 @@ test("query page /delete tag:action:major deletes matching tagged entries", asyn
 
   await openQueryPage(page, username, TEST_AUTH_PASSWORD);
   await executeQuery(page, "/delete tag:action:major");
-  await executeQuery(page, "/s");
+  await executeQuery(page, "/search tag:keeper:major");
+  await expectQueryResult(page, survivorTitle);
+  await executeQuery(page, "/search tag:action:major");
   await expectNoQueryResult(page, taggedTitle);
-  await expect(
-    page.getByRole("heading", { name: survivorTitle })
-  ).toBeVisible();
 });
 
 test("query page /delete !(attack on titan) deletes non-matching title entries", async ({

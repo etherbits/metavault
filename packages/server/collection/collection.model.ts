@@ -76,6 +76,29 @@ class CollectionModel {
     return (result[0] as Collection) || null;
   }
 
+  async getByUserAndName(
+    userId: string,
+    name: string,
+    exceptId?: string
+  ): Promise<Collection | null> {
+    const result = exceptId
+      ? await sql`
+          SELECT *
+          FROM collections
+          WHERE user_id = ${userId}
+          AND lower(name) = lower(${name})
+          AND id != ${exceptId}
+        `
+      : await sql`
+          SELECT *
+          FROM collections
+          WHERE user_id = ${userId}
+          AND lower(name) = lower(${name})
+        `;
+
+    return (result[0] as Collection) || null;
+  }
+
   async update(
     id: string,
     userId: string,

@@ -1,10 +1,15 @@
-import { API_BASE_URL, ApiError, apiRequest } from "@/shared/api/client";
+import {
+  API_BASE_URL,
+  ApiError,
+  apiRequest,
+  getApiErrorMessage,
+} from "@/shared/api/client";
 import {
   type AssistantChatInput,
   type AssistantRecommendationRun,
-  assistantRecommendationRunSchema,
   assistantChatResponseSchema,
   assistantChatSchema,
+  assistantRecommendationRunSchema,
   assistantSessionSchema,
   assistantSessionsResponseSchema,
   type UpsertAssistantSessionInput,
@@ -41,13 +46,7 @@ export async function streamAssistantMessage({
 
   if (!response.ok || !response.body) {
     const payload = (await response.json().catch(() => null)) as unknown;
-    const message =
-      payload &&
-      typeof payload === "object" &&
-      "message" in payload &&
-      typeof payload.message === "string"
-        ? payload.message
-        : "Unable to send assistant message";
+    const message = getApiErrorMessage(payload, response.status);
     throw new ApiError(message, response.status);
   }
 
@@ -69,9 +68,7 @@ export async function streamAssistantMessage({
       if (!event) continue;
 
       if (event.event === "error") {
-        throw new Error(
-          event.data.message ?? "Unable to stream assistant reply"
-        );
+        throw new Error("Unable to stream assistant reply");
       }
 
       if (event.event === "done") {

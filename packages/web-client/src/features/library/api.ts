@@ -5,7 +5,12 @@ import {
 } from "@/features/library/contracts";
 import { mapServerEntriesToMediaItems } from "@/features/library/mappers";
 import type { MediaStatus } from "@/features/library/types";
-import { API_BASE_URL, ApiError, apiRequest } from "@/shared/api/client";
+import {
+  API_BASE_URL,
+  ApiError,
+  apiRequest,
+  getApiErrorMessage,
+} from "@/shared/api/client";
 import { LibraryEntrySchema } from "../../../../server/db/schema/libraryEntries";
 
 const deleteResponseSchema = z.object({
@@ -148,20 +153,12 @@ async function apiRawRequest(path: string, options: RequestInit) {
   try {
     response = await fetch(`${API_BASE_URL}${normalizedPath}`, options);
   } catch {
-    throw new Error(
-      `Cannot reach API server at ${API_BASE_URL}. Make sure backend is running.`
-    );
+    throw new Error("Unable to reach the API server. Please try again.");
   }
 
   if (!response.ok) {
     const payload = (await response.json().catch(() => null)) as unknown;
-    const message =
-      payload &&
-      typeof payload === "object" &&
-      "message" in payload &&
-      typeof payload.message === "string"
-        ? payload.message
-        : "Request failed";
+    const message = getApiErrorMessage(payload, response.status);
     throw new ApiError(message, response.status);
   }
 

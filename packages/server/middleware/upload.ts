@@ -9,6 +9,20 @@ export const upload = multer({
   },
 });
 
+export const imageUpload = multer({
+  storage,
+  fileFilter: (_req, file, callback) => {
+    if (!file.mimetype.startsWith("image/")) {
+      return callback(new multer.MulterError("LIMIT_UNEXPECTED_FILE"));
+    }
+
+    return callback(null, true);
+  },
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB
+  },
+});
+
 export const bundleUpload = multer({
   storage,
   limits: {

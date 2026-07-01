@@ -1,0 +1,6 @@
+FROM nginx:alpine
+
+COPY packages/info-web/src /usr/share/nginx/html
+COPY packages/info-web/nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80

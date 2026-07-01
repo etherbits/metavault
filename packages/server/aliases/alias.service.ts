@@ -1,3 +1,4 @@
+import { generate_ast } from "@etherbits/ezq-node";
 import { err, ok, type Result } from "../utils/result";
 import { aliasMappingModel, type AliasMappingRow } from "./alias.model";
 import type { AliasMapping, UpsertAliasMappingInput } from "./alias.schema";
@@ -15,8 +16,8 @@ class AliasMappingService {
     userId: string;
     body: UpsertAliasMappingInput;
   }): Promise<Result<AliasMapping>> {
-    if (body.expansion.includes("#alias:")) {
-      return err(400, "Alias expansions cannot reference other aliases");
+    if (hasCommandTokens(body.expansion)) {
+      return err(400, "Alias expansions cannot contain commands");
     }
 
     const row = await aliasMappingModel.upsert({
@@ -41,6 +42,15 @@ class AliasMappingService {
     }
 
     return ok({ alias });
+  }
+}
+
+function hasCommandTokens(expansion: string) {
+  try {
+    const ast = generate_ast(`/search ${expansion}`);
+    return "Root" in ast && (ast.Root.commands?.length ?? 0) > 0;
+  } catch {
+    return false;
   }
 }
 

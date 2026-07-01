@@ -371,3 +371,25 @@ test("pull command previews catalogue entries and creates them only with create"
     createBody.rows.length + 1
   );
 });
+
+test("query page treats pull search results as catalogue previews", async ({
+  request,
+  page,
+}) => {
+  const username = `pullp${Date.now().toString(36).slice(-8)}`;
+  const email = `${username}@test.local`;
+  await createVerifiedUser(request, username, email);
+  await signIn(request, username);
+  await refreshCatalogue(request);
+
+  await openQueryPage(page, username);
+  await executeQuery(page, "/s #pull:all:10");
+
+  await expect(page.getByText("No results found")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Card actions" })).toHaveCount(
+    0
+  );
+  await expect(page.getByRole("button", { name: "View Details" })).toHaveCount(
+    0
+  );
+});

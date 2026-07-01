@@ -2,7 +2,7 @@ import { CalendarDays, Clapperboard, Sparkles, Star } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router";
 import BatmanPoster from "@/assets/download.jpeg";
-import { StatusBadge, getStatusBadgeTone } from "@/components/Badges";
+import { getStatusBadgeTone, StatusBadge } from "@/components/Badges";
 import { PersonalRatingControl } from "@/components/PersonalRatingControl";
 import { Button } from "@/components/ui/button";
 import { ContentNodesSection } from "@/features/content-nodes/ContentNodesSection";
@@ -50,8 +50,7 @@ function DetailPageContent({
     optimisticPersonalRating?.id === item.id
       ? optimisticPersonalRating.value
       : item.personalRating;
-  const status = item.status ?? "On Hold";
-  const statusTone = getStatusBadgeTone(status);
+  const statusTone = item.status ? getStatusBadgeTone(item.status) : null;
 
   function updateRating(personalRating: number) {
     setOptimisticPersonalRating({ id: item.id, value: personalRating });
@@ -98,14 +97,16 @@ function DetailPageContent({
               className="h-full w-full object-cover"
             />
 
-            <StatusBadge
-              status={status}
-              className={cn(
-                "absolute left-3 top-3 h-[35px] gap-3 rounded-[4px] bg-[#27272A]/60 px-3 text-[18px] font-medium leading-[27px] backdrop-blur-[4px] [&_svg]:size-5",
-                statusTone.text,
-                statusTone.border
-              )}
-            />
+            {item.status && statusTone ? (
+              <StatusBadge
+                status={item.status}
+                className={cn(
+                  "absolute left-3 top-3 h-[35px] gap-3 rounded-[4px] bg-[#27272A]/60 px-3 text-[18px] font-medium leading-[27px] backdrop-blur-[4px] [&_svg]:size-5",
+                  statusTone.text,
+                  statusTone.border
+                )}
+              />
+            ) : null}
           </div>
 
           <div className="flex flex-col gap-8">

@@ -8,6 +8,7 @@ import { catalogueMigration } from "./005_catalogue";
 import { catalogueMediaIdentityMigration } from "./006_catalogue_media_identity";
 import { aliasMappingsConstraintsMigration } from "./007_alias_mappings_constraints";
 import { userAvatarUrlMigration } from "./008_user_avatar_url";
+import { collectionNameUniquenessMigration } from "./009_collection_name_uniqueness";
 import type { Migration } from "./types";
 
 const migrations: Migration[] = [
@@ -19,6 +20,7 @@ const migrations: Migration[] = [
   catalogueMediaIdentityMigration,
   aliasMappingsConstraintsMigration,
   userAvatarUrlMigration,
+  collectionNameUniquenessMigration,
 ];
 
 export async function migrate(sql: SQL) {

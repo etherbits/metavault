@@ -89,6 +89,30 @@ test("POST /users/profile/avatar stores a profile image", async ({
   expect(user.avatar_url).toMatch(/^\/media\/users\/.+\/profile\/avatar\.webp/);
 });
 
+test("POST /users/profile/avatar rejects invalid image uploads", async ({
+  request,
+}) => {
+  const suffix = crypto.randomUUID().slice(0, 8);
+  const username = `badav_${suffix}`;
+  const email = `avatar-invalid-${suffix}@test.local`;
+
+  await createVerifiedUser(request, username, email);
+  await signIn(request, username);
+
+  const response = await request.post("/users/profile/avatar", {
+    multipart: {
+      image: {
+        name: "avatar.txt",
+        mimeType: "text/plain",
+        buffer: Buffer.from("not an image"),
+      },
+    },
+  });
+
+  expect(response.status()).toBe(400);
+  expect(await response.json()).toEqual({ message: "Unsupported image file" });
+});
+
 test("DELETE /users/profile deletes the authenticated account", async ({
   request,
 }) => {
@@ -98,6 +122,53 @@ test("DELETE /users/profile deletes the authenticated account", async ({
 
   await createVerifiedUser(request, username, email);
   await signIn(request, username);
+
+  const response = await request.delete("/users/profile");
+  expect(response.ok()).toBeTruthy();
+  expect(await response.json()).toEqual({
+    message: "User deleted successfully",
+  });
+
+  const profileResponse = await request.get("/users/profile");
+  expect(profileResponse.status()).toBe(401);
+});
+
+test("DELETE /users/profile deletes an account with owned data", async ({
+  request,
+}) => {
+  const suffix = crypto.randomUUID().slice(0, 8);
+  const username = `delown_${suffix}`;
+  const email = `delete-owned-${suffix}@test.local`;
+
+  await createVerifiedUser(request, username, email);
+  await signIn(request, username);
+
+  const entryResponse = await request.post("/library", {
+    multipart: {
+      title: `Delete Owned Entry ${suffix}`,
+      media_type: "movie",
+      status: "planning",
+    },
+  });
+  expect(entryResponse.status()).toBe(201);
+  const entry = (await entryResponse.json()) as { id: string };
+
+  const collectionResponse = await request.post("/collections", {
+    data: {
+      name: `Delete Owned Collection ${suffix}`,
+      entries: [{ library_entry_id: entry.id }],
+    },
+  });
+  expect(collectionResponse.status()).toBe(201);
+
+  const alias = `delete-owned-${suffix}`;
+  const aliasResponse = await request.put(`/aliases/${alias}`, {
+    data: {
+      alias,
+      expansion: "personal_rating:>7",
+    },
+  });
+  expect(aliasResponse.ok()).toBeTruthy();
 
   const response = await request.delete("/users/profile");
   expect(response.ok()).toBeTruthy();

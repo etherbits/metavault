@@ -198,7 +198,11 @@ export function HomePage() {
 }
 
 function toCollectionQuery(collectionName: string) {
-  return `/search collection:${collectionName.replaceAll(" ", "_")}`;
+  return `/search collection:${toEzqValue(collectionName)}`;
+}
+
+function toEzqValue(value: string) {
+  return value.replaceAll("_", "__").replaceAll(" ", "_");
 }
 
 function getCollectionItems(
