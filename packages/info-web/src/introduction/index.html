@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>MetaVault Introduction</title>
+    <link rel="stylesheet" href="./introduction.css">
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="#top" aria-label="MetaVault introduction">
+        <span class="brand-mark"><img src="../poster/Meta.png" alt=""></span>
+        <span>MetaVault</span>
+      </a>
+      <nav aria-label="Introduction sections">
+        <a href="#purpose">Purpose</a>
+        <a href="#features">Features</a>
+        <a href="#system">System</a>
+        <a href="#study">Study</a>
+        <a href="#links">Links</a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <p class="eyebrow">Senior design project, Spring 2026</p>
+        <h1>
+          A self-hostable media library for records you actually want to keep.
+        </h1>
+        <p class="hero-lead">
+          MetaVault gives people one place to track movies, TV shows, anime,
+          games, books, manga, and other media. The library works without
+          external services: users can create records, search them, organize
+          them, and export their data from a self-hosted app.
+        </p>
+        <div class="hero-actions" aria-label="Project links">
+          <a class="button primary" href="#features">See what it can do</a>
+          <a
+            class="button secondary"
+            href="https://github.com/Etherbits/metavault"
+            >Open GitHub</a
+          >
+          <a class="button ghost" href="../poster/">View poster</a>
+        </div>
+
+        <div class="hero-proof" aria-label="MetaVault record model">
+          <div>
+            <span>Local core</span>
+            <strong>SQLite records</strong>
+            <p>
+              Entries, tags, collections, content nodes, covers, imports, and
+              exports.
+            </p>
+          </div>
+          <div>
+            <span>Optional sources</span>
+            <strong>TMDB, AniList, IGDB, OpenLibrary</strong>
+            <p>
+              Add covers, dates, ratings, tags, source IDs, and catalogue
+              records.
+            </p>
+          </div>
+          <div>
+            <span>Optional AI</span>
+            <strong>Local or hosted model</strong>
+            <p>
+              OpenAI-compatible profiles for chat and catalogue-backed
+              recommendations.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="purpose-grid" id="purpose">
+        <article class="purpose-main">
+          <p class="eyebrow">Purpose</p>
+          <h2>One library for media history split across many tools.</h2>
+          <p>
+            People often keep films in Letterboxd, books in Goodreads, games in
+            Backloggd, television in Trakt, and anime in AniList or MyAnimeList.
+            That works until a user wants one searchable history with shared
+            ratings, statuses, tags, and backups.
+          </p>
+          <p>
+            MetaVault focuses on the record around the media: what the user
+            saved, finished, paused, dropped, tagged, rated, and wants to return
+            to later. It is not a streaming platform or a playback server. It is
+            a portable tracker for the history around those items.
+          </p>
+        </article>
+
+        <article class="ownership-card">
+          <span>Report #2 design rule</span>
+          <strong>The useful part of the product stays local.</strong>
+          <p>
+            Accounts, records, collections, EZQ, imports, and exports run
+            without external services. Users can add metadata providers for
+            enrichment, or connect a local or hosted model when they want
+            assistant chat and recommendations.
+          </p>
+        </article>
+      </section>
+
+      <section class="feature-section" id="features">
+        <div class="section-heading">
+          <p class="eyebrow">Current features</p>
+          <h2>The MVP is now usable end to end.</h2>
+          <p>
+            The second phase connected the backend foundation to the daily web
+            workflows: browsing, editing, searching, importing, exporting,
+            enrichment, and recommendations.
+          </p>
+        </div>
+
+        <div class="feature-showcase">
+          <article class="feature-card large">
+            <span>Library cockpit</span>
+            <h3>Track, group, and update media records from one app.</h3>
+            <p>
+              Create entries, upload covers, set status, rate items, add tags,
+              open details, and group records into collections.
+            </p>
+            <div class="mini-records" aria-hidden="true">
+              <p>
+                <strong>/s status:In_Progress type:Movie</strong
+                ><span>search</span>
+              </p>
+              <p>
+                <strong>/u Severance &gt; status:Finished</strong
+                ><span>update</span>
+              </p>
+              <p>
+                <strong>/c Dune type:Book status:Planning</strong
+                ><span>create</span>
+              </p>
+            </div>
+          </article>
+
+          <article class="feature-card">
+            <span>Account flows</span>
+            <h3>Self-service user management</h3>
+            <p>
+              Registration, email verification, sign in, profile updates, avatar
+              upload, password recovery, and account deletion.
+            </p>
+          </article>
+          <article class="feature-card">
+            <span>Organization</span>
+            <h3>Collections and content nodes</h3>
+            <p>
+              Collections group entries by plan, franchise, mood, or
+              recommendation list. Content nodes track episodes, chapters,
+              volumes, and links.
+            </p>
+          </article>
+          <article class="feature-card">
+            <span>Portability</span>
+            <h3>Import and export</h3>
+            <p>
+              CSV and bundle exports let users inspect records outside the app
+              and keep local images with the archive.
+            </p>
+          </article>
+          <article class="feature-card">
+            <span>Enrichment</span>
+            <h3>Provider data stays optional</h3>
+            <p>
+              Configured sources can fill missing metadata while the local entry
+              remains the user's record.
+            </p>
+          </article>
+          <article class="feature-card">
+            <span>Assistant</span>
+            <h3>Catalogue-backed answers</h3>
+            <p>
+              The assistant can use query context and recommendation tool
+              results instead of relying only on model memory.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section class="system-section" id="system">
+        <div class="section-heading">
+          <p class="eyebrow">How it works</p>
+          <h2>Simple architecture, controlled execution.</h2>
+          <p>
+            The browser handles screens and fast feedback. The server handles
+            auth, user-scoped records, EZQ execution, imports, recommendations,
+            and SQLite writes.
+          </p>
+        </div>
+
+        <div class="architecture-flow" aria-label="MetaVault architecture">
+          <article>
+            <span>Front-end</span>
+            <h3>React client</h3>
+            <p>Library screens, forms, account flow, and live EZQ feedback.</p>
+          </article>
+          <div class="flow-arrow" aria-hidden="true">HTTP API</div>
+          <article>
+            <span>Back-end</span>
+            <h3>Express on Bun</h3>
+            <p>
+              Auth, media records, imports, recommendations, and controlled
+              writes.
+            </p>
+          </article>
+          <div class="flow-arrow" aria-hidden="true">SQL</div>
+          <article>
+            <span>Storage</span>
+            <h3>SQLite</h3>
+            <p>
+              Entries, tags, collections, ratings, source metadata, and
+              catalogue vectors.
+            </p>
+          </article>
+        </div>
+
+        <div class="system-grid">
+          <article>
+            <h3>EZQ trust boundary</h3>
+            <p>
+              The browser parses EZQ so the user gets quick feedback. The server
+              parses it again, resolves the command, applies the signed-in user,
+              and runs the database operation.
+            </p>
+          </article>
+          <article>
+            <h3>Recommendation pipeline</h3>
+            <p>
+              Source records become catalogue candidates. The service embeds the
+              prompt, filters candidates, compares vectors with cosine
+              similarity, and ranks the result set.
+            </p>
+          </article>
+          <article>
+            <h3>Self-hosted deployment</h3>
+            <p>
+              Docker and SQLite keep setup practical for technical users. The
+              database is a file, and uploaded media stays with the server data.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section class="study-section" id="study">
+        <div class="study-copy">
+          <p class="eyebrow">Recommendation study</p>
+          <h2>Early recommendation results passed the first targets.</h2>
+          <p>
+            Five participants evaluated 25 prompts. Each prompt returned five
+            recommendations, for 125 item ratings. Scores of 3+ counted as
+            useful, and scores of 4 or 5 counted as good.
+          </p>
+        </div>
+
+        <div class="study-chart" aria-label="Recommendation study results">
+          <div class="chart-row">
+            <div><strong>76%</strong><span>Useful recommendations</span></div>
+            <div class="bar">
+              <i style="width: 76%"></i><em style="left: 60%">target 60%</em>
+            </div>
+          </div>
+          <div class="chart-row">
+            <div><strong>92%</strong><span>Lists with a good result</span></div>
+            <div class="bar">
+              <i style="width: 92%"></i><em style="left: 80%">target 80%</em>
+            </div>
+          </div>
+          <div class="chart-row">
+            <div><strong>3.37 / 5</strong><span>Mean item rating</span></div>
+            <div class="bar rating">
+              <i style="width: 59.25%"></i><em style="left: 50%">target 3.0</em>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="team-links-grid">
+        <article class="team-section" id="team">
+          <p class="eyebrow">Team</p>
+          <h2>Built at Ilia State University.</h2>
+          <p>
+            MetaVault was built as a Computer Science senior design project in
+            Spring 2026.
+          </p>
+          <div class="team-list">
+            <p><span>Student</span><strong>Nikoloz Kvrivishvili</strong></p>
+            <p><span>Student</span><strong>Guga Akopashvili</strong></p>
+            <p><span>Student</span><strong>Giorgi Ratiani</strong></p>
+            <p>
+              <span>Supervisor</span><strong>Prof. Dr. Erekle Magradze</strong>
+            </p>
+          </div>
+        </article>
+
+        <article class="links-section" id="links">
+          <p class="eyebrow">Links</p>
+          <h2>Check out the project.</h2>
+          <p>
+            Open the repository, review the poster, or jump back to the running
+            app.
+          </p>
+          <div class="link-actions">
+            <a class="button primary" href="/">Open app</a>
+            <a
+              class="button primary"
+              href="https://github.com/Etherbits/metavault"
+              >GitHub repository</a
+            >
+            <a class="button secondary" href="../poster/">Design Day poster</a>
+          </div>
+          <div class="qr-card">
+            <img src="../poster/github-qr.svg" alt="GitHub repository QR code">
+            <div>
+              <span>GitHub</span>
+              <strong>github.com/Etherbits/metavault</strong>
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <strong>MetaVault</strong>
+      <span>Self-hostable media library</span>
+    </footer>
+  </body>
+</html>

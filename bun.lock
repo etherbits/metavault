@@ -17,6 +17,13 @@
         "typescript": "^5.9.3",
       },
     },
+    "packages/info-web": {
+      "name": "metavault-info-web",
+      "version": "0.0.0",
+      "devDependencies": {
+        "vite": "^8.0.4",
+      },
+    },
     "packages/server": {
       "name": "metavault-server",
       "dependencies": {
@@ -1069,6 +1076,8 @@
     "merge-stream": ["merge-stream@2.0.0", "", {}, "sha512-abv/qOcuPfk3URPfDzmZU1LKmuw8kT+0nIHvKrKgFrwifol/doWcdA4ZqsWQ8ENrFKkd67Mfpo/LovbIUsbt3w=="],
 
     "merge2": ["merge2@1.4.1", "", {}, "sha512-8q7VEgMJW4J8tcfVPy8g09NcQwZdbwFEqhe/WZkoIzjn/3TGDwtOCYtXGxA3O8tPzpczCCDgv+P2P5y00ZJOOg=="],
+
+    "metavault-info-web": ["metavault-info-web@workspace:packages/info-web"],
 
     "metavault-server": ["metavault-server@workspace:packages/server"],
 

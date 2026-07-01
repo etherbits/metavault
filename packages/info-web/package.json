@@ -1,0 +1,12 @@
+{
+  "name": "metavault-info-web",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite src --host localhost --port ${INFO_WEB_PORT:-3536}"
+  },
+  "devDependencies": {
+    "vite": "^8.0.4"
+  }
+}

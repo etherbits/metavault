@@ -5,6 +5,7 @@ WORKDIR /app
 COPY package.json bun.lock ./
 COPY packages/server/package.json ./packages/server/
 COPY packages/web-client/package.json ./packages/web-client/
+COPY packages/info-web/package.json ./packages/info-web/
 COPY tests/package.json ./tests/
 
 RUN apt-get update && apt-get install -y curl --no-install-recommends && rm -rf /var/lib/apt/lists/*

@@ -42,6 +42,15 @@ services:
       server:
         condition: service_healthy
 
+  info-web:
+    profiles: ["info"]
+    build:
+      context: .
+      dockerfile: packages/info-web/Dockerfile.prod
+    restart: unless-stopped
+    ports:
+      - "3536:80"
+
 volumes:
   sqlite_data:
   media_data:

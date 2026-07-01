@@ -1,0 +1,27 @@
+shape: sequence_diagram
+
+user: User
+client: "Browser (React)"
+api: "MetaVault API"
+assistant: "Assistant service"
+catalogue: "Recommendation service"
+ai: "OpenAI-compatible AI provider"
+db: "SQLite"
+
+user -> client: "ask for recommendations"
+client -> api: "POST /assistant/chat/stream { message, recommendationCount, recommendationMediaTypes }"
+api -> assistant: "load active AI profile, history, and visible results"
+assistant -> ai: "chat completion + generate_recommendations tool"
+ai -> assistant: "tool call { prompt, filters, count }"
+assistant -> catalogue: "generate({ prompt, filters, count, user_id })"
+catalogue -> ai: "embed recommendation prompt"
+ai -> catalogue: "prompt embedding"
+catalogue -> db: "load catalogue candidates + embeddings"
+db -> catalogue: "candidate rows"
+catalogue -> catalogue: "filter + cosine score + weighted rank"
+catalogue -> assistant: "ranked catalogue items + score details"
+assistant -> ai: "chat completion with tool results"
+ai -> assistant: "assistant explanation"
+assistant -> api: "delta events + recommendation_runs + done"
+api -> client: "SSE data, recommendations, done"
+client -> user: "show answer and recommendation cards"
