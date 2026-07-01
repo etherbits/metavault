@@ -30,7 +30,6 @@ services:
       - server
 
   info-web:
-    profiles: ["info"]
     image: nginx:alpine
     entrypoint: ["nginx", "-g", "daemon off;"]
     ports:
