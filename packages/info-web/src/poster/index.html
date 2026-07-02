@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>MetaVault Design Day Poster</title>
+    <title>Metavault Design Day Poster</title>
     <link rel="stylesheet" href="./poster.css">
   </head>
   <body>
@@ -11,10 +11,10 @@
       <header class="poster-header">
         <div class="title-block">
           <p class="label">Senior Design Project, Spring 2026</p>
-          <h1>MetaVault</h1>
+          <h1>Metavault</h1>
           <p class="subtitle">
-            A self-hostable media library for personal records, search, and
-            recommendations
+            A self-hostable media library for personal records, tracking,
+            search, and recommendations
           </p>
           <p class="team">
             Nikoloz Kvrivishvili, Guga Akopashvili, Giorgi Ratiani
@@ -44,7 +44,7 @@
 
       <section class="abstract">
         <p>
-          MetaVault is a self-hostable web application for tracking movies, TV
+          Metavault is a self-hostable web application for tracking movies, TV
           shows, anime, games, books, manga, and other media in one place. The
           core library works without external services: users can create
           records, search them, organize them, and export their data. Source
@@ -59,7 +59,7 @@
       </section>
       <section class="grid row-one">
         <article class="card values-card">
-          <h2>Why MetaVault exists</h2>
+          <h2>Purpose of Metavault</h2>
           <p class="lead">
             People who track several media types usually split their history
             across separate tools. Ratings, statuses, tags, unfinished items,
@@ -71,7 +71,7 @@
             <p>
               The library, EZQ, import/export, and account flows do not require
               metadata sources or an AI provider. Enrichment and assistant
-              features are enabled per user.
+              features are toggled on by users explicitly.
             </p>
           </div>
 
@@ -79,8 +79,9 @@
             <div>
               <h3>Data ownership</h3>
               <p>
-                Library data lives in SQLite with local images and export
-                bundles, so it can be backed up, inspected, or moved.
+                Library data lives in SQLite. It can be easily exported in
+                bundles in a portable format, so it can be backed up, inspected,
+                or moved.
               </p>
             </div>
             <div>
@@ -91,7 +92,7 @@
               </p>
             </div>
             <div>
-              <h3>Less manual entry</h3>
+              <h3>Easy enrichment</h3>
               <p>
                 Configured source APIs can fill titles, covers, dates, public
                 ratings, source IDs, and tags when the user asks for enrichment.
@@ -108,11 +109,12 @@
         </article>
 
         <article class="card mvp-card">
-          <h2>What the MVP supports</h2>
+          <h2>Features of Metavault</h2>
           <p class="lead">
-            The current app covers the main flows: accounts, media records,
-            collections, EZQ, enrichment, assistant chat, recommendations, and
-            import/export.
+            The current app supports the main flows: account creation and
+            management, library management, querying and executing commands with
+            EZQ, entry enrichment, chatting with assistants, getting
+            recommendations, and importing/exporting.
           </p>
 
           <div class="capability-grid">
@@ -154,22 +156,22 @@
             <div>
               <strong>Recommendations</strong
               ><span
-                >Generate catalogue-backed suggestions ranked with embeddings,
-                filters, and scoring rules.</span
+                >Generate suggestions from catalogue entries, ranked with
+                embeddings, filters, and scoring rules.</span
               >
             </div>
             <div>
               <strong>Portability</strong
               ><span
-                >Self-host with Docker, keep the SQLite database, and move data
-                through import/export bundles.</span
+                >Self-host with Docker, persist data in a SQLite database, and
+                move data through import/export bundles.</span
               >
             </div>
             <div>
               <strong>AI assistant</strong
               ><span
-                >Use a chosen OpenAI-compatible local or hosted model for chat,
-                query context, and recommendation explanations.</span
+                >Use OpenAI-compatible local or hosted model for chat, discuss
+                about query results, and get recommendations.</span
               >
             </div>
           </div>
@@ -181,11 +183,11 @@
       </section>
       <section class="grid row-two">
         <article class="card diagram-card">
-          <h2>Architecture</h2>
+          <h2>Overview of Architecture</h2>
           <p class="lead">
-            The browser handles screens and immediate feedback. The server
-            handles auth, user-scoped records, EZQ execution, imports,
-            recommendations, and SQLite writes.
+            The web client is the primary interface to our server. The server
+            handles all of the functionality and executes instructions generated
+            by ezq. SQLite Is used to persist the data.
           </p>
 
           <div
@@ -196,96 +198,84 @@
             <div class="arch-main">
               <div class="arch-system">
                 <span>Front-End</span>
-                <strong>React client</strong>
-                <p>
-                  Library screens, forms, account flow, and live EZQ feedback
-                </p>
+                <strong>React</strong>
+                <p>Web interface for back-end</p>
               </div>
-              <div class="arch-link">
-                <span>HTTP API</span>
-                <small>actions</small>
-              </div>
+              <div class="arch-link"><span>HTTP</span></div>
               <div class="arch-system server-system">
                 <span>Back-End</span>
                 <strong>Express (Bun)</strong>
-                <p>
-                  Auth, media records, imports, recommendations, and user-scoped
-                  writes
-                </p>
+                <p>Back-end written in Typescript</p>
               </div>
-              <div class="arch-link">
-                <span>SQL</span>
-                <small>persistence</small>
-              </div>
+              <div class="arch-link"><span>SQL</span></div>
               <div class="arch-system">
                 <span>Storage</span>
                 <strong>SQLite DB</strong>
-                <p>Entries, tags, collections, ratings, and source metadata</p>
+                <p>For data persistance</p>
               </div>
             </div>
             <div class="optional-row">
               <div>
                 <strong>EZQ crate</strong>
                 <small
-                  >Rust/WASM parser used for browser feedback and server
-                  execution.</small
+                  >Easy query languages written by us in Rust, used for
+                  generating instructions for the server to execute.</small
                 >
               </div>
               <div>
                 <strong>Source integrations</strong>
                 <small
-                  >Configured providers enrich entries and refresh catalogue
-                  records.</small
+                  >Users can configure providers to use as metadata providers.
+                  They can be used with the #enrich command.</small
                 >
               </div>
               <div>
                 <strong>AI integrations</strong>
                 <small
-                  >Profiles can point to local or hosted OpenAI-compatible
-                  models.</small
+                  >Users can configure which AI model to use. We support
+                  OpenAI-compatible models (even locally hosted).</small
                 >
               </div>
             </div>
           </div>
           <p class="figure-caption">
-            Figure 1. High-level architecture based on the project component
-            diagram.
+            Figure 1. High-level architecture of Metavault.
           </p>
         </article>
 
         <article class="card query-card">
-          <h2>Shared data model and EZQ</h2>
+          <h2>EZQ (Easy Query)</h2>
           <p class="lead">
-            Movies, books, games, shows, anime, and manga use the same record
-            shape. EZQ gives repeated library actions a short command syntax
-            without exposing SQL.
+            EZQ is a Rust crate created by us. It gives us the ability to
+            execute most common library management operations with easy syntax.
           </p>
 
           <div class="query-examples">
             <p>
-              <code>/s status:In_Progress type:Movie</code
-              ><span>search in-progress movies</span>
+              <code>/s status:in_progress type:movie</code
+              ><span>Search in-progress movies</span>
             </p>
             <p>
-              <code>/c Dune type:Book status:Planning</code
-              ><span>create an entry</span>
+              <code>/c Dune type:book status:planning</code
+              ><span>Create an book entry</span>
             </p>
             <p>
-              <code>/u Severance &gt; status:Finished</code
-              ><span>update progress</span>
+              <code>/u Joker &gt; status:Finished</code
+              ><span>Update entry progress</span>
             </p>
-            <p><code>/s fantasy #enrich</code><span>search and enrich</span></p>
+            <p>
+              <code>/d public_rating:&lt;7</code><span>Delete entries</span>
+            </p>
           </div>
 
           <div class="trust-note">
             <strong>EZQ execution:</strong>
-            the client expands and validates commands for quick feedback. The
-            server parses the same query again, builds the action, and runs
-            controlled database operations for the signed-in user.
+            The web client expands and validates commands for quick feedback
+            using the EZQ crate built for browser environment. The server parses
+            the same query again, builds the list of action, and runs them for
+            the signed-in user using the EZQ crate built for Node.
           </div>
-          <p class="figure-caption">
-            Figure 2. Shared record model plus example EZQ commands.
-          </p>
+          <p class="figure-caption">Figure 2. Example EZQ commands.</p>
         </article>
       </section>
 
@@ -353,7 +343,7 @@
           <h2>Recommendation study outcomes</h2>
           <p class="lead">
             Five participants evaluated 25 prompts. Each prompt returned five
-            items, for 125 item ratings.
+            recommendations, for a total of 125 recorded ratings.
           </p>
 
           <div
@@ -382,7 +372,7 @@
             <div class="target-group percent-targets">
               <div class="target-row">
                 <div>
-                  <span>Lists with at least one good result</span>
+                  <span>Lists with quality match</span>
                   <strong>92%</strong>
                 </div>
                 <div class="target-measure">
@@ -416,8 +406,8 @@
             </div>
 
             <p class="study-note">
-              Targets were set before scoring. Useful means rating 3+, and good
-              means rating 4 or 5.
+              Useful means recommendations with at least a rating of 3, and
+              quality match means a recommendation with at least a rating of 4.
             </p>
           </div>
           <p class="figure-caption">Figure 4. Recommendation study summary.</p>
@@ -425,34 +415,45 @@
       </section>
 
       <section class="future-work">
-        <h2>Next planned work</h2>
-        <div>
-          <p>
-            <strong>Recommendation quality:</strong>
-            tune scoring weights, handle negative constraints better, and
-            refresh a broader catalogue.
-          </p>
-          <p>
-            <strong>Ownership workflow:</strong>
-            add release tracking, service links, optional owned-file links, and
-            richer import/export formats.
-          </p>
-          <p>
-            <strong>Search vocabulary:</strong>
-            improve EZQ docs and normalize cross-media tags for movies, anime,
-            games, books, manga, and shows.
-          </p>
+        <h2>Future Improvements</h2>
+        <div class="future-work-grid">
+          <article>
+            <strong>Recommendation quality</strong>
+            <p>
+              Tune scoring weights, handle negative constraints better, and
+              utilize a broader catalogue.
+            </p>
+          </article>
+          <article>
+            <strong>Usability improvements</strong>
+            <p>
+              Add release tracking, browser extensions for adding media easier,
+              and a simpler way for less advanced users to query their
+              libraries.
+            </p>
+          </article>
+          <article>
+            <strong>Query improvements</strong>
+            <p>
+              Improve EZQ docs and cross-media tag handling for movies, anime,
+              games, books, manga, and shows.
+            </p>
+          </article>
         </div>
       </section>
 
       <footer class="poster-footer">
         <div class="footer-main">
           <div class="footer-logo">
-            <img src="./Meta.png" alt="MetaVault logo">
+            <img src="./Meta.svg" alt="MetaVault logo">
           </div>
           <strong>MetaVault</strong>
         </div>
         <div class="qr-group" aria-label="Project links">
+          <figure>
+            <img src="./metavault-qr.svg" alt="MetaVault deployed site QR code">
+            <figcaption>Metavault</figcaption>
+          </figure>
           <figure>
             <img src="./github-qr.svg" alt="GitHub QR code">
             <figcaption>GitHub</figcaption>
