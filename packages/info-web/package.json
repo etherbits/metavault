@@ -4,7 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite src --host localhost --port ${INFO_WEB_PORT:-3536}"
+    "dev": "vite src --host 127.0.0.1 --port 3536",
+    "poster:pdf": "bun scripts/export-poster-pdf.js"
   },
   "devDependencies": {
     "vite": "^8.0.4"
