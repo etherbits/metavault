@@ -18,10 +18,13 @@ const browserPaths =
       ]
     : ["google-chrome", "chromium", "chromium-browser"];
 const browserPath =
-  process.env.CHROME_PATH ?? browserPaths.find((candidate) => existsSync(candidate));
+  process.env.CHROME_PATH ??
+  browserPaths.find((candidate) => existsSync(candidate));
 
 if (!browserPath) {
-  throw new Error("Chrome or Edge was not found. Set CHROME_PATH to your browser executable.");
+  throw new Error(
+    "Chrome or Edge was not found. Set CHROME_PATH to your browser executable."
+  );
 }
 
 await mkdir(path.dirname(outputPath), { recursive: true });
@@ -37,7 +40,7 @@ const browser = spawn(
     `--user-data-dir=${path.join(os.tmpdir(), `metavault-poster-${process.pid}`)}`,
     "about:blank",
   ],
-  { stdio: "ignore" },
+  { stdio: "ignore" }
 );
 
 try {
@@ -57,8 +60,8 @@ try {
   const pdf = await client.send("Page.printToPDF", {
     printBackground: true,
     preferCSSPageSize: true,
-    paperWidth: 33.1102,
-    paperHeight: 46.811,
+    paperWidth: 11.6929,
+    paperHeight: 16.5354,
     marginTop: 0,
     marginRight: 0,
     marginBottom: 0,
@@ -76,9 +79,12 @@ console.log(`Saved ${outputPath}`);
 async function openPage(url) {
   for (let attempt = 0; attempt < 50; attempt++) {
     try {
-      const response = await fetch(`http://127.0.0.1:${debugPort}/json/new?${encodeURIComponent(url)}`, {
-        method: "PUT",
-      });
+      const response = await fetch(
+        `http://127.0.0.1:${debugPort}/json/new?${encodeURIComponent(url)}`,
+        {
+          method: "PUT",
+        }
+      );
 
       if (response.ok) {
         return await response.json();
@@ -96,7 +102,9 @@ function connect(url) {
   let nextId = 1;
   const pending = new Map();
   const events = new Map();
-  const opened = new Promise((resolve) => socket.addEventListener("open", resolve, { once: true }));
+  const opened = new Promise((resolve) =>
+    socket.addEventListener("open", resolve, { once: true })
+  );
 
   socket.addEventListener("message", ({ data }) => {
     const message = JSON.parse(data);
@@ -104,7 +112,9 @@ function connect(url) {
     if (message.id) {
       const request = pending.get(message.id);
       pending.delete(message.id);
-      message.error ? request.reject(message.error) : request.resolve(message.result);
+      message.error
+        ? request.reject(message.error)
+        : request.resolve(message.result);
       return;
     }
 

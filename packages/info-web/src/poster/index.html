@@ -11,11 +11,10 @@
       <header class="poster-header">
         <div class="title-block">
           <p class="label">Senior Design Project, Spring 2026</p>
-          <h1>Metavault</h1>
-          <p class="subtitle">
-            A self-hostable media library for personal records, tracking,
-            search, and recommendations
-          </p>
+          <div class="project-title-row">
+            <h1>Metavault</h1>
+          </div>
+          <p class="subtitle">A self-hostable universal media library</p>
           <p class="team">
             Nikoloz Kvrivishvili, Guga Akopashvili, Giorgi Ratiani
           </p>
@@ -29,7 +28,8 @@
             <div>
               <p class="school">Ilia State University</p>
               <p>Faculty of Business, Technology and Education</p>
-              <p>School of Technology - Computer Science</p>
+              <p>School of Technology</p>
+              <p>Computer Science Undergraduate Program</p>
             </div>
           </div>
 
@@ -42,17 +42,30 @@
         </div>
       </header>
 
-      <section class="abstract">
-        <p>
-          Metavault is a self-hostable web application for tracking movies, TV
-          shows, anime, games, books, manga, and other media in one place. The
-          core library works without external services: users can create
-          records, search them, organize them, and export their data. Source
-          integrations and AI are opt-in. TMDB, AniList, IGDB, or OpenLibrary
-          can fill metadata, and a local or hosted OpenAI-compatible model can
-          power chat and recommendations.
-        </p>
-      </section>
+      <div class="abstract-row">
+        <section class="abstract">
+          <span class="abstract-logo">
+            <img src="./Meta.svg" alt="Metavault logo">
+          </span>
+          <p>
+            Metavault is a self-hostable web application for tracking movies, TV
+            shows, anime, games, books, manga, and other media in one place. The
+            core library works without external services: users can create
+            records, search them, organize them, and export their data. Source
+            integrations and AI are opt-in. TMDB, AniList, IGDB, or OpenLibrary
+            can fill metadata, and a local or hosted OpenAI-compatible model can
+            power chat and recommendations.
+          </p>
+        </section>
+        <figure class="abstract-qr">
+          <img
+            class="qr-code"
+            src="./metavault-qr.svg"
+            alt="QR code for hosted Metavault"
+          >
+          <figcaption><strong>Open Metavault</strong></figcaption>
+        </figure>
+      </div>
 
       <section class="presenter presenter-one">
         Motivation and product scope
@@ -170,8 +183,8 @@
             <div>
               <strong>AI assistant</strong
               ><span
-                >Use OpenAI-compatible local or hosted model for chat, discuss
-                about query results, and get recommendations.</span
+                >Use an OpenAI-compatible local or hosted model for chat,
+                discuss query results, and get recommendations.</span
               >
             </div>
           </div>
@@ -187,13 +200,13 @@
           <p class="lead">
             The web client is the primary interface to our server. The server
             handles all of the functionality and executes instructions generated
-            by ezq. SQLite Is used to persist the data.
+            by EZQ. SQLite is used to persist the data.
           </p>
 
           <div
             class="arch-figure arch-repo"
             role="img"
-            aria-label="MetaVault high-level component architecture"
+            aria-label="Metavault high-level component architecture"
           >
             <div class="arch-main">
               <div class="arch-system">
@@ -205,13 +218,13 @@
               <div class="arch-system server-system">
                 <span>Back-End</span>
                 <strong>Express (Bun)</strong>
-                <p>Back-end written in Typescript</p>
+                <p>Back-end written in TypeScript</p>
               </div>
               <div class="arch-link"><span>SQL</span></div>
               <div class="arch-system">
                 <span>Storage</span>
                 <strong>SQLite DB</strong>
-                <p>For data persistance</p>
+                <p>For data persistence</p>
               </div>
             </div>
             <div class="optional-row">
@@ -238,9 +251,6 @@
               </div>
             </div>
           </div>
-          <p class="figure-caption">
-            Figure 1. High-level architecture of Metavault.
-          </p>
         </article>
 
         <article class="card query-card">
@@ -257,7 +267,7 @@
             </p>
             <p>
               <code>/c Dune type:book status:planning</code
-              ><span>Create an book entry</span>
+              ><span>Create a book entry</span>
             </p>
             <p>
               <code>/u Joker &gt; status:Finished</code
@@ -269,197 +279,212 @@
           </div>
 
           <div class="trust-note">
-            <strong>EZQ execution:</strong>
-            The web client expands and validates commands for quick feedback
-            using the EZQ crate built for browser environment. The server parses
-            the same query again, builds the list of action, and runs them for
-            the signed-in user using the EZQ crate built for Node.
+            <strong>Why EZQ matters:</strong>
+            EZQ lets users manage their whole library through a single input. It
+            also lets them combine common operations in ways conventional
+            interface-driven querying and filtering systems usually cannot.
           </div>
-          <p class="figure-caption">Figure 2. Example EZQ commands.</p>
         </article>
       </section>
 
       <section class="presenter presenter-three">
-        Integrations, evidence, and next steps
+        AI and work distribution
       </section>
-      <section class="grid row-three">
-        <article class="card diagram-card">
-          <h2>Enrichment and recommendations</h2>
-          <p class="lead">
-            Source integrations can enrich saved entries and build the
-            recommendation catalogue. Recommendation requests embed the prompt,
-            filter catalogue candidates, and rank the matches before the
-            assistant explains them.
-          </p>
-
-          <div
-            class="rec-flow"
-            role="img"
-            aria-label="Recommendation pipeline diagram"
-          >
-            <div class="library-anchor">
-              <strong>Recommendation overview</strong>
+      <section class="grid row-three final-row">
+        <article
+          class="card recommendation-section"
+          aria-labelledby="recommendation-title"
+        >
+          <div class="recommendation-summary">
+            <div>
+              <h2 id="recommendation-title">Recommendation &amp; AI system</h2>
+            </div>
+            <p class="lead">
+              Metavault can connect to user-configured AI models to help with
+              library searches, results, and recommendations. When a user asks
+              for suggestions, the system finds suitable catalogue options,
+              ranks them, and lets the assistant present them.
+            </p>
+            <div class="study-overview">
+              <strong>Study overview</strong>
               <p>
-                MetaVault embeds the prompt and compares it with catalogue
-                vectors using cosine similarity. The final score also considers
-                keyword overlap, public rating, and popularity.
+                Seven participants evaluated five prompts each, with five
+                recommendations per prompt. These 175 item ratings were used to
+                calculate the evaluation metrics below.
               </p>
             </div>
-            <div class="rec-row">
-              <div>
-                <span>1</span><strong>Source<br>APIs</strong
-                ><small>fetch records</small>
-              </div>
-              <div>
-                <span>2</span><strong>Normalize<br>fields</strong
-                ><small>map provider data</small>
-              </div>
-              <div>
-                <span>3</span><strong>Catalogue<br>store</strong
-                ><small>store candidates</small>
-              </div>
-              <div>
-                <span>4</span><strong>Score<br>candidates</strong
-                ><small>filter and rank</small>
-              </div>
-              <div>
-                <span>5</span><strong>Assistant<br>answer</strong
-                ><small>explain ranked items</small>
+          </div>
+
+          <div class="recommendation-detail-grid">
+            <div class="recommendation-study-panel">
+              <div
+                class="target-chart"
+                role="img"
+                aria-label="Recommendation study outcomes"
+              >
+                <div class="target-group percent-targets">
+                  <div class="target-row">
+                    <div class="metric-label">
+                      <span>Precision@5</span>
+                      <strong>75.4%</strong>
+                    </div>
+                    <div class="target-measure">
+                      <div class="target-track" aria-hidden="true">
+                        <i style="width: 75.4%"></i>
+                        <em style="left: 60%">Target 60%</em>
+                      </div>
+                      <div class="target-scale" aria-hidden="true">
+                        <span>0%</span><span>50%</span><span>100%</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="target-group percent-targets">
+                  <div class="target-row">
+                    <div class="metric-label">
+                      <span>Hit Rate@5</span>
+                      <strong>88.6%</strong>
+                    </div>
+                    <div class="target-measure">
+                      <div class="target-track" aria-hidden="true">
+                        <i style="width: 88.6%"></i>
+                        <em style="left: 80%">Target 80%</em>
+                      </div>
+                      <div class="target-scale" aria-hidden="true">
+                        <span>0%</span><span>50%</span><span>100%</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="target-group rating-targets">
+                  <div class="target-row rating-row">
+                    <div class="metric-label">
+                      <span>Mean item rating</span>
+                      <strong>3.34 / 5</strong>
+                    </div>
+                    <div class="target-measure">
+                      <div class="target-track rating-track" aria-hidden="true">
+                        <i style="width: 58.43%"></i>
+                        <em style="left: 50%">Target 3.0</em>
+                      </div>
+                      <div class="target-scale" aria-hidden="true">
+                        <span>1.0</span><span>3.0</span><span>5.0</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <p class="study-note">
+                  Precision@5 counts recommendations rated 3 or higher. Hit
+                  Rate@5 counts lists containing at least one item rated 4 or
+                  higher.
+                </p>
               </div>
             </div>
           </div>
-
-          <p class="caption">
-            The assistant writes the answer after the server returns ranked
-            catalogue records.
-          </p>
-          <p class="figure-caption">
-            Figure 3. Source metadata becomes catalogue candidates before the
-            assistant explains recommendations.
-          </p>
         </article>
 
-        <article class="card evidence-card">
-          <h2>Recommendation study outcomes</h2>
-          <p class="lead">
-            Five participants evaluated 25 prompts. Each prompt returned five
-            recommendations, for a total of 125 recorded ratings.
-          </p>
+        <article
+          class="card team-distribution"
+          aria-labelledby="team-distribution-title"
+        >
+          <div class="team-distribution-heading">
+            <h2 id="team-distribution-title">
+              Work distribution <span>Condensed 15-week timeline</span>
+            </h2>
+            <p>
+              We condensed our 15-week timeline into four high-level phases and
+              highlighted each member’s corresponding contributions below.
+            </p>
+          </div>
 
           <div
-            class="target-chart"
-            role="img"
-            aria-label="Recommendation study outcomes"
+            class="team-matrix"
+            role="table"
+            aria-label="Team responsibilities by project development phase"
           >
-            <div class="target-group percent-targets">
-              <div class="target-row">
-                <div>
-                  <span>Useful items</span>
-                  <strong>76%</strong>
-                </div>
-                <div class="target-measure">
-                  <div class="target-track" aria-hidden="true">
-                    <i style="width: 76%"></i>
-                    <em style="left: 60%">target 60%</em>
-                  </div>
-                  <div class="target-scale" aria-hidden="true">
-                    <span>0%</span><span>50%</span><span>100%</span>
-                  </div>
-                </div>
-              </div>
+            <div class="matrix-corner" role="columnheader">
+              <strong>Phase</strong><span>duration</span>
+            </div>
+            <div class="member-heading" role="columnheader">
+              <img
+                src="../introduction/assets/nikoloz-kvrivishvili.jpg"
+                alt="Nikoloz Kvrivishvili"
+              >
+              <strong>Nikoloz Kvrivishvili</strong>
+            </div>
+            <div class="member-heading" role="columnheader">
+              <img
+                src="../introduction/assets/guga-akopashvili.jpg"
+                alt="Guga Akopashvili"
+              >
+              <strong>Guga Akopashvili</strong>
+            </div>
+            <div class="member-heading" role="columnheader">
+              <img
+                src="../introduction/assets/giorgi-ratiani.jpg"
+                alt="Giorgi Ratiani"
+              >
+              <strong>Giorgi<br>Ratiani</strong>
             </div>
 
-            <div class="target-group percent-targets">
-              <div class="target-row">
-                <div>
-                  <span>Lists with quality match</span>
-                  <strong>92%</strong>
-                </div>
-                <div class="target-measure">
-                  <div class="target-track" aria-hidden="true">
-                    <i style="width: 92%"></i>
-                    <em style="left: 80%">target 80%</em>
-                  </div>
-                  <div class="target-scale" aria-hidden="true">
-                    <span>0%</span><span>50%</span><span>100%</span>
-                  </div>
-                </div>
-              </div>
+            <div class="phase-cell" role="rowheader">
+              <strong>Foundation and planning</strong><span>3 weeks</span>
+            </div>
+            <div class="responsibility-cell" role="cell">
+              Repository and CI/CD, EZQ and integration planning
+            </div>
+            <div class="responsibility-cell" role="cell">
+              Express server and SQL table schemas
+            </div>
+            <div class="responsibility-cell" role="cell">
+              React setup along with core libraries
             </div>
 
-            <div class="target-group rating-targets">
-              <div class="target-row rating-row">
-                <div>
-                  <span>Average score</span>
-                  <strong>3.37 / 5.00</strong>
-                </div>
-                <div class="target-measure">
-                  <div class="target-track rating-track" aria-hidden="true">
-                    <i style="width: 59.25%"></i>
-                    <em style="left: 50%">target 3.0</em>
-                  </div>
-                  <div class="target-scale" aria-hidden="true">
-                    <span>1.0</span><span>3.0</span><span>5.0</span>
-                  </div>
-                </div>
-              </div>
+            <div class="phase-cell" role="rowheader">
+              <strong>Central functionality</strong><span>5 weeks</span>
+            </div>
+            <div class="responsibility-cell" role="cell">
+              EZQ crate, build setup for server and client
+            </div>
+            <div class="responsibility-cell" role="cell">
+              Authentication and CRUD flows for library, collections,
+              import/export
+            </div>
+            <div class="responsibility-cell" role="cell">
+              Web interfaces for library, collections, import/export flows
             </div>
 
-            <p class="study-note">
-              Useful means recommendations with at least a rating of 3, and
-              quality match means a recommendation with at least a rating of 4.
-            </p>
+            <div class="phase-cell intelligence-phase" role="rowheader">
+              <strong>MVP finalization</strong><span>5 weeks</span>
+            </div>
+            <div class="responsibility-cell intelligence-phase" role="cell">
+              Source integrations, command, assistant, recommendation logic
+            </div>
+            <div class="responsibility-cell intelligence-phase" role="cell">
+              Server integration of the mentioned logic
+            </div>
+            <div class="responsibility-cell intelligence-phase" role="cell">
+              Client integration for the mentioned logic
+            </div>
+
+            <div class="phase-cell" role="rowheader">
+              <strong>Refinement</strong><span>2 weeks</span>
+            </div>
+            <div class="responsibility-cell" role="cell">
+              Fixing EZQ bugs and gaps
+            </div>
+            <div class="responsibility-cell" role="cell">
+              Back-end cleanup and test improvement
+            </div>
+            <div class="responsibility-cell" role="cell">
+              UI polish and integration improvements
+            </div>
           </div>
-          <p class="figure-caption">Figure 4. Recommendation study summary.</p>
         </article>
       </section>
-
-      <section class="future-work">
-        <h2>Future Improvements</h2>
-        <div class="future-work-grid">
-          <article>
-            <strong>Recommendation quality</strong>
-            <p>
-              Tune scoring weights, handle negative constraints better, and
-              utilize a broader catalogue.
-            </p>
-          </article>
-          <article>
-            <strong>Usability improvements</strong>
-            <p>
-              Add release tracking, browser extensions for adding media easier,
-              and a simpler way for less advanced users to query their
-              libraries.
-            </p>
-          </article>
-          <article>
-            <strong>Query improvements</strong>
-            <p>
-              Improve EZQ docs and cross-media tag handling for movies, anime,
-              games, books, manga, and shows.
-            </p>
-          </article>
-        </div>
-      </section>
-
-      <footer class="poster-footer">
-        <div class="footer-main">
-          <div class="footer-logo">
-            <img src="./Meta.svg" alt="MetaVault logo">
-          </div>
-          <strong>MetaVault</strong>
-        </div>
-        <div class="qr-group" aria-label="Project links">
-          <figure>
-            <img src="./metavault-qr.svg" alt="MetaVault deployed site QR code">
-            <figcaption>Metavault</figcaption>
-          </figure>
-          <figure>
-            <img src="./github-qr.svg" alt="GitHub QR code">
-            <figcaption>GitHub</figcaption>
-          </figure>
-        </div>
-      </footer>
     </main>
   </body>
 </html>

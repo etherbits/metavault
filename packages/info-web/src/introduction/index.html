@@ -66,7 +66,10 @@
           <dl class="value-list">
             <div>
               <dt>Data ownership</dt>
-              <dd>SQLite data and export bundles keep the library portable.</dd>
+              <dd>
+                SQLite data and ZIP/CSV bundles keep records and local uploaded
+                images portable.
+              </dd>
             </div>
             <div>
               <dt>Shared media model</dt>
@@ -145,7 +148,8 @@
           <article>
             <strong>Portability</strong
             ><span
-              >Docker, SQLite, and import/export bundles keep setup movable.</span
+              >Docker, SQLite, and ZIP/CSV import/export bundles keep records
+              and local images movable.</span
             >
           </article>
           <article>
@@ -175,20 +179,17 @@
 
         <div class="architecture-flow" aria-label="Metavault architecture">
           <article>
-            <span>Front-End</span
-            ><strong>React</strong>
+            <span>Front-End</span><strong>React</strong>
             <p>Web interface for library workflows.</p>
           </article>
           <div class="flow-arrow" aria-hidden="true"><span>HTTP</span></div>
           <article>
-            <span>Back-End</span
-            ><strong>Express (Bun)</strong>
+            <span>Back-End</span><strong>Express (Bun)</strong>
             <p>TypeScript server for app actions.</p>
           </article>
           <div class="flow-arrow" aria-hidden="true"><span>SQL</span></div>
           <article>
-            <span>Storage</span
-            ><strong>SQLite DB</strong>
+            <span>Storage</span><strong>SQLite DB</strong>
             <p>Persistent records and source metadata.</p>
           </article>
         </div>
@@ -197,8 +198,8 @@
           <article>
             <strong>EZQ crate</strong>
             <p>
-              Easy query languages written by us in Rust, used for generating
-              instructions for the server to execute.
+              A Rust query language used for immediate browser feedback and
+              trusted, user-scoped server execution.
             </p>
           </article>
           <article>
@@ -243,7 +244,10 @@
           <p>
             Source integrations enrich saved entries and build the catalogue.
             The server filters and scores candidates before the assistant
-            explains the ranked results.
+            explains the ranked results. The study catalogue contained 796
+            records embedded with
+            <span class="inline-code">text-embedding-3-small</span> into 1,536
+            dimensions.
           </p>
         </div>
 
@@ -261,8 +265,9 @@
           <article class="study-copy">
             <h3>Recommendation study outcomes</h3>
             <p>
-              Five participants evaluated 25 prompts. Each prompt returned five
-              recommendations, for 125 recorded ratings.
+              Seven participants evaluated 35 prompts. Each prompt returned five
+              recommendations, producing 175 weighted-method ratings. Four
+              participants were outside the project team.
             </p>
           </article>
           <article
@@ -270,10 +275,10 @@
             aria-label="Recommendation study results"
           >
             <div class="study-metric">
-              <div><span>Useful items</span><strong>76%</strong></div>
+              <div><span>Precision@5</span><strong>75.4%</strong></div>
               <div class="study-measure">
                 <div class="study-track">
-                  <i style="width: 76%"></i
+                  <i style="width: 75.4%"></i
                   ><em style="left: 60%">target 60%</em>
                 </div>
                 <div class="study-scale">
@@ -282,12 +287,10 @@
               </div>
             </div>
             <div class="study-metric">
-              <div>
-                <span>Lists with quality match</span><strong>92%</strong>
-              </div>
+              <div><span>Hit Rate@5</span><strong>88.6%</strong></div>
               <div class="study-measure">
                 <div class="study-track">
-                  <i style="width: 92%"></i
+                  <i style="width: 88.6%"></i
                   ><em style="left: 80%">target 80%</em>
                 </div>
                 <div class="study-scale">
@@ -296,10 +299,36 @@
               </div>
             </div>
             <div class="study-metric">
-              <div><span>Average score</span><strong>3.37 / 5.00</strong></div>
+              <div><span>Mean item rating</span><strong>3.34 / 5</strong></div>
               <div class="study-measure">
                 <div class="study-track">
-                  <i style="width: 59.25%"></i
+                  <i style="width: 58.5%"></i
+                  ><em style="left: 50%">target 3.0</em>
+                </div>
+                <div class="study-scale">
+                  <span>1.0</span><span>3.0</span><span>5.0</span>
+                </div>
+              </div>
+            </div>
+            <div class="study-metric">
+              <div><span>Prompt adherence</span><strong>3.14 / 5</strong></div>
+              <div class="study-measure">
+                <div class="study-track">
+                  <i style="width: 53.5%"></i
+                  ><em style="left: 50%">target 3.0</em>
+                </div>
+                <div class="study-scale">
+                  <span>1.0</span><span>3.0</span><span>5.0</span>
+                </div>
+              </div>
+            </div>
+            <div class="study-metric">
+              <div>
+                <span>Overall experience</span><strong>3.29 / 5</strong>
+              </div>
+              <div class="study-measure">
+                <div class="study-track">
+                  <i style="width: 57.25%"></i
                   ><em style="left: 50%">target 3.0</em>
                 </div>
                 <div class="study-scale">
@@ -308,10 +337,103 @@
               </div>
             </div>
             <p class="study-note">
-              Useful means a rating of at least 3. Quality match means a rating
-              of at least 4.
+              All five weighted-method metrics met their initial targets. The
+              small study measured first impressions rather than long-term use.
             </p>
           </article>
+        </div>
+        <div
+          class="verification-results"
+          aria-label="Latest main-branch verification results"
+        >
+          <div>
+            <p class="eyebrow">Current verification</p>
+            <h3>Latest successful main-branch CI run</h3>
+          </div>
+          <div class="verification-strip">
+            <article>
+              <strong>81 / 81</strong><span>passing end-to-end tests</span>
+            </article>
+            <article>
+              <strong>209 / 209</strong
+              ><span>passing unit tests, including EZQ</span>
+            </article>
+            <article>
+              <strong>8 / 8</strong><span>passing CI jobs</span>
+            </article>
+          </div>
+          <p>Unit total combines 71 TypeScript tests and 138 EZQ tests.</p>
+        </div>
+      </section>
+
+      <section
+        class="section work-distribution-section"
+        aria-labelledby="work-distribution-title"
+      >
+        <div class="work-distribution-heading">
+          <p class="eyebrow">Condensed 15-week timeline</p>
+          <h2 id="work-distribution-title">Work distribution</h2>
+          <p>
+            We condensed our 15-week timeline into four high-level phases and
+            highlighted each member’s corresponding contributions below.
+          </p>
+        </div>
+        <div class="work-matrix-scroll">
+          <div
+            class="work-matrix"
+            role="table"
+            aria-label="Team responsibilities by project development phase"
+          >
+            <div class="work-matrix-head work-phase-head" role="columnheader">
+              <strong>Phase</strong><span>Duration</span>
+            </div>
+            <div class="work-matrix-head" role="columnheader">
+              <strong>Nikoloz Kvrivishvili</strong>
+            </div>
+            <div class="work-matrix-head" role="columnheader">
+              <strong>Guga Akopashvili</strong>
+            </div>
+            <div class="work-matrix-head" role="columnheader">
+              <strong>Giorgi Ratiani</strong>
+            </div>
+
+            <div class="work-phase" role="rowheader">
+              <strong>Foundation and planning</strong><span>3 weeks</span>
+            </div>
+            <div role="cell">
+              Repository and CI/CD, EZQ and integration planning
+            </div>
+            <div role="cell">Express server and SQL table schemas</div>
+            <div role="cell">React setup along with core libraries</div>
+
+            <div class="work-phase" role="rowheader">
+              <strong>Central functionality</strong><span>5 weeks</span>
+            </div>
+            <div role="cell">EZQ crate, build setup for server and client</div>
+            <div role="cell">
+              Authentication and CRUD flows for library, collections,
+              import/export
+            </div>
+            <div role="cell">
+              Web interfaces for library, collections, import/export flows
+            </div>
+
+            <div class="work-phase" role="rowheader">
+              <strong>MVP finalization</strong><span>5 weeks</span>
+            </div>
+            <div role="cell">
+              Source integrations, command, assistant, recommendation logic
+            </div>
+            <div role="cell">Server integration of the mentioned logic</div>
+            <div role="cell">Client integration for the mentioned logic</div>
+
+            <div class="work-phase" role="rowheader">
+              <strong>Refinement</strong><span>2 weeks</span>
+            </div>
+            <div role="cell">Fixing EZQ bugs and gaps</div>
+            <div role="cell">Back-end cleanup and test improvement</div>
+            <div role="cell">UI polish and integration improvements</div>
+          </div>
         </div>
       </section>
 
@@ -374,8 +496,8 @@
               <span>Student</span>
               <strong>Nikoloz Kvrivishvili</strong>
               <p>
-                Worked on the application architecture, backend services, and
-                core library workflows.
+                Worked on repository and CI/CD setup, EZQ, source integrations,
+                commands, assistant behavior, and recommendation logic.
               </p>
             </div>
           </article>
@@ -387,8 +509,8 @@
               <span>Student</span>
               <strong>Giorgi Ratiani</strong>
               <p>
-                Worked on source integrations, testing, and recommendation study
-                support.
+                Worked on React setup, web interfaces, client integration,
+                testing, and UI refinement.
               </p>
             </div>
           </article>
@@ -400,8 +522,8 @@
               <span>Student</span>
               <strong>Guga Akopashvili</strong>
               <p>
-                Worked on interface flows, user experience details, and
-                presentation materials.
+                Worked on database schemas, authentication, CRUD flows, server
+                integration, deployment support, and testing.
               </p>
             </div>
           </article>
