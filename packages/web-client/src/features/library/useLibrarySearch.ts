@@ -53,7 +53,7 @@ export function useLibrarySearch() {
     }
   }, [draft]);
 
-  const queryAction = useMemo(() => parseDraftAction(draft), [draft]);
+  const queryAction = useMemo(() => parseQueryAction(draft), [draft]);
 
   const handleQueryChange = (value: string) => {
     setDraft(value);
@@ -134,7 +134,7 @@ export function useLibrarySearch() {
   };
 }
 
-function parseDraftAction(draft: string): QueryAction {
+export function parseQueryAction(draft: string): QueryAction {
   const trimmed = draft.trim();
   if (trimmed === "") return "search";
 

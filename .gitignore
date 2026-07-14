@@ -8,6 +8,8 @@ packages/ezq/out/
 out
 dist
 *.tgz
+outputs
+**/*.zip
 
 # code coverage
 coverage

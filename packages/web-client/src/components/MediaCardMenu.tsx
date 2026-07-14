@@ -62,6 +62,7 @@ export function MediaCardMenu({
           collisionPadding={8}
           className={menuContentClass}
           style={{ direction: "ltr" }}
+          onClick={(event) => event.stopPropagation()}
           onCloseAutoFocus={(event) => event.preventDefault()}
         >
           <DropdownMenu.Item
@@ -83,6 +84,7 @@ export function MediaCardMenu({
                 collisionPadding={8}
                 className={cn(menuContentClass, "mr-2")}
                 style={{ direction: "ltr" }}
+                onClick={(event) => event.stopPropagation()}
               >
                 {statuses.map((status) => (
                   <DropdownMenu.Item

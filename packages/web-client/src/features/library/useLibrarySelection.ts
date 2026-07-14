@@ -44,7 +44,6 @@ export function useLibrarySelection(visibleItems: MediaItem[]) {
     resolveActionIds,
     selectedIds,
     selectMode,
-    setSelectedIds,
     toggleCardSelection,
   };
 }

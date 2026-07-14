@@ -1,10 +1,10 @@
 # Metavault: Self-hostable digital content management library
 
-MetaVault is a multi-user, API-first personal media library for tracking any kind of media you care about. It has a public landing page, account management, source-backed enrichment, catalogue-powered recommendations, AI-assisted querying, custom collections, personal ratings, and import/export — all built on a fast, lightweight stack.
+Metavault is a multi-user, API-first personal media library for tracking any kind of media you care about. It has a public landing page, account management, source-backed enrichment, catalogue-powered recommendations, AI-assisted querying, custom collections, personal ratings, and import/export — all built on a fast, lightweight stack.
 
 ## Features / What it can do
 
-MetaVault is a self-hostable media library for tracking any media in one searchable place. The current app supports:
+Metavault is a self-hostable media library for tracking any media in one searchable place. The current app supports:
 
 - Login, registration, and email verification flows.
 - Account settings for username changes, avatar uploads, password resets, and account deletion.
@@ -30,9 +30,9 @@ MetaVault is a self-hostable media library for tracking any media in one searcha
 
 The app starts with a public landing page for signed-out users. After signing in, the Home page groups library entries into sections, including in-progress items, recently added items, and custom collections. From there, I can click `Query More` to open that group in the Query page.
 
-The Query page is the main workspace in MetaVault. EZQ, short for Easy Query, is the central piece here. It lets me search the library, create new entries, update existing ones, delete entries, and run enrichment from a single input.
+The Query page is the main workspace in Metavault. EZQ, short for Easy Query, is the central piece here. It lets me search the library, create new entries, update existing ones, delete entries, and run enrichment from a single input.
 
-First, I create a new library entry with the `/c` create action. I can pass the title and any supported metadata, such as the media type. The syntax is intentionally flexible, so I do not have to write every field in its full canonical form. When the query is valid, MetaVault shows the canonical version below the input so I can see exactly what will be run.
+First, I create a new library entry with the `/c` create action. I can pass the title and any supported metadata, such as the media type. The syntax is intentionally flexible, so I do not have to write every field in its full canonical form. When the query is valid, Metavault shows the canonical version below the input so I can see exactly what will be run.
 
 Aliases can be configured in Settings and then used from the query input with commands such as `#alias:favorite-w`. Pull commands such as `#pull:anime:20` or `#pull:all:10` read from the recommendation catalogue and preview popular entries without going through normal EZQ search. When pull is used with `/c`, the selected catalogue entries are added to the library.
 
@@ -58,9 +58,7 @@ Settings also includes account controls. Users can update their username, upload
 
 The import and export flow creates a zip archive with a CSV file for the textual library data and any local images attached to the exported entries. Hosted images are not copied into the archive.
 
-Imported data is treated the same way as data added by hand. That means, for example, that an exported CSV can be edited before importing, then brought back into MetaVault as normal library entries.
-
-
+Imported data is treated the same way as data added by hand. That means, for example, that an exported CSV can be edited before importing, then brought back into Metavault as normal library entries.
 
 ## Setup
 
@@ -104,17 +102,21 @@ bun test:e2e
 
 ## Scripts
 
-| Command          | Description                      |
-| ---------------- | -------------------------------- |
-| `bun lint`       | Check for lint errors            |
-| `bun lint:fix`   | Auto-fix lint errors             |
-| `bun format`     | Format all source files          |
-| `bun type-check` | Type-check server and web client |
-| `bun test:unit`  | Run unit tests                   |
-| `bun test:e2e`   | Run end-to-end tests with a visible browser |
-| `bun test:e2e:headless` | Run end-to-end tests headlessly |
-| `bun db:seed`    | Seed the database                |
-| `bun db:reset`   | Reset the database               |
+| Command                 | Description                                           |
+| ----------------------- | ----------------------------------------------------- |
+| `bun lint`              | Check for lint errors (excluding `packages/info-web`) |
+| `bun lint:fix`          | Auto-fix lint errors (excluding `packages/info-web`)  |
+| `bun format`            | Format all source files                               |
+| `bun type-check`        | Type-check server and web client                      |
+| `bun test:unit`         | Run unit tests                                        |
+| `bun test:e2e`          | Run end-to-end tests with a visible browser           |
+| `bun test:e2e:headless` | Run end-to-end tests headlessly                       |
+| `bun db:seed`           | Seed the database                                     |
+| `bun db:reset`          | Reset the database                                    |
+
+The informational website in `packages/info-web` is excluded from Biome
+linting. It remains included in `bun format`, so its HTML and other supported
+files still use the repository's formatting rules.
 
 ## Testing
 
@@ -138,16 +140,16 @@ bun test:e2e
 
 All checks run on every push and pull request to `main`. Docker images are published to GHCR only on a direct push to `main` after all jobs pass.
 
-| Job          | What it does                                                                |
-| ------------ | --------------------------------------------------------------------------- |
-| `lint`       | Runs Biome lint across the entire repo                                      |
-| `unit-tests` | Runs `bun test` against `tests/unit-tests/`                                 |
-| `e2e`        | Starts the server and runs Playwright tests                                 |
-| `build`      | Builds the web client to verify the production bundle compiles              |
-| `type-check` | Runs `tsc --noEmit` for both `packages/server` and `packages/web-client`    |
-| `ezq`        | Runs `cargo fmt --check` and `cargo test` for the Rust `packages/ezq` crate |
+| Job           | What it does                                                                |
+| ------------- | --------------------------------------------------------------------------- |
+| `lint`        | Runs Biome lint across the repo, excluding `packages/info-web`              |
+| `unit-tests`  | Runs `bun test` against `tests/unit-tests/`                                 |
+| `e2e`         | Starts the server and runs Playwright tests                                 |
+| `build`       | Builds the web client to verify the production bundle compiles              |
+| `type-check`  | Runs `tsc --noEmit` for both `packages/server` and `packages/web-client`    |
+| `ezq`         | Runs `cargo fmt --check` and `cargo test` for the Rust `packages/ezq` crate |
 | `publish-ezq` | Builds and publishes the EZQ WASM packages for push builds                  |
-| `publish`    | Builds and pushes multi-arch Docker images to GHCR (main branch only)       |
+| `publish`     | Builds and pushes multi-arch Docker images to GHCR (main branch only)       |
 
 Deployment is handled by Coolify via its GitHub App integration — it picks up new images automatically after `publish` completes.
 

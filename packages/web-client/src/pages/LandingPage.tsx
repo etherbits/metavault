@@ -302,7 +302,7 @@ function HeroScreen({ reduceMotion }: { reduceMotion: boolean | null }) {
           <span className="grid h-8 w-8 place-items-center rounded-[8px] bg-[#27272A]">
             <MetaIcon className="h-8 w-8" />
           </span>
-          <span className="text-[16px] font-semibold">MetaVault</span>
+          <span className="text-[16px] font-semibold">Metavault</span>
         </Link>
 
         <nav className="flex items-center gap-2" aria-label="Public actions">

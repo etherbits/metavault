@@ -43,7 +43,15 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           cache: true
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: packages/ezq
+      - uses: jetli/wasm-pack-action@v0.4.0
+        with:
+          version: v0.13.1
       - run: bun install --frozen-lockfile
+      - run: bun run ezq:link
       - run: bunx playwright install chromium --with-deps
       - run: bun run test:e2e
         env:

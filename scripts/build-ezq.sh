@@ -21,14 +21,14 @@ patch_pkg packages/ezq/out/web @etherbits/ezq-web
 if [ "${1}" = "--link" ]; then
   echo "linking packages..."
 
-  # Remove already-installed root copies so bun link cannot reuse stale contents.
+  # Link the generated packages directly. `bun link --no-save` can resolve a
+  # workspace dependency back to the registry version instead of the local
+  # package, which leaves tests running against stale WASM.
   rm -rf node_modules/@etherbits/ezq-node
   rm -rf node_modules/@etherbits/ezq-web
-
-  (cd packages/ezq/out/node && bun link)
-  (cd packages/ezq/out/web && bun link)
-  (bun link --no-save @etherbits/ezq-node)
-  (bun link --no-save @etherbits/ezq-web)
+  mkdir -p node_modules/@etherbits
+  ln -s "$(pwd)/packages/ezq/out/node" node_modules/@etherbits/ezq-node
+  ln -s "$(pwd)/packages/ezq/out/web" node_modules/@etherbits/ezq-web
 
   # Remove package module copies so the correct final lib is used locally
   rm -rf packages/server/node_modules/@etherbits/ezq-node

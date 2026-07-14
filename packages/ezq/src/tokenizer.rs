@@ -275,22 +275,51 @@ impl Tokenizer {
         }
     }
 
-    /// Normalizes a [`TokenExpr`] by flattening nested logical expressions.
+    /// Normalizes an [`ASTExpr`] into disjunctive normal form.
     ///
     /// Applies the following rules recursively:
     /// - `And(And(a, b), c)` → `And(a, b, c)` (nested `And` inside `And` is flattened)
     /// - `Or(Or(a, b), c)` → `Or(a, b, c)` (nested `Or` inside `Or` is flattened)
+    /// - `And(a, Or(b, c))` → `Or(And(a, b), And(a, c))` (`And` distributes over `Or`)
     fn normalize_expr(&self, expr: ASTExpr) -> ASTExpr {
         match expr {
             ASTExpr::And(children) => {
-                let mut flat = Vec::new();
-                for child in children {
-                    match self.normalize_expr(child) {
-                        ASTExpr::And(inner) => flat.extend(inner),
-                        other => flat.push(other),
+                let normalized = children
+                    .into_iter()
+                    .map(|child| self.normalize_expr(child))
+                    .collect::<Vec<_>>();
+                let has_or = normalized
+                    .iter()
+                    .any(|child| matches!(child, ASTExpr::Or(_)));
+
+                if !has_or {
+                    let mut flat = Vec::new();
+                    for child in normalized {
+                        append_conjunction(&mut flat, child);
                     }
+                    return ASTExpr::And(flat);
                 }
-                ASTExpr::And(flat)
+
+                let mut products = vec![vec![]];
+                for child in normalized {
+                    let alternatives = match child {
+                        ASTExpr::Or(items) => items,
+                        other => vec![other],
+                    };
+                    let mut expanded = Vec::with_capacity(products.len() * alternatives.len());
+
+                    for product in products {
+                        for alternative in &alternatives {
+                            let mut branch = product.clone();
+                            append_conjunction(&mut branch, alternative.clone());
+                            expanded.push(branch);
+                        }
+                    }
+
+                    products = expanded;
+                }
+
+                ASTExpr::Or(products.into_iter().map(ASTExpr::And).collect())
             }
             ASTExpr::Or(children) => {
                 let mut flat = Vec::new();
@@ -396,6 +425,13 @@ impl Tokenizer {
         let normalized_tree = self.normalize_expr(token_tree);
 
         Ok(normalized_tree)
+    }
+}
+
+fn append_conjunction(target: &mut Vec<ASTExpr>, expr: ASTExpr) {
+    match expr {
+        ASTExpr::And(items) => target.extend(items),
+        other => target.push(other),
     }
 }
 
@@ -645,9 +681,9 @@ mod tests {
             root(
                 "update",
                 update(
-                    and(vec![
-                        or(vec![leaf("status:planning"), leaf("status:on_hold")]),
-                        leaf("id:42"),
+                    or(vec![
+                        and(vec![leaf("status:planning"), leaf("id:42")]),
+                        and(vec![leaf("status:on_hold"), leaf("id:42")]),
                     ]),
                     and(vec![leaf("status:finished"), leaf("tag:action")]),
                 )
@@ -800,7 +836,10 @@ mod tests {
             ast,
             root(
                 "search",
-                and(vec![leaf("a"), or(vec![leaf("b"), leaf("c")])])
+                or(vec![
+                    and(vec![leaf("a"), leaf("b")]),
+                    and(vec![leaf("a"), leaf("c")]),
+                ])
             ),
         );
     }
@@ -813,7 +852,10 @@ mod tests {
             ast,
             root(
                 "search",
-                and(vec![leaf("a"), or(vec![leaf("b"), leaf("c")]), leaf("d"),]),
+                or(vec![
+                    and(vec![leaf("a"), leaf("b"), leaf("d")]),
+                    and(vec![leaf("a"), leaf("c"), leaf("d")]),
+                ]),
             ),
         );
     }
@@ -921,9 +963,48 @@ mod tests {
     }
 
     #[test]
-    fn normalize_does_not_collapse_or_inside_and() {
+    fn normalize_distributes_or_inside_and() {
         let nested = ASTExpr::And(vec![leaf("a"), ASTExpr::Or(vec![leaf("b"), leaf("c")])]);
-        assert_eq!(tk().normalize_expr(nested.clone()), nested,);
+        assert_eq!(
+            tk().normalize_expr(nested),
+            or(vec![
+                and(vec![leaf("a"), leaf("b")]),
+                and(vec![leaf("a"), leaf("c")]),
+            ]),
+        );
+    }
+
+    #[test]
+    fn normalize_distributes_multiple_or_groups_as_cartesian_product() {
+        let nested = and(vec![
+            or(vec![leaf("a"), leaf("b")]),
+            leaf("c"),
+            or(vec![leaf("d"), leaf("e")]),
+        ]);
+        assert_eq!(
+            tk().normalize_expr(nested),
+            or(vec![
+                and(vec![leaf("a"), leaf("c"), leaf("d")]),
+                and(vec![leaf("a"), leaf("c"), leaf("e")]),
+                and(vec![leaf("b"), leaf("c"), leaf("d")]),
+                and(vec![leaf("b"), leaf("c"), leaf("e")]),
+            ]),
+        );
+    }
+
+    #[test]
+    fn tokenize_distributes_shared_qualifier_across_grouped_titles() {
+        assert_eq!(
+            tk().tokenize("/c (bleach | code geass) type:anime")
+                .unwrap(),
+            root(
+                "c",
+                or(vec![
+                    and(vec![leaf("bleach"), leaf("type:anime")]),
+                    and(vec![leaf("code"), leaf("geass"), leaf("type:anime")]),
+                ]),
+            ),
+        );
     }
 
     #[test]

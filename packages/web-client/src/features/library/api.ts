@@ -26,7 +26,9 @@ const serverStatusByMediaStatus: Record<MediaStatus, string> = {
 };
 
 export async function fetchLibraryEntries() {
-  const response = await executeEzqQuery({ query: "/search" });
+  const response = await executeEzqQuery({
+    query: "/search sort:created_at:descending",
+  });
   return mapServerEntriesToMediaItems(response.rows);
 }
 

@@ -71,6 +71,15 @@ export async function executeQuery(page: Page, query: string) {
     : null;
 
   await input.press("Enter");
+  if (isDeleteQuery(expectedQuery)) {
+    const confirmation = page.getByRole("alertdialog", {
+      name: "Run delete query?",
+    });
+    await expect(confirmation).toBeVisible();
+    await confirmation
+      .getByRole("button", { name: "Delete entries", exact: true })
+      .click();
+  }
   const request = await requestPromise;
   const response = request ? await request.response() : null;
   if (response) expect(response.ok()).toBeTruthy();
@@ -83,6 +92,10 @@ function normalizeEzqForRequestMatch(query: string) {
   } catch {
     return query.trim();
   }
+}
+
+function isDeleteQuery(query: string) {
+  return query.trim().match(/^\/([^\s]+)/)?.[1] === "delete";
 }
 
 function getEzqRequestQuery(postData: string | null) {

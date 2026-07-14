@@ -65,22 +65,16 @@ impl QualifierSegmentRule<'_> {
             FuzzyList(_) => !value.is_empty(),
             Float { min, max } => {
                 let (inequality, value) = self.split_inequality_value(value);
-                self.validate_inequality(inequality.as_str());
-
-                value
-                    .parse::<f64>()
-                    .map_or(false, |f| f >= *min && f <= *max)
+                self.validate_inequality(inequality.as_str())
+                    && value
+                        .parse::<f64>()
+                        .map_or(false, |f| f >= *min && f <= *max)
             }
             Date => {
                 let (inequality, value) = self.split_inequality_value(value);
-                self.validate_inequality(inequality.as_str());
-
-                NaiveDate::parse_from_str(
-                    value.trim_start_matches(|c: char| !c.is_ascii_digit()),
-                    "%d-%m-%Y",
-                )
+                self.validate_inequality(inequality.as_str())
+                    && NaiveDate::parse_from_str(&value, "%d-%m-%Y").is_ok()
             }
-            .is_ok(),
             _ => true,
         }
     }
@@ -111,7 +105,7 @@ impl QualifierSegmentRule<'_> {
                 value, min, max
             ),
             Date => format!(
-                "The provided value: {} is not a valid date. Please use the following format: (>,<,>=,<=)dd-mm-yyyy",
+                "The provided value: {} is not a valid date. Use [>,<,=,>=,<=]dd-mm-yyyy",
                 value
             ),
             _ => format!(
@@ -119,5 +113,28 @@ impl QualifierSegmentRule<'_> {
                 value
             ),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ratings_reject_unknown_comparators() {
+        assert!(RATING_RULE.is_valid(">=8"));
+        assert!(RATING_RULE.is_valid("8"));
+        assert!(!RATING_RULE.is_valid("!=8"));
+        assert!(!RATING_RULE.is_valid("banana8"));
+    }
+
+    #[test]
+    fn dates_reject_unknown_comparators() {
+        let rule = QualifierSegmentRule::Date;
+
+        assert!(rule.is_valid("<15-07-2026"));
+        assert!(rule.is_valid("15-07-2026"));
+        assert!(!rule.is_valid("!=15-07-2026"));
+        assert!(!rule.is_valid("banana15-07-2026"));
     }
 }

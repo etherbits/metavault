@@ -1,4 +1,4 @@
-import { generate_ast, type ASTExpr } from "@etherbits/ezq-web";
+import { type ASTExpr, generate_ast } from "@etherbits/ezq-web";
 
 type Precedence = "root" | "update" | "or" | "and" | "not";
 
@@ -11,10 +11,39 @@ const precedenceRank: Record<Precedence, number> = {
 };
 
 export function canonicalizeEzqQuery(input: string) {
+  return canonicalizeEzqQueryWithOptions(input);
+}
+
+export function canonicalizeEzqDeletePreview(input: string) {
+  return canonicalizeEzqQueryWithOptions(input, {
+    action: "search",
+    includeCommands: false,
+  });
+}
+
+function canonicalizeEzqQueryWithOptions(
+  input: string,
+  options: { action?: string; includeCommands?: boolean } = {}
+) {
   const trimmed = input.trim();
   const query = trimmed === "" ? "/" : trimmed;
+  const ast = generate_ast(query);
 
-  return formatAst(generate_ast(query), "root");
+  if (!("Root" in ast)) {
+    return formatAst(ast, "root");
+  }
+
+  const expression = formatAst(ast.Root.expression, "root");
+  const commands =
+    options.includeCommands === false
+      ? []
+      : ((ast.Root as typeof ast.Root & { commands?: string[] }).commands ??
+        []);
+  const commandText = commands.map((command) => `#${command}`).join(" ");
+
+  return [`/${options.action ?? ast.Root.action}`, expression, commandText]
+    .filter(Boolean)
+    .join(" ");
 }
 
 function formatAst(ast: ASTExpr, parent: Precedence): string {

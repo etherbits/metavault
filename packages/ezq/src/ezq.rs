@@ -50,3 +50,71 @@ pub enum EzqError {
     #[error(transparent)]
     SqlGenerator(#[from] SqlGenerateError),
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn shared_media_type_expression() -> ASTExpr {
+        ASTExpr::Or(vec![
+            ASTExpr::And(vec![
+                ASTExpr::Leaf("media_type:anime".to_string()),
+                ASTExpr::Leaf("title:bleach".to_string()),
+            ]),
+            ASTExpr::And(vec![
+                ASTExpr::Leaf("media_type:anime".to_string()),
+                ASTExpr::Leaf("title:dragon_ball_z".to_string()),
+            ]),
+        ])
+    }
+
+    fn root_parts(ast: ASTExpr) -> (String, ASTExpr, Vec<String>) {
+        let ASTExpr::Root {
+            action,
+            expression,
+            commands,
+        } = ast
+        else {
+            panic!("expected root expression");
+        };
+
+        (action, *expression, commands)
+    }
+
+    #[test]
+    fn shared_qualifier_has_identical_target_syntax_for_all_actions() {
+        let ezq = Ezq::new();
+        let target = "(bleach | dragon ball z) type:anime";
+
+        for (query, expected_action) in [
+            (format!("/s {target}"), "search"),
+            (format!("/d {target}"), "delete"),
+            (format!("/c {target}"), "create"),
+            (format!("/u {target} > status:finished"), "update"),
+        ] {
+            let (action, expression, _) = root_parts(ezq.generate_ast(&query).unwrap());
+            assert_eq!(action, expected_action);
+
+            let target_expression = match expression {
+                ASTExpr::Update { selection, .. } => *selection,
+                other => other,
+            };
+            assert_eq!(target_expression, shared_media_type_expression());
+        }
+    }
+
+    #[test]
+    fn mass_create_with_shared_media_type_generates_one_insert_per_title() {
+        let ezq = Ezq::new();
+        let ast = ezq
+            .generate_ast("/c (bleach | dragon ball z) type:anime #e:o")
+            .unwrap();
+        let (_, _, commands) = root_parts(ast.clone());
+        assert_eq!(commands, vec!["e:o"]);
+
+        let steps = ezq.generate_sql(ast, None).unwrap();
+        assert_eq!(steps.len(), 2);
+        assert_eq!(steps[0].params, vec!["anime", "bleach"]);
+        assert_eq!(steps[1].params, vec!["anime", "dragon ball z"]);
+    }
+}
