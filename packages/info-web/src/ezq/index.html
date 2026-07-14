@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="EZQ syntax rules and examples for Metavault."
+    >
+    <title>EZQ syntax documentation</title>
+    <link rel="stylesheet" href="./ezq.css">
+    <script src="./ezq.js" defer></script>
+  </head>
+  <body>
+    <main class="docs">
+      <a class="back-link" href="../introduction/">← Metavault</a>
+
+      <div class="page-title">
+        <h1>EZQ syntax</h1>
+        <p>
+          EZQ is the query language used on Metavault’s Query page. It can
+          search, create, update, and delete library entries.
+        </p>
+      </div>
+
+      <nav class="contents" aria-label="On this page">
+        <span>On this page</span>
+        <a href="#syntax">Syntax</a>
+        <a href="#actions">Actions</a>
+        <a href="#qualifiers">Qualifiers</a>
+        <a href="#commands">Commands</a>
+        <a href="#examples">Examples</a>
+      </nav>
+
+      <section id="syntax">
+        <h2>Basic syntax</h2>
+
+        <div class="syntax-block"><code>/action expression #command</code></div>
+
+        <p>
+          The action says what to do. The expression selects entries or gives
+          values to write. Commands are optional. They run after the action and
+          never change which entries an update or delete targets.
+        </p>
+
+        <h3>Expression operators</h3>
+        <div class="definition-list">
+          <div>
+            <code>space</code>
+            <div>
+              <h4>AND</h4>
+              <p>
+                Both conditions must match.
+                <code>status:finished tag:drama</code>
+              </p>
+            </div>
+          </div>
+          <div>
+            <code>|</code>
+            <div>
+              <h4>OR</h4>
+              <p>
+                Either condition may match.
+                <code>media_type:movie | media_type:anime</code>
+              </p>
+            </div>
+          </div>
+          <div>
+            <code>!</code>
+            <div>
+              <h4>NOT</h4>
+              <p>
+                Excludes a condition. <code>!adult:true</code> excludes adult
+                entries.
+              </p>
+            </div>
+          </div>
+          <div>
+            <code>( )</code>
+            <div>
+              <h4>Grouping</h4>
+              <p>
+                Controls which conditions are evaluated together.
+                <code>tag:space (status:planning | status:in_progress)</code>
+              </p>
+            </div>
+          </div>
+          <div>
+            <code>,</code>
+            <div>
+              <h4>AND list</h4>
+              <p>
+                Expands repeated qualifiers. <code>tag:space,drama</code> means
+                <code>tag:space tag:drama</code>. Use <code>|</code> for OR.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <h3>Precedence</h3>
+        <p>
+          EZQ evaluates parentheses first, then negation, AND, and OR. Use
+          parentheses when an expression mixes AND and OR.
+        </p>
+
+        <div class="syntax-block">
+          <pre><code>expression  = conjunction { "|" conjunction }
+conjunction = factor { " " factor }
+factor      = qualifier | bare-title | "!" factor | "(" expression ")"
+qualifier   = field ":" value [ ":" option ]</code></pre>
+        </div>
+
+        <h3>Titles and spaces</h3>
+        <p>
+          Bare words are treated as a title. For example,
+          <code>/search spirited away</code>
+          becomes
+          <code>/search title:spirited_away</code>.
+        </p>
+        <p>
+          In <code>title</code> and <code>collection</code> values, one
+          underscore represents a space. Two underscores represent a literal
+          underscore.
+          <code>collection:watch_later</code>
+          matches “watch later,” while
+          <code>collection:sci__fi</code>
+          matches “sci_fi.”
+        </p>
+
+        <h3>Fuzzy matching</h3>
+        <p>
+          Actions, qualifier names, and fixed values accept confident fuzzy
+          matches. <code>/s</code>, <code>type:movie</code>, and
+          <code>status:progress</code>
+          are valid. The canonical form shown below the Query input is the exact
+          form that Metavault will run.
+        </p>
+      </section>
+
+      <section id="actions">
+        <h2>Actions</h2>
+
+        <div class="table-wrap" tabindex="0">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Action</th>
+                <th scope="col">Short form</th>
+                <th scope="col">Syntax</th>
+                <th scope="col">What it does</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row"><code>/search</code></th>
+                <td><code>/s</code></td>
+                <td><code>/search [filter]</code></td>
+                <td>Returns matching entries. This is the default action.</td>
+              </tr>
+              <tr>
+                <th scope="row"><code>/create</code></th>
+                <td><code>/c</code></td>
+                <td><code>/create values</code></td>
+                <td>Creates an entry from a flat list of values.</td>
+              </tr>
+              <tr>
+                <th scope="row"><code>/update</code></th>
+                <td><code>/u</code></td>
+                <td><code>/update filter &gt; values</code></td>
+                <td>Updates every entry matched by the left side.</td>
+              </tr>
+              <tr>
+                <th scope="row"><code>/delete</code></th>
+                <td><code>/d</code></td>
+                <td><code>/delete filter</code></td>
+                <td>Deletes every matching entry.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Search</h3>
+        <p>
+          If no action is present, EZQ uses <code>/search</code>. An empty
+          search returns the whole library. Search is the only action that
+          accepts
+          <code>sort</code>.
+        </p>
+        <div class="example copyable">
+          <code>/search status:planning sort:created_at:descending</code>
+        </div>
+
+        <h3>Create</h3>
+        <p>
+          Create accepts a flat list of fields. A top-level OR creates one entry
+          per branch. Shared fields outside a grouped OR are applied to every
+          branch.
+        </p>
+        <div class="example copyable">
+          <code
+            >/create (title:bleach | title:dragon_ball_z) media_type:anime
+            status:planning</code
+          >
+        </div>
+        <p>
+          Create cannot write <code>id</code> or use <code>sort</code>. Ratings
+          and dates may omit the equality sign or use an explicit
+          <code>=</code>, but cannot use inequalities.
+        </p>
+
+        <h3>Update</h3>
+        <p>
+          Update uses <code> &gt; </code> to separate the filter from the new
+          values. The separator needs a space on each side. The filter accepts
+          the full expression syntax. The write side accepts values joined by
+          AND, plus negated tags and collections. It does not accept OR.
+        </p>
+        <div class="example copyable">
+          <code
+            >/update status:planning &gt; status:in_progress tag:started</code
+          >
+        </div>
+        <p>
+          Negate a tag or collection on the write side to remove it:
+          <code>!tag:drama</code>
+          or <code>!collection:watch_later</code>. Other fields cannot be
+          removed with negation.
+        </p>
+
+        <h3>Delete</h3>
+        <p>
+          Delete accepts the same filters as search, except
+          <code>sort</code>. Running a delete query opens a confirmation dialog
+          with the current number of matching entries. Nothing is deleted until
+          the query is confirmed. Commands are excluded from the count because
+          they do not change the delete target.
+        </p>
+        <div class="example copyable">
+          <code>/delete status:dropped created_at:&lt;01-01-2025</code>
+        </div>
+
+        <div class="warning">
+          <p>
+            <strong>Empty filters match the whole library.</strong>
+            <code>/update &gt; status:planning</code>
+            updates every entry, and
+            <code>/delete</code>
+            targets every entry owned by the signed-in user. The delete
+            confirmation count reflects that full target set.
+          </p>
+        </div>
+      </section>
+
+      <section id="qualifiers">
+        <h2>Qualifiers</h2>
+        <p>
+          A qualifier has a field name and value separated by a colon:
+          <code>field:value</code>. Some qualifiers accept a third segment.
+        </p>
+
+        <div class="table-wrap qualifier-table" tabindex="0">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Qualifier</th>
+                <th scope="col">Value</th>
+                <th scope="col">Example and notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row"><code>id</code></th>
+                <td>Entry ID</td>
+                <td>Exact match. May be used in filters, but not written.</td>
+              </tr>
+              <tr>
+                <th scope="row"><code>title</code></th>
+                <td>Text</td>
+                <td>
+                  <code>title:perfect_blue</code>. Search matches the words in
+                  order.
+                </td>
+              </tr>
+              <tr>
+                <th scope="row"><code>tag</code></th>
+                <td><code>value[:major|minor]</code></td>
+                <td>
+                  <code>tag:psychological:major</code>. Weight defaults to
+                  <code>major</code>.
+                </td>
+              </tr>
+              <tr>
+                <th scope="row"><code>collection</code></th>
+                <td>Collection name</td>
+                <td>
+                  <code>collection:weekend_list</code>. Name matching ignores
+                  case.
+                </td>
+              </tr>
+              <tr>
+                <th scope="row"><code>status</code></th>
+                <td>
+                  <code>in_progress</code>, <code>dropped</code>,
+                  <code>planning</code>, <code>on_hold</code>,
+                  <code>finished</code>
+                </td>
+                <td><code>status:in_progress</code></td>
+              </tr>
+              <tr>
+                <th scope="row"><code>media_type</code></th>
+                <td>
+                  <code>movie</code>, <code>tv_show</code>, <code>anime</code>,
+                  <code>game</code>, <code>book</code>, <code>manga</code>,
+                  <code>other</code>
+                </td>
+                <td><code>media_type:anime</code></td>
+              </tr>
+              <tr>
+                <th scope="row"><code>public_rating</code></th>
+                <td>Number from 0 to 10</td>
+                <td>
+                  <code>public_rating:&gt;=8</code>. Comparators are allowed in
+                  filters.
+                </td>
+              </tr>
+              <tr>
+                <th scope="row"><code>personal_rating</code></th>
+                <td>Number from 0 to 10</td>
+                <td>
+                  <code>personal_rating:&lt;6.5</code>. Decimals are allowed.
+                </td>
+              </tr>
+              <tr>
+                <th scope="row"><code>adult</code></th>
+                <td><code>true</code> or <code>false</code></td>
+                <td><code>adult:false</code></td>
+              </tr>
+              <tr>
+                <th scope="row"><code>created_at</code></th>
+                <td><code>[comparator]dd-mm-yyyy</code></td>
+                <td><code>created_at:&gt;=01-01-2026</code></td>
+              </tr>
+              <tr>
+                <th scope="row"><code>updated_at</code></th>
+                <td><code>[comparator]dd-mm-yyyy</code></td>
+                <td><code>updated_at:&lt;15-06-2026</code></td>
+              </tr>
+              <tr>
+                <th scope="row"><code>released_at</code></th>
+                <td><code>[comparator]dd-mm-yyyy</code></td>
+                <td><code>released_at:04-07-1999</code></td>
+              </tr>
+              <tr>
+                <th scope="row"><code>sort</code></th>
+                <td><code>field[:ascending|descending]</code></td>
+                <td>
+                  <code>sort:personal_rating:descending</code>. Search only. Use
+                  it once, at the top level. Direction defaults to descending.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Comparators</h3>
+        <p>
+          Ratings and dates accept <code>&gt;</code>, <code>&lt;</code>,
+          <code>=</code>, <code>&gt;=</code>, and <code>&lt;=</code>. Without a
+          comparator, EZQ uses equality. Write values accept either no
+          comparator or an explicit <code>=</code>; inequalities are only valid
+          in filters.
+        </p>
+
+        <h3>Sortable fields</h3>
+        <p class="code-list">
+          <code>id</code> <code>title</code> <code>status</code>
+          <code>media_type</code> <code>adult</code>
+          <code>public_rating</code> <code>personal_rating</code>
+          <code>released_at</code> <code>created_at</code>
+          <code>updated_at</code>
+        </p>
+      </section>
+
+      <section id="commands">
+        <h2>Commands</h2>
+        <p>
+          Commands start with <code>#</code>. EZQ removes them from the filter,
+          runs the main action, then runs commands from left to right.
+        </p>
+
+        <div class="warning">
+          <p>
+            <strong>Commands do not narrow an update or delete.</strong>
+            The action runs first, using only the expression. Commands then
+            process the returned rows. Use aliases as search-result filters, not
+            as selectors for write actions.
+          </p>
+        </div>
+
+        <h3><code>#enrich</code></h3>
+        <div class="syntax-block"><code>#enrich[:mode][:source]</code></div>
+        <p>
+          Enrichment fills entry metadata from a configured source.
+          <code>add</code>
+          is the default mode and fills missing fields.
+          <code>override</code>
+          replaces existing values. Supported sources are
+          <code>anilist</code>, <code>tmdb</code>, <code>igdb</code>, and
+          <code>openlibrary</code>.
+        </p>
+        <p>
+          The mode is positional. Use <code>#enrich:add:tmdb</code> or
+          <code>#enrich::tmdb</code>
+          to select TMDB; <code>#enrich:tmdb</code>
+          is not valid. Search enrichment is temporary, create and update save
+          enriched fields, and delete ignores enrichment.
+        </p>
+        <div class="example copyable">
+          <code
+            >/create title:akira media_type:anime status:planning
+            #enrich:override:anilist</code
+          >
+        </div>
+
+        <h3><code>#pull</code></h3>
+        <div class="syntax-block"><code>#pull:media_type:limit</code></div>
+        <p>
+          Pull reads top unseen entries from the recommendation catalogue. The
+          media type may be <code>movie</code>, <code>tv_show</code>,
+          <code>anime</code>, <code>game</code>, <code>book</code>,
+          <code>manga</code>, or <code>all</code>. The limit must be an integer
+          from 1 to 500.
+        </p>
+        <p>
+          In search, pull replaces normal search results with catalogue
+          previews. In create, it adds the pulled entries after any entries in
+          the create expression. Update and delete ignore pull.
+        </p>
+        <div class="example copyable"><code>/search #pull:anime:20</code></div>
+
+        <h3><code>#alias</code></h3>
+        <div class="syntax-block"><code>#alias:name</code></div>
+        <p>
+          Alias mappings are configured in Settings. Use 1 to 64 lowercase
+          letters, numbers, underscores, or dashes for the name; command input
+          is normalized to lowercase. The saved expansion is an EZQ filter and
+          cannot contain another command. Alias matching filters rows returned
+          by the action, so use it with search.
+        </p>
+        <div class="example copyable"><code>/search #alias:weekend</code></div>
+
+        <p>
+          Unknown commands and commands with an unsupported argument shape are
+          skipped without changing the result.
+        </p>
+      </section>
+
+      <section id="examples">
+        <h2>Common examples</h2>
+
+        <div class="examples">
+          <article>
+            <h3>High-rated unfinished anime</h3>
+            <div class="example copyable">
+              <code
+                >/search media_type:anime public_rating:&gt;=8 !status:finished
+                sort:public_rating:descending</code
+              >
+            </div>
+          </article>
+          <article>
+            <h3>Comedy movies or TV shows</h3>
+            <div class="example copyable">
+              <code
+                >/search tag:comedy (media_type:movie | media_type:tv_show)</code
+              >
+            </div>
+          </article>
+          <article>
+            <h3>Recently updated entries</h3>
+            <div class="example copyable">
+              <code
+                >/search updated_at:&gt;=01-07-2026 sort:updated_at:descending</code
+              >
+            </div>
+          </article>
+          <article>
+            <h3>Create a book</h3>
+            <div class="example copyable">
+              <code
+                >/create title:the_left_hand_of_darkness media_type:book
+                status:planning tag:science-fiction tag:classic:minor</code
+              >
+            </div>
+          </article>
+          <article>
+            <h3>Finish every entry in a collection</h3>
+            <div class="example copyable">
+              <code
+                >/update collection:summer_watchlist &gt; status:finished</code
+              >
+            </div>
+          </article>
+          <article>
+            <h3>Move entries to another collection</h3>
+            <div class="example copyable">
+              <code
+                >/update collection:watch_next &gt; !collection:watch_next
+                collection:watched</code
+              >
+            </div>
+          </article>
+          <article>
+            <h3>Remove two tags</h3>
+            <div class="example copyable">
+              <code
+                >/update title:home_alone &gt; !tag:holiday !tag:family</code
+              >
+            </div>
+          </article>
+          <article>
+            <h3>Create a movie and fetch its metadata</h3>
+            <div class="example copyable">
+              <code
+                >/create title:the_batman media_type:movie status:planning
+                #enrich:override:tmdb</code
+              >
+            </div>
+          </article>
+          <article>
+            <h3>Add ten games from the catalogue</h3>
+            <div class="example copyable">
+              <code>/create #pull:game:10</code>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

@@ -451,76 +451,53 @@ impl SqlGenerator {
 
         for item in &items {
             let leaf = &item.leaf;
-            let (prefix, segments) = self.split_leaf(leaf)?;
-            match prefix {
-                "id" => return Err(SqlGenerateError::IdNotAllowedInWriteContext),
-                "status" | "media_type" => {
-                    if item.remove {
-                        return Err(SqlGenerateError::UnsupportedUpdateWriteShape);
-                    }
-                    let value = first_segment(&segments, leaf)?;
-                    upsert_scalar_col(&mut scalar_cols, prefix, value.to_string());
+            match self.decode_qualifier(leaf)? {
+                DecodedQualifier::Id(_) => {
+                    return Err(SqlGenerateError::IdNotAllowedInWriteContext);
                 }
-                "adult" => {
+                DecodedQualifier::Scalar { column, value } => {
                     if item.remove {
                         return Err(SqlGenerateError::UnsupportedUpdateWriteShape);
                     }
-                    let value = first_segment(&segments, leaf)?;
-                    upsert_scalar_col(&mut scalar_cols, prefix, bool_sql_value(value)?.to_string());
+                    upsert_scalar_col(&mut scalar_cols, &column, value);
                 }
-                "public_rating" | "personal_rating" => {
+                DecodedQualifier::Comparable {
+                    column,
+                    operator,
+                    value,
+                    is_date: _,
+                } => {
                     if item.remove {
                         return Err(SqlGenerateError::UnsupportedUpdateWriteShape);
                     }
-                    let value = first_segment(&segments, leaf)?;
-                    let (op, num) = split_op_value(value);
-                    if op != "=" {
+                    if operator != "=" {
                         return Err(SqlGenerateError::InequalityInWriteContext(leaf.clone()));
                     }
-                    upsert_scalar_col(&mut scalar_cols, prefix, num);
+                    upsert_scalar_col(&mut scalar_cols, &column, value);
                 }
-                column if DATE_COLUMNS.contains(&column) => {
-                    if item.remove {
-                        return Err(SqlGenerateError::UnsupportedUpdateWriteShape);
-                    }
-                    let value = first_segment(&segments, leaf)?;
-                    let (op, date) = split_op_value(value);
-                    if op != "=" {
-                        return Err(SqlGenerateError::InequalityInWriteContext(leaf.clone()));
-                    }
-                    upsert_scalar_col(&mut scalar_cols, column, reformat_date(&date)?);
-                }
-                "tag" => {
-                    let tag = TagWrite {
-                        value: first_segment(&segments, leaf)?.to_string(),
-                        weight: nth_segment(&segments, 1, leaf)?.to_string(),
-                    };
+                DecodedQualifier::Tag(tag) => {
                     if item.remove {
                         tag_removals.push(tag);
                     } else {
                         tag_values.push(tag);
                     }
                 }
-                "collection" => {
-                    let collection = CollectionWrite {
-                        name: decode_keyword_space(first_segment(&segments, leaf)?),
-                    };
+                DecodedQualifier::Collection(collection) => {
                     if item.remove {
                         collection_removals.push(collection);
                     } else {
                         collection_values.push(collection);
                     }
                 }
-                "title" => {
+                DecodedQualifier::Title(title) => {
                     if item.remove {
                         return Err(SqlGenerateError::UnsupportedUpdateWriteShape);
                     }
                     if title_value.is_some() {
                         return Err(SqlGenerateError::MultipleTitlesNotAllowed);
                     }
-                    title_value = Some(decode_keyword_space(first_segment(&segments, leaf)?));
+                    title_value = Some(title.exact);
                 }
-                other => return Err(SqlGenerateError::UnknownQualifier(other.to_string())),
             }
         }
 
@@ -542,56 +519,99 @@ impl SqlGenerator {
         leaf: &str,
         params: &mut Vec<String>,
     ) -> Result<String, SqlGenerateError> {
-        let (prefix, segments) = self.split_leaf(leaf)?;
-        match prefix {
-            "id" => {
-                params.push(first_segment(&segments, leaf)?.to_string());
+        match self.decode_qualifier(leaf)? {
+            DecodedQualifier::Id(value) => {
+                params.push(value);
                 Ok("library_entries.id = ?".to_string())
             }
-            "status" => {
-                params.push(first_segment(&segments, leaf)?.to_string());
-                Ok("library_entries.status = ?".to_string())
+            DecodedQualifier::Scalar { column, value } => {
+                params.push(value);
+                Ok(format!("library_entries.{} = ?", column))
             }
-            "media_type" => {
-                params.push(first_segment(&segments, leaf)?.to_string());
-                Ok("library_entries.media_type = ?".to_string())
+            DecodedQualifier::Comparable {
+                column,
+                operator,
+                value,
+                is_date,
+            } => {
+                params.push(value);
+                if is_date {
+                    Ok(format!(
+                        "date(library_entries.{}) {} date(?)",
+                        column, operator
+                    ))
+                } else {
+                    Ok(format!("library_entries.{} {} ?", column, operator))
+                }
             }
-            "adult" => {
-                let value = first_segment(&segments, leaf)?;
-                params.push(bool_sql_value(value)?.to_string());
-                Ok("library_entries.adult = ?".to_string())
-            }
-            "public_rating" | "personal_rating" => {
-                let value = first_segment(&segments, leaf)?;
-                let (op, num) = split_op_value(value);
-                params.push(num);
-                Ok(format!("library_entries.{} {} ?", prefix, op))
-            }
-            column if DATE_COLUMNS.contains(&column) => {
-                let value = first_segment(&segments, leaf)?;
-                let (op, date) = split_op_value(value);
-                params.push(reformat_date(&date)?);
-                Ok(format!("date(library_entries.{}) {} date(?)", column, op))
-            }
-            "tag" => {
-                params.push(first_segment(&segments, leaf)?.to_string());
-                params.push(nth_segment(&segments, 1, leaf)?.to_string());
+            DecodedQualifier::Tag(tag) => {
+                params.push(tag.value);
+                params.push(tag.weight);
                 Ok(
-                    "library_entries.id IN (SELECT library_entry_tags.library_entry_id FROM library_entry_tags JOIN tags ON tags.id = library_entry_tags.tag_id WHERE tags.value = ? AND tags.weight = ?)"
+                    "library_entries.id IN (SELECT library_entry_tags.library_entry_id FROM library_entry_tags JOIN tags ON tags.id = library_entry_tags.tag_id WHERE lower(tags.value) = lower(?) AND tags.weight = ?)"
                         .to_string(),
                 )
             }
-            "collection" => {
-                params.push(decode_keyword_space(first_segment(&segments, leaf)?));
+            DecodedQualifier::Collection(collection) => {
+                params.push(collection.name);
                 Ok(
                     "library_entries.id IN (SELECT collection_entries.library_entry_id FROM collection_entries JOIN collections ON collections.id = collection_entries.collection_id WHERE lower(collections.name) = lower(?))"
                         .to_string(),
                 )
             }
+            DecodedQualifier::Title(title) => {
+                params.push(title.like_pattern);
+                Ok("library_entries.title LIKE ? ESCAPE '\\'".to_string())
+            }
+        }
+    }
+
+    fn decode_qualifier(&self, leaf: &str) -> Result<DecodedQualifier, SqlGenerateError> {
+        let (prefix, segments) = self.split_leaf(leaf)?;
+        let value = || first_segment(&segments, leaf);
+
+        match prefix {
+            "id" => Ok(DecodedQualifier::Id(value()?.to_string())),
+            "status" | "media_type" => Ok(DecodedQualifier::Scalar {
+                column: prefix.to_string(),
+                value: value()?.to_string(),
+            }),
+            "adult" => Ok(DecodedQualifier::Scalar {
+                column: prefix.to_string(),
+                value: bool_sql_value(value()?)?.to_string(),
+            }),
+            "public_rating" | "personal_rating" => {
+                let (operator, value) = split_op_value(value()?);
+                Ok(DecodedQualifier::Comparable {
+                    column: prefix.to_string(),
+                    operator,
+                    value,
+                    is_date: false,
+                })
+            }
+            column if DATE_COLUMNS.contains(&column) => {
+                let (operator, value) = split_op_value(value()?);
+                Ok(DecodedQualifier::Comparable {
+                    column: column.to_string(),
+                    operator,
+                    value: reformat_date(&value)?,
+                    is_date: true,
+                })
+            }
+            "tag" => Ok(DecodedQualifier::Tag(TagWrite {
+                value: value()?.to_string(),
+                weight: nth_segment(&segments, 1, leaf)?.to_string(),
+            })),
+            "collection" => Ok(DecodedQualifier::Collection(CollectionWrite {
+                name: decode_keyword_space(value()?),
+            })),
             "title" => {
-                let value = first_segment(&segments, leaf)?;
-                params.push(format!("%{}%", decode_keyword_space(value)));
-                Ok("library_entries.title LIKE ?".to_string())
+                let exact = decode_keyword_space(value()?);
+                let like_pattern = title_like_pattern(&exact);
+                Ok(DecodedQualifier::Title(TitleValue {
+                    exact,
+                    like_pattern,
+                }))
             }
             other => Err(SqlGenerateError::UnknownQualifier(other.to_string())),
         }
@@ -836,6 +856,28 @@ struct CollectionWrite {
     name: String,
 }
 
+struct TitleValue {
+    exact: String,
+    like_pattern: String,
+}
+
+enum DecodedQualifier {
+    Id(String),
+    Scalar {
+        column: String,
+        value: String,
+    },
+    Comparable {
+        column: String,
+        operator: String,
+        value: String,
+        is_date: bool,
+    },
+    Tag(TagWrite),
+    Collection(CollectionWrite),
+    Title(TitleValue),
+}
+
 struct Sort {
     column: String,
     direction: &'static str,
@@ -928,6 +970,29 @@ fn decode_keyword_space(value: &str) -> String {
     }
 
     output
+}
+
+fn title_like_pattern(title: &str) -> String {
+    let words = title
+        .split_whitespace()
+        .map(escape_like_word)
+        .collect::<Vec<_>>()
+        .join("%");
+
+    format!("%{}%", words)
+}
+
+fn escape_like_word(word: &str) -> String {
+    let mut escaped = String::with_capacity(word.len());
+
+    for character in word.chars() {
+        if matches!(character, '\\' | '%' | '_') {
+            escaped.push('\\');
+        }
+        escaped.push(character);
+    }
+
+    escaped
 }
 
 fn reformat_date(date_str: &str) -> Result<String, SqlGenerateError> {
@@ -1052,7 +1117,7 @@ mod tests {
         assert_eq!(sql.len(), 1);
         assert_eq!(
             sql[0].sql,
-            "SELECT library_entries.*, COALESCE((SELECT json_group_array(json_object('id', tags.id, 'value', tags.value, 'weight', tags.weight)) FROM library_entry_tags JOIN tags ON tags.id = library_entry_tags.tag_id WHERE library_entry_tags.library_entry_id = library_entries.id), '[]') AS tags FROM library_entries WHERE (library_entries.status = ? AND (library_entries.id IN (SELECT library_entry_tags.library_entry_id FROM library_entry_tags JOIN tags ON tags.id = library_entry_tags.tag_id WHERE tags.value = ? AND tags.weight = ?) OR NOT (library_entries.media_type = ?)) AND library_entries.title LIKE ? AND date(library_entries.created_at) >= date(?))"
+            "SELECT library_entries.*, COALESCE((SELECT json_group_array(json_object('id', tags.id, 'value', tags.value, 'weight', tags.weight)) FROM library_entry_tags JOIN tags ON tags.id = library_entry_tags.tag_id WHERE library_entry_tags.library_entry_id = library_entries.id), '[]') AS tags FROM library_entries WHERE (library_entries.status = ? AND (library_entries.id IN (SELECT library_entry_tags.library_entry_id FROM library_entry_tags JOIN tags ON tags.id = library_entry_tags.tag_id WHERE lower(tags.value) = lower(?) AND tags.weight = ?) OR NOT (library_entries.media_type = ?)) AND library_entries.title LIKE ? ESCAPE '\\' AND date(library_entries.created_at) >= date(?))"
         );
         assert_eq!(
             sql[0].params,
@@ -1061,7 +1126,7 @@ mod tests {
                 "action".to_string(),
                 "major".to_string(),
                 "movie".to_string(),
-                "%attack on titan%".to_string(),
+                "%attack%on%titan%".to_string(),
                 "2024-06-01".to_string(),
             ]
         );
@@ -1076,6 +1141,30 @@ mod tests {
         assert!(sql[0].sql.contains("JOIN collections"));
         assert!(sql[0].sql.contains("lower(collections.name) = lower(?)"));
         assert_eq!(sql[0].params, vec!["watch list".to_string()]);
+    }
+
+    #[test]
+    fn title_filter_matches_words_in_order_across_punctuation_and_extra_words() {
+        let ast = root("search", leaf("title:code_geass_lelouch_of_rebellion"));
+        let sql = generator().generate(ast, Extras::default()).unwrap();
+
+        assert!(
+            sql[0]
+                .sql
+                .ends_with("WHERE library_entries.title LIKE ? ESCAPE '\\'")
+        );
+        assert_eq!(
+            sql[0].params,
+            vec!["%code%geass%lelouch%of%rebellion%".to_string()]
+        );
+    }
+
+    #[test]
+    fn title_filter_escapes_like_wildcards() {
+        let ast = root("search", leaf("title:sci__fi_100%"));
+        let sql = generator().generate(ast, Extras::default()).unwrap();
+
+        assert_eq!(sql[0].params, vec!["%sci\\_fi%100\\%%".to_string()]);
     }
 
     #[test]
@@ -1731,24 +1820,24 @@ mod tests {
         assert_eq!(sql.len(), 3);
         assert_eq!(
             sql[0].sql,
-            "UPDATE library_entries SET title = ?, updated_at = CURRENT_TIMESTAMP WHERE (library_entries.title LIKE ?) AND library_entries.user_id = ?"
+            "UPDATE library_entries SET title = ?, updated_at = CURRENT_TIMESTAMP WHERE (library_entries.title LIKE ? ESCAPE '\\') AND library_entries.user_id = ?"
         );
         assert_eq!(
             sql[0].params,
             vec![
                 "not home alone".to_string(),
-                "%home alone%".to_string(),
+                "%home%alone%".to_string(),
                 "user-1".to_string(),
             ]
         );
         assert_eq!(
             sql[1].sql,
-            "DELETE FROM library_entry_tags WHERE library_entry_id IN (SELECT library_entries.id FROM library_entries WHERE (library_entries.title LIKE ?) AND library_entries.user_id = ?) AND tag_id IN (SELECT tags.id FROM tags WHERE tags.user_id = ? AND tags.value = ? AND tags.weight = ?)"
+            "DELETE FROM library_entry_tags WHERE library_entry_id IN (SELECT library_entries.id FROM library_entries WHERE (library_entries.title LIKE ? ESCAPE '\\') AND library_entries.user_id = ?) AND tag_id IN (SELECT tags.id FROM tags WHERE tags.user_id = ? AND tags.value = ? AND tags.weight = ?)"
         );
         assert_eq!(
             sql[1].params,
             vec![
-                "%home alone%".to_string(),
+                "%home%alone%".to_string(),
                 "user-1".to_string(),
                 "user-1".to_string(),
                 "cringe".to_string(),
@@ -1758,7 +1847,7 @@ mod tests {
         assert_eq!(
             sql[2].params,
             vec![
-                "%home alone%".to_string(),
+                "%home%alone%".to_string(),
                 "user-1".to_string(),
                 "user-1".to_string(),
                 "family".to_string(),
@@ -1817,7 +1906,7 @@ mod tests {
         assert_eq!(sql.len(), 3);
         assert_eq!(
             sql[0].sql,
-            "UPDATE library_entries SET status = ?, created_at = ?, updated_at = CURRENT_TIMESTAMP WHERE (library_entries.id = ? AND library_entries.title LIKE ?)"
+            "UPDATE library_entries SET status = ?, created_at = ?, updated_at = CURRENT_TIMESTAMP WHERE (library_entries.id = ? AND library_entries.title LIKE ? ESCAPE '\\')"
         );
         assert_eq!(
             sql[0].params,
@@ -1825,7 +1914,7 @@ mod tests {
                 "finished".to_string(),
                 "2024-06-01".to_string(),
                 "42".to_string(),
-                "%attack on titan%".to_string(),
+                "%attack%on%titan%".to_string(),
             ]
         );
         assert_eq!(sql[0].outputs, Vec::<String>::new());
@@ -1840,7 +1929,7 @@ mod tests {
         assert_eq!(sql[1].outputs, Vec::<String>::new());
         assert_eq!(
             sql[2].sql,
-            "INSERT INTO library_entry_tags (library_entry_id, tag_id) SELECT library_entries.id, tags.id FROM library_entries JOIN tags ON tags.value = ? AND tags.weight = ? WHERE (library_entries.id = ? AND library_entries.title LIKE ?) AND NOT EXISTS (SELECT 1 FROM library_entry_tags WHERE library_entry_tags.library_entry_id = library_entries.id AND library_entry_tags.tag_id = tags.id)"
+            "INSERT INTO library_entry_tags (library_entry_id, tag_id) SELECT library_entries.id, tags.id FROM library_entries JOIN tags ON tags.value = ? AND tags.weight = ? WHERE (library_entries.id = ? AND library_entries.title LIKE ? ESCAPE '\\') AND NOT EXISTS (SELECT 1 FROM library_entry_tags WHERE library_entry_tags.library_entry_id = library_entries.id AND library_entry_tags.tag_id = tags.id)"
         );
         assert_eq!(
             sql[2].params,
@@ -1848,7 +1937,7 @@ mod tests {
                 "action".to_string(),
                 "major".to_string(),
                 "42".to_string(),
-                "%attack on titan%".to_string(),
+                "%attack%on%titan%".to_string(),
             ]
         );
         assert_eq!(sql[2].outputs, Vec::<String>::new());

@@ -1,4 +1,5 @@
 import { Bot, Database, Download, Upload } from "lucide-react";
+import { AlertDialog } from "radix-ui";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { AddToCollectionDialog } from "@/components/AddToCollectionDialog";
@@ -25,9 +26,11 @@ import {
   useCreateCollection,
   useSyncCollections,
 } from "@/features/collections/hooks";
+import { canonicalizeEzqDeletePreview } from "@/features/library/ezqCanonical";
 import {
   useDeleteLibraryEntry,
   useExportLibraryEntries,
+  useEzqSearch,
   useImportLibraryEntries,
   useUpdateLibraryEntry,
   useUpdateLibraryEntryPersonalRating,
@@ -36,7 +39,10 @@ import {
 import { toServerMediaType, toServerStatus } from "@/features/library/mappers";
 import { paginateItems } from "@/features/library/pagination";
 import type { MediaItem, MediaStatus } from "@/features/library/types";
-import { useLibrarySearch } from "@/features/library/useLibrarySearch";
+import {
+  parseQueryAction,
+  useLibrarySearch,
+} from "@/features/library/useLibrarySearch";
 import { useLibrarySelection } from "@/features/library/useLibrarySelection";
 import {
   pickImageFile,
@@ -82,15 +88,54 @@ export function QueryPage() {
     INITIAL_ASSISTANT_SESSION_ID
   );
   const [collectionDialogOpen, setCollectionDialogOpen] = useState(false);
+  const [pendingDeleteQuery, setPendingDeleteQuery] = useState<string | null>(
+    null
+  );
   const [pendingCollectionIds, setPendingCollectionIds] = useState<string[]>(
     []
   );
   const collectionsQuery = useCollections({ enabled: collectionDialogOpen });
   const collections = collectionsQuery.data ?? [];
+  let deletePreviewQuery = "";
+  let deletePreviewParseError = false;
+
+  if (pendingDeleteQuery !== null) {
+    try {
+      deletePreviewQuery = canonicalizeEzqDeletePreview(pendingDeleteQuery);
+    } catch {
+      deletePreviewParseError = true;
+    }
+  }
+
+  const deletePreview = useEzqSearch(deletePreviewQuery);
 
   const queryInputRef = useRef<HTMLInputElement>(null);
   const wasQueryExecuting = useRef(false);
   const assistantSessionsLoaded = useRef(false);
+
+  useEffect(() => {
+    const focusQueryOnFirstTab = (event: KeyboardEvent) => {
+      const focusIsAtDocumentLevel =
+        document.activeElement === document.body ||
+        document.activeElement === document.documentElement;
+
+      if (
+        event.key !== "Tab" ||
+        event.shiftKey ||
+        event.defaultPrevented ||
+        !focusIsAtDocumentLevel ||
+        queryInputRef.current?.disabled
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      queryInputRef.current?.focus();
+    };
+
+    document.addEventListener("keydown", focusQueryOnFirstTab);
+    return () => document.removeEventListener("keydown", focusQueryOnFirstTab);
+  }, []);
 
   useEffect(() => {
     if (wasQueryExecuting.current && !search.isQueryExecuting) {
@@ -113,10 +158,33 @@ export function QueryPage() {
     setActiveAssistantSessionId(assistantSessionsQuery.data[0].id);
   }, [assistantSessionsQuery.data]);
 
-  const handleQuerySearch = (value: string) => {
+  const executeQuery = (value: string) => {
     search.handleQuerySearch(value);
     setCurrentPage(1);
     selection.clearSelection();
+  };
+
+  const handleQuerySearch = (value: string) => {
+    if (parseQueryAction(value) === "delete") {
+      setPendingDeleteQuery(value);
+      return;
+    }
+
+    executeQuery(value);
+  };
+
+  const handleConfirmDeleteQuery = () => {
+    if (
+      pendingDeleteQuery === null ||
+      !deletePreview.isSuccess ||
+      deletePreview.isFetching
+    ) {
+      return;
+    }
+
+    const query = pendingDeleteQuery;
+    setPendingDeleteQuery(null);
+    executeQuery(query);
   };
 
   const handleCardStatusChange = async (
@@ -125,23 +193,21 @@ export function QueryPage() {
   ) => {
     const ids = selection.resolveActionIds(cardId);
     await updateEntry.mutateAsync({ ids, status });
+    selection.clearSelection();
     await search.refreshQuery();
   };
 
   const handleCardRemoveStatus = async (cardId: string) => {
     const ids = selection.resolveActionIds(cardId);
     await updateEntry.mutateAsync({ ids, status: undefined });
+    selection.clearSelection();
     await search.refreshQuery();
   };
 
   const handleCardDelete = async (cardId: string) => {
     const targetIds = selection.resolveActionIds(cardId);
-    const targetSet = new Set(targetIds);
-
-    selection.setSelectedIds((previous) =>
-      previous.filter((id) => !targetSet.has(id))
-    );
     await deleteEntry.mutateAsync(targetIds);
+    selection.clearSelection();
     await search.refreshQuery();
   };
 
@@ -161,6 +227,7 @@ export function QueryPage() {
       collectionIds,
       collections,
     });
+    selection.clearSelection();
     setCollectionDialogOpen(false);
     setPendingCollectionIds([]);
   };
@@ -176,6 +243,7 @@ export function QueryPage() {
   const handleUploadImage = (cardId: string) => {
     pickImageFile(async (file) => {
       await uploadEntryImage.mutateAsync({ id: cardId, file });
+      selection.clearSelection();
       await search.refreshQuery();
     });
   };
@@ -185,6 +253,7 @@ export function QueryPage() {
     personalRating: number
   ) => {
     await updatePersonalRating.mutateAsync({ id: cardId, personalRating });
+    selection.clearSelection();
     await search.refreshQuery();
   };
 
@@ -201,6 +270,7 @@ export function QueryPage() {
         "application/zip": [".zip"],
       },
     });
+    selection.clearSelection();
   };
 
   const handleImportItems = () => {
@@ -512,6 +582,70 @@ export function QueryPage() {
           <Bot size={20} />
         </Button>
       ) : null}
+
+      <AlertDialog.Root open={pendingDeleteQuery !== null}>
+        <AlertDialog.Portal>
+          <AlertDialog.Overlay className="fixed inset-0 z-[240] bg-[#18181B]/[0.86] backdrop-blur-[8px]" />
+          <AlertDialog.Content
+            className="-translate-x-1/2 -translate-y-1/2 fixed left-1/2 top-1/2 z-[250] w-[calc(100vw-32px)] max-w-[420px] rounded-[12px] border border-[#3F3F46] bg-[#18181B] p-6 shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.25),0px_4px_6px_-4px_rgba(0,0,0,0.2)] outline-none"
+            onEscapeKeyDown={() => setPendingDeleteQuery(null)}
+          >
+            <AlertDialog.Title className="text-[18px] font-semibold leading-7 text-[#FAFAFA]">
+              Run delete query?
+            </AlertDialog.Title>
+            <AlertDialog.Description className="mt-2 text-[14px] leading-5 text-[#A1A1AA]">
+              Review the number of matching entries before continuing. This
+              action cannot be undone.
+            </AlertDialog.Description>
+
+            <div
+              className="mt-4 rounded-[8px] border border-[#3F3F46] bg-[#27272A] px-4 py-3 text-[14px] leading-5"
+              role="status"
+            >
+              {deletePreviewParseError || deletePreview.isError ? (
+                <span className="text-[#FCA5A5]">
+                  Unable to preview this query. Deletion is disabled.
+                </span>
+              ) : deletePreview.isSuccess && !deletePreview.isFetching ? (
+                <span className="text-[#FAFAFA]">
+                  This query currently matches {deletePreview.data.length}{" "}
+                  {deletePreview.data.length === 1 ? "entry" : "entries"}.
+                </span>
+              ) : (
+                <span className="text-[#A1A1AA]">
+                  Checking how many entries match…
+                </span>
+              )}
+            </div>
+
+            <div className="mt-6 flex justify-end gap-2">
+              <AlertDialog.Cancel asChild>
+                <Button
+                  type="button"
+                  variant="surface"
+                  size="lg"
+                  onClick={() => setPendingDeleteQuery(null)}
+                >
+                  Cancel
+                </Button>
+              </AlertDialog.Cancel>
+              <AlertDialog.Action asChild>
+                <Button
+                  type="button"
+                  variant="danger-surface"
+                  size="lg"
+                  onClick={handleConfirmDeleteQuery}
+                  disabled={
+                    !deletePreview.isSuccess || deletePreview.isFetching
+                  }
+                >
+                  Delete entries
+                </Button>
+              </AlertDialog.Action>
+            </div>
+          </AlertDialog.Content>
+        </AlertDialog.Portal>
+      </AlertDialog.Root>
 
       <AddToCollectionDialog
         open={collectionDialogOpen}

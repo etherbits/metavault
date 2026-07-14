@@ -39,7 +39,7 @@
 		"zod": "^4.3.6"
 	},
 	"version": "1.0.0",
-	"description": "MetaVault is a multi-user, API-first personal media library for tracking any kind of media you care about. It has a public landing page, account management, source-backed enrichment, catalogue-powered recommendations, AI-assisted querying, custom collections, personal ratings, and import/export — all built on a fast, lightweight stack.",
+	"description": "Metavault is a multi-user, API-first personal media library for tracking any kind of media you care about. It has a public landing page, account management, source-backed enrichment, catalogue-powered recommendations, AI-assisted querying, custom collections, personal ratings, and import/export — all built on a fast, lightweight stack.",
 	"main": "index.js",
 	"directories": {
 		"doc": "docs",

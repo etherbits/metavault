@@ -10,7 +10,7 @@ export function AppShell() {
   return (
     <div className="relative flex h-dvh min-h-screen overflow-hidden bg-[#18181B] text-white">
       <motion.div
-        className="relative z-10 flex shrink-0"
+        className="relative z-20 flex shrink-0"
         initial={reduceMotion ? false : { opacity: 0, x: -10 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}

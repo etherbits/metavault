@@ -11,6 +11,14 @@
       "recommended": true
     }
   },
+  "overrides": [
+    {
+      "includes": ["packages/info-web/**"],
+      "linter": {
+        "enabled": false
+      }
+    }
+  ],
   "formatter": {
     "enabled": true,
     "indentStyle": "space",

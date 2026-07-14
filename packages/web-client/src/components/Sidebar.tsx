@@ -93,7 +93,7 @@ function SidebarBrand({ isOpen }: { isOpen: boolean }) {
         isOpen={isOpen}
         className="text-[16px] font-semibold text-[#E4E4E7]"
       >
-        MetaVault
+        Metavault
       </SidebarLabel>
     </motion.div>
   );

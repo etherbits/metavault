@@ -53,7 +53,8 @@ export function QueryInput({
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === "Enter") {
-      onSearch?.(inputValue);
+      e.preventDefault();
+      onSearch?.(e.currentTarget.value);
     }
   }
 
