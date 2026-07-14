@@ -1,59 +1,59 @@
 {
-	"name": "core",
-	"module": "index.ts",
-	"devDependencies": {
-		"@biomejs/biome": "^2.4.12",
-		"@types/bun": "latest",
-		"lefthook": "^2.1.6"
-	},
-	"peerDependencies": {
-		"typescript": "^5.9.3"
-	},
-	"private": true,
-	"scripts": {
-		"dev": "bun run --filter metavault-server --filter metavault-web-client --parallel dev",
-		"format": "biome format --write .",
-		"lint": "biome lint .",
-		"lint:fix": "biome lint --write .",
-		"test:e2e": "playwright test --config tests/playwright.config.ts",
-		"test:e2e:headless": "METAVAULT_E2E_HEADLESS=1 playwright test --config tests/playwright.config.ts",
-		"test:unit": "bun test tests/unit-tests",
-		"type-check": "bun run --cwd packages/server type-check && bun run --cwd packages/web-client type-check",
-		"db:migrate": "bun run --cwd packages/server db:migrate",
-		"db:seed": "bun run --cwd packages/server db:seed",
-		"db:reset": "bun run --cwd packages/server db:reset",
-		"ezq:link": "bash scripts/build-ezq.sh --link",
-		"ezq:unlink": "rm -rf node_modules/@etherbits && bun install",
-		"ezq:test": "cargo test --manifest-path packages/ezq/Cargo.toml",
-		"ezq:run": "cargo run --manifest-path packages/ezq/Cargo.toml"
-	},
-	"type": "module",
-	"workspaces": [
-		"packages/server",
-		"packages/web-client",
-		"packages/info-web",
-		"tests"
-	],
-	"dependencies": {
-		"fflate": "^0.8.3",
-		"zod": "^4.3.6"
-	},
-	"version": "1.0.0",
-	"description": "Metavault is a multi-user, API-first personal media library for tracking any kind of media you care about. It has a public landing page, account management, source-backed enrichment, catalogue-powered recommendations, AI-assisted querying, custom collections, personal ratings, and import/export — all built on a fast, lightweight stack.",
-	"main": "index.js",
-	"directories": {
-		"doc": "docs",
-		"test": "tests"
-	},
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/etherbits/metavault.git"
-	},
-	"keywords": [],
-	"author": "",
-	"license": "Apache-2.0",
-	"bugs": {
-		"url": "https://github.com/etherbits/metavault/issues"
-	},
-	"homepage": "https://github.com/etherbits/metavault#readme"
+  "name": "core",
+  "module": "index.ts",
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.12",
+    "@types/bun": "latest",
+    "lefthook": "^2.1.6"
+  },
+  "peerDependencies": {
+    "typescript": "^5.9.3"
+  },
+  "private": true,
+  "scripts": {
+    "dev": "bun run --filter metavault-server --filter metavault-web-client --parallel dev",
+    "format": "biome format --write .",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --write .",
+    "test:e2e": "playwright test --config tests/playwright.config.ts",
+    "test:e2e:headless": "METAVAULT_E2E_HEADLESS=1 playwright test --config tests/playwright.config.ts",
+    "test:unit": "bun test tests/unit-tests",
+    "type-check": "bun run --cwd packages/server type-check && bun run --cwd packages/web-client type-check",
+    "db:migrate": "bun run --cwd packages/server db:migrate",
+    "db:seed": "bun run --cwd packages/server db:seed",
+    "db:reset": "bun run --cwd packages/server db:reset",
+    "ezq:link": "bash scripts/build-ezq.sh --link",
+    "ezq:unlink": "rm -rf node_modules/@etherbits && bun install",
+    "ezq:test": "cargo test --manifest-path packages/ezq/Cargo.toml",
+    "ezq:run": "cargo run --manifest-path packages/ezq/Cargo.toml"
+  },
+  "type": "module",
+  "workspaces": [
+    "packages/server",
+    "packages/web-client",
+    "packages/info-web",
+    "tests"
+  ],
+  "dependencies": {
+    "fflate": "^0.8.3",
+    "zod": "^4.3.6"
+  },
+  "version": "1.0.0",
+  "description": "Metavault is a multi-user, API-first personal media library for tracking any kind of media you care about. It has a public landing page, account management, source-backed enrichment, catalogue-powered recommendations, AI-assisted querying, custom collections, personal ratings, and import/export — all built on a fast, lightweight stack.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/etherbits/metavault.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/etherbits/metavault/issues"
+  },
+  "homepage": "https://github.com/etherbits/metavault#readme"
 }
