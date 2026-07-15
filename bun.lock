@@ -27,7 +27,7 @@
     "packages/server": {
       "name": "metavault-server",
       "dependencies": {
-        "@etherbits/ezq-node": "latest",
+        "@etherbits/ezq-node": "0.1.12",
         "@types/express": "^5.0.6",
         "bcrypt": "^6.0.0",
         "cookie-parser": "^1.4.7",
@@ -59,7 +59,7 @@
       "name": "metavault-web-client",
       "version": "0.0.0",
       "dependencies": {
-        "@etherbits/ezq-web": "latest",
+        "@etherbits/ezq-web": "0.1.12",
         "@fontsource-variable/geist": "^5.2.8",
         "@hookform/resolvers": "^4.1.3",
         "@radix-ui/react-label": "^2.1.8",
@@ -193,9 +193,9 @@
 
     "@emnapi/wasi-threads": ["@emnapi/wasi-threads@1.2.1", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-uTII7OYF+/Mes/MrcIOYp5yOtSMLBWSIoLPpcgwipoiKbli6k322tcoFsxoIIxPDqW01SQGAgko4EzZi2BNv2w=="],
 
-    "@etherbits/ezq-node": ["@etherbits/ezq-node@0.1.10", "", {}, "sha512-RJKqb4HC7ovj5hXShpXpCWCPlwm/3yIzyOS6Vz3yrv0XiCwMicShHnK1/d88fslx91ropDcCjgCEZHWqC9ITOA=="],
+    "@etherbits/ezq-node": ["@etherbits/ezq-node@0.1.12", "", {}, "sha512-w6HmnIP8EnR+Wo+XVs27g3dg5yQ7E9P5SAQqlt9uQ8IauFqE8Ojix+1Ek8asx1gQ2BQ0p2MKm8gw5E3UbDQ4Nw=="],
 
-    "@etherbits/ezq-web": ["@etherbits/ezq-web@0.1.10", "", {}, "sha512-JBEIOsXyeTtWOm4qHzbb9l3td9A6cGqxPr2gduyWs+Ayp7rrCL5bMZA8Bb0pKrf+a+SsljDlhZjSwG6xVUpfgw=="],
+    "@etherbits/ezq-web": ["@etherbits/ezq-web@0.1.12", "", {}, "sha512-+wbZuU9D2hKU/YTD0r+czwDSTnExA8O8eeMEREefWuROBtXLE5FNlKFmRNEhZQ/Flj+0n+8WxeVXVN+IQtJNdA=="],
 
     "@floating-ui/core": ["@floating-ui/core@1.7.5", "", { "dependencies": { "@floating-ui/utils": "^0.2.11" } }, "sha512-1Ih4WTWyw0+lKyFMcBHGbb5U5FtuHJuujoyyr5zTaWS5EYMeT6Jb2AuDeftsCsEuchO+mM2ij5+q9crhydzLhQ=="],
 

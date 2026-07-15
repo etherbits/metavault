@@ -1,7 +1,4 @@
 import { beforeAll, describe, expect, it, mock } from "bun:test";
-import { mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
-import path from "node:path";
 import { z } from "zod";
 import { CommandDelegator } from "../../packages/server/commands/command-delegator";
 import type {
@@ -19,12 +16,6 @@ import type {
   EnrichedLibraryEntryData,
   SourceIntegration,
 } from "../../packages/server/enrichment/types";
-
-process.env.JWT_SECRET ??= "unit-secret";
-process.env.DATABASE_URL ??= `sqlite://${path.join(
-  mkdtempSync(path.join(tmpdir(), "metavault-command-unit-")),
-  "db.sqlite"
-)}`;
 
 let EnrichmentCommandExecutor: typeof import("../../packages/server/enrichment/enrichment-command-executor").EnrichmentCommandExecutor;
 let EnrichmentService: typeof import("../../packages/server/enrichment/enrichment.service").EnrichmentService;

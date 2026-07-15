@@ -1,2 +1,3 @@
 [test]
 root = "tests/unit-tests"
+preload = ["./tests/unit-tests/setup.ts"]
