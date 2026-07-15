@@ -67,7 +67,16 @@ test("auth sign-in sets the access cookie and returns the user", async ({
   });
 
   expect(response.ok()).toBeTruthy();
-  expect(response.headers()["set-cookie"]).toContain("access_token=");
+  const setCookie = response.headers()["set-cookie"];
+  expect(setCookie).toContain("access_token=");
+  expect(setCookie).toContain("Max-Age=86400");
+
+  const token = setCookie.match(/access_token=([^;]+)/)?.[1];
+  expect(token).toBeTruthy();
+  const payload = JSON.parse(
+    Buffer.from(token?.split(".")[1] ?? "", "base64url").toString("utf8")
+  ) as { exp: number; iat: number };
+  expect(payload.exp - payload.iat).toBe(86400);
 
   const body = await response.json();
   expect(body).toMatchObject({
