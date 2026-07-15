@@ -18,6 +18,52 @@ impl Tokenizer {
         self.matcher.fuzzy_match(stripped, ACTION_KEYWORDS)
     }
 
+    fn normalize_quoted_values(&self, query: &str) -> Result<String, TokenizerError> {
+        let mut normalized = String::with_capacity(query.len());
+        let mut in_quotes = false;
+        let mut quoted_value_has_content = false;
+        let mut pending_space = false;
+
+        for ch in query.chars() {
+            if ch == '"' {
+                in_quotes = !in_quotes;
+                if in_quotes {
+                    quoted_value_has_content = false;
+                    pending_space = false;
+                }
+                continue;
+            }
+
+            if !in_quotes {
+                normalized.push(ch);
+                continue;
+            }
+
+            if ch.is_whitespace() {
+                pending_space = quoted_value_has_content;
+                continue;
+            }
+
+            if pending_space {
+                normalized.push('_');
+                pending_space = false;
+            }
+
+            if ch == '_' {
+                normalized.push_str("__");
+            } else {
+                normalized.push(ch);
+            }
+            quoted_value_has_content = true;
+        }
+
+        if in_quotes {
+            return Err(TokenizerError::UnterminatedQuotedValue);
+        }
+
+        Ok(normalized)
+    }
+
     fn expand_qualifier_value_list(&self, qualifier: &str) -> Vec<String> {
         let Some((qualifier_type_section, qualifier_value_section)) = qualifier.split_once(':')
         else {
@@ -406,11 +452,14 @@ impl Tokenizer {
         Some(expanded_commands)
     }
 
-    pub fn tokenize(&self, mut input_query: &str) -> Result<ASTExpr, TokenizerError> {
-        input_query = input_query.trim();
+    pub fn tokenize(&self, input_query: &str) -> Result<ASTExpr, TokenizerError> {
+        let input_query = input_query.trim();
         if input_query.is_empty() {
             return Err(TokenizerError::EmptyInput);
         }
+
+        let normalized_query = self.normalize_quoted_values(input_query)?;
+        let input_query = normalized_query.as_str();
 
         let (mut query_without_commands, commands) = self.extract_commands(input_query);
         if query_without_commands.is_empty() && !commands.is_empty() {
@@ -447,6 +496,8 @@ pub enum TokenizerError {
     EmptyInput,
     #[error("`update` requires `<match query> > <write query>`")]
     MalformedUpdateExpression,
+    #[error("quoted values must have a closing double quote")]
+    UnterminatedQuotedValue,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, tsify_next::Tsify)]
@@ -523,6 +574,36 @@ mod tests {
         assert_eq!(
             result.err().unwrap().to_string(),
             "the input query was empty"
+        );
+    }
+
+    #[test]
+    fn quoted_qualifier_values_are_unwrapped() {
+        let ast = tk().tokenize(r#"/s title:"Frieren""#).unwrap();
+        assert_eq!(ast, root("s", leaf("title:Frieren")));
+    }
+
+    #[test]
+    fn quoted_qualifier_values_encode_spaces_and_literal_underscores() {
+        let ast = tk()
+            .tokenize(r#"/s title:"  Steins_Gate   Zero  ""#)
+            .unwrap();
+        assert_eq!(ast, root("s", leaf("title:Steins__Gate_Zero")));
+    }
+
+    #[test]
+    fn bare_quoted_titles_remain_a_single_expression_term() {
+        let ast = tk().tokenize(r#"/s "Attack on Titan""#).unwrap();
+        assert_eq!(ast, root("s", leaf("Attack_on_Titan")));
+    }
+
+    #[test]
+    fn unterminated_quoted_values_return_a_clear_error() {
+        let error = tk().tokenize(r#"/s title:"Frieren"#).unwrap_err();
+        assert!(matches!(error, TokenizerError::UnterminatedQuotedValue));
+        assert_eq!(
+            error.to_string(),
+            "quoted values must have a closing double quote"
         );
     }
 

@@ -117,4 +117,19 @@ mod tests {
         assert_eq!(steps[0].params, vec!["anime", "bleach"]);
         assert_eq!(steps[1].params, vec!["anime", "dragon ball z"]);
     }
+
+    #[test]
+    fn quoted_multiword_title_generates_the_expected_search_pattern() {
+        let ezq = Ezq::new();
+        let ast = ezq
+            .generate_ast(r#"/search title:"Attack on Titan""#)
+            .unwrap();
+        let (action, expression, _) = root_parts(ast.clone());
+
+        assert_eq!(action, "search");
+        assert_eq!(expression, ASTExpr::Leaf("title:Attack_on_Titan".into()));
+
+        let steps = ezq.generate_sql(ast, None).unwrap();
+        assert_eq!(steps[0].params, vec!["%Attack%on%Titan%"]);
+    }
 }

@@ -12,6 +12,7 @@ import type {
   VerifyUserInput,
 } from "../user/user.schema";
 import { err, ok, type Result } from "../utils/result";
+import { AUTH_SESSION_DURATION_SECONDS } from "./auth.constants";
 import { authModel } from "./auth.model";
 
 function generateOTP(): string {
@@ -34,7 +35,9 @@ function verifyPassword(password: string, hash: string): Promise<boolean> {
 }
 
 function generateJWT(userId: string): string {
-  return jwt.sign({ userId }, parsedEnv.JWT_SECRET, { expiresIn: "1h" });
+  return jwt.sign({ userId }, parsedEnv.JWT_SECRET, {
+    expiresIn: AUTH_SESSION_DURATION_SECONDS,
+  });
 }
 
 export class AuthService {

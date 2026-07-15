@@ -89,6 +89,34 @@ test("POST /ezq /search by tag returns matching entries with tags", async ({
   await expect(page.getByText(tag, { exact: true })).toBeVisible();
 });
 
+test("quoted title qualifiers search as their canonical values", async ({
+  request,
+  page,
+}) => {
+  await signIn(request);
+  const title = `quoted title ${Date.now()}`;
+  const created = await createLibraryEntry(request, {
+    title,
+    mediaType: "anime",
+  });
+  const quotedQuery = `/search title:"${title}"`;
+  const canonicalQuery = `/search title:${title.replaceAll(" ", "_")}`;
+
+  const response = await request.post("/ezq", {
+    data: { query: quotedQuery },
+  });
+  expect(response.ok()).toBeTruthy();
+  const body = await response.json();
+  expect(body.rows.map((row: { id: string }) => row.id)).toContain(created.id);
+
+  await openQueryPage(page);
+  const input = page.getByPlaceholder("Query your library with EZQ");
+  await input.fill(quotedQuery);
+  await expect(page.getByText(canonicalQuery, { exact: true })).toBeVisible();
+  await executeQuery(page, quotedQuery);
+  await expectQueryResult(page, title);
+});
+
 test("POST /ezq /s returns all of the user's entries", async ({
   request,
   page,
