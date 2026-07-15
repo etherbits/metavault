@@ -6,6 +6,27 @@ import {
   openQueryPage,
 } from "../helpers/queryPage";
 
+test("query preview recovers from an unfinished parenthesis group", async ({
+  request,
+  page,
+}) => {
+  await signIn(request);
+  await openQueryPage(page);
+
+  const input = page.getByPlaceholder("Query your library with EZQ");
+
+  await input.fill("/c (bleach |");
+  await expect(input).toHaveValue("/c (bleach |");
+
+  await input.fill("/c (bleach | code geass) type:anime");
+  await expect(
+    page.getByText(
+      "/create media_type:anime title:bleach | media_type:anime title:code_geass",
+      { exact: true }
+    )
+  ).toBeVisible();
+});
+
 test("query page distributes a shared qualifier across mass-created entries", async ({
   request,
   page,
