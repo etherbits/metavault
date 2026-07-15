@@ -23,7 +23,7 @@
     "typescript": "^5"
   },
   "dependencies": {
-    "@etherbits/ezq-node": "latest",
+    "@etherbits/ezq-node": "0.1.12",
     "@types/express": "^5.0.6",
     "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",

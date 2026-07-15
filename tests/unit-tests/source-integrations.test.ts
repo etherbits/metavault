@@ -1,13 +1,5 @@
 import { beforeAll, describe, expect, it, mock } from "bun:test";
-import { mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
-import path from "node:path";
 import type { LibraryEntryWithTags } from "../../packages/server/ezq/ezq.schema";
-
-const testRoot = mkdtempSync(path.join(tmpdir(), "metavault-si-unit-"));
-process.env.NODE_ENV = "test";
-process.env.JWT_SECRET = "unit-secret";
-process.env.DATABASE_URL = `sqlite://${path.join(testRoot, "db.sqlite")}`;
 
 let sourceIntegrationService: typeof import("../../packages/server/source-integrations/source-integration.service").sourceIntegrationService;
 let sourceIntegrationRegistry: typeof import("../../packages/server/enrichment/source-integration-registry").sourceIntegrationRegistry;
