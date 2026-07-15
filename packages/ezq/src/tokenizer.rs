@@ -64,6 +64,36 @@ impl Tokenizer {
         Ok(normalized)
     }
 
+    fn validate_parentheses(&self, query: &str) -> Result<(), TokenizerError> {
+        let mut depth = 0;
+        let mut in_quotes = false;
+
+        for ch in query.chars() {
+            if ch == '"' {
+                in_quotes = !in_quotes;
+                continue;
+            }
+            if in_quotes {
+                continue;
+            }
+
+            match ch {
+                '(' => depth += 1,
+                ')' if depth == 0 => {
+                    return Err(TokenizerError::UnexpectedClosingParenthesis);
+                }
+                ')' => depth -= 1,
+                _ => {}
+            }
+        }
+
+        if depth > 0 {
+            return Err(TokenizerError::UnclosedParenthesis);
+        }
+
+        Ok(())
+    }
+
     fn expand_qualifier_value_list(&self, qualifier: &str) -> Vec<String> {
         let Some((qualifier_type_section, qualifier_value_section)) = qualifier.split_once(':')
         else {
@@ -458,6 +488,7 @@ impl Tokenizer {
             return Err(TokenizerError::EmptyInput);
         }
 
+        self.validate_parentheses(input_query)?;
         let normalized_query = self.normalize_quoted_values(input_query)?;
         let input_query = normalized_query.as_str();
 
@@ -498,6 +529,10 @@ pub enum TokenizerError {
     MalformedUpdateExpression,
     #[error("quoted values must have a closing double quote")]
     UnterminatedQuotedValue,
+    #[error("query contains an opening parenthesis without a closing parenthesis")]
+    UnclosedParenthesis,
+    #[error("query contains a closing parenthesis without an opening parenthesis")]
+    UnexpectedClosingParenthesis,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, tsify_next::Tsify)]
@@ -604,6 +639,44 @@ mod tests {
         assert_eq!(
             error.to_string(),
             "quoted values must have a closing double quote"
+        );
+    }
+
+    #[test]
+    fn unclosed_parentheses_return_an_error_without_poisoning_the_tokenizer() {
+        let tokenizer = tk();
+        let error = tokenizer.tokenize("/c (bleach |").unwrap_err();
+
+        assert!(matches!(error, TokenizerError::UnclosedParenthesis));
+        assert_eq!(
+            error.to_string(),
+            "query contains an opening parenthesis without a closing parenthesis"
+        );
+        assert_eq!(
+            tokenizer.tokenize("/c bleach").unwrap(),
+            root("c", leaf("bleach"))
+        );
+    }
+
+    #[test]
+    fn unexpected_closing_parentheses_return_a_clear_error() {
+        let error = tk().tokenize("/c bleach)").unwrap_err();
+
+        assert!(matches!(
+            error,
+            TokenizerError::UnexpectedClosingParenthesis
+        ));
+        assert_eq!(
+            error.to_string(),
+            "query contains a closing parenthesis without an opening parenthesis"
+        );
+    }
+
+    #[test]
+    fn parentheses_inside_quoted_values_are_not_structural() {
+        assert_eq!(
+            tk().tokenize(r#"/s title:"Frieren (TV""#).unwrap(),
+            root("s", leaf("title:Frieren_(TV"))
         );
     }
 
